@@ -1,0 +1,5 @@
+# SeaweedFS internal directory/chunk metadata, not application file metadata.
+# Keep it alongside the master metadata and object volumes on persistent /data.
+[leveldb2]
+enabled = true
+dir = "/data/filer"
