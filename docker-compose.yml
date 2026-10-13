@@ -1,4 +1,95 @@
 services:
+  frontend:
+    container_name: hr_dam-frontend
+    image: hr-dam-frontend:local
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:8080"
+    networks: [infrastructure]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    container_name: hr_dam-backend
+    image: hr-dam-backend:local
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment: &application-environment
+      PORT: 3001
+      PGHOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      S3_ENDPOINT: ${S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
+      CLAMAV_HOST: clamav
+      RANKER_URL: ${RANKER_URL:-http://ranker:3002/rank}
+    expose: ["3001"]
+    networks: [infrastructure]
+    depends_on: &application-dependencies
+      flyway:
+        condition: service_completed_successfully
+      s3-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  worker:
+    container_name: hr_dam-worker
+    image: hr-dam-worker:local
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment: *application-environment
+    networks: [infrastructure]
+    depends_on: *application-dependencies
+    restart: unless-stopped
+
+  ranker:
+    container_name: hr_dam-ranker
+    image: hr-dam-ranker:local
+    build:
+      context: .
+      dockerfile: apps/ranker/Dockerfile
+    expose: ["3002"]
+    networks: [infrastructure]
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  clamav:
+    container_name: hr_dam-clamav
+    image: clamav/clamav:stable
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks: [infrastructure]
+    healthcheck:
+      test: [CMD, clamdscan, --ping, "3"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
   postgres:
     container_name: hr_dam-postgres
     image: postgres:16.13-alpine3.23
@@ -42,7 +133,13 @@ services:
       flyway:
         condition: service_completed_successfully
     healthcheck:
-      test: [CMD, /venv/bin/python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1/misc/ping', timeout=5)"]
+      test:
+        [
+          CMD,
+          /venv/bin/python3,
+          -c,
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1/misc/ping', timeout=5)",
+        ]
       interval: 10s
       timeout: 6s
       retries: 20
@@ -135,6 +232,7 @@ networks:
   infrastructure:
 
 volumes:
+  clamav_data:
   postgres_data:
   seaweedfs_data:
   pgadmin_data:

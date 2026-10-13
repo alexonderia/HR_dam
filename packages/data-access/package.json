@@ -1,0 +1,27 @@
+{
+  "name": "@hr/data-access",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hr/contracts": "1.0.0",
+    "pg": "^8.23.1",
+    "@aws-sdk/client-s3": "^3.1150.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1"
+  }
+}

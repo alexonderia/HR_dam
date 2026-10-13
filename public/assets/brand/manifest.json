@@ -1,0 +1,1306 @@
+{
+  "source": "Шаблон презентации Алабуга.pptx",
+  "sourceSha256": "ab5aae2eda1f07a99c97625c078ca907ec172cc308c6c4d5175e9c301837f8c3",
+  "slideCount": 28,
+  "mediaCount": 67,
+  "chartCount": 5,
+  "tableCount": 1,
+  "assets": [
+    {
+      "id": "brand-f4c76bb5b8514833c34e",
+      "name": "Градиентный многогранник SVG",
+      "category": "decoration",
+      "sourceFiles": [
+        "image-5-29.svg"
+      ],
+      "slides": [
+        26
+      ],
+      "sha256": "f4c76bb5b8514833c34e819a4e0bfed29d3bfe2c92c17591317b18e09f1bcd35",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 2095,
+      "width": "1018",
+      "height": "1080",
+      "transparent": true,
+      "url": "../assets/brand/brand-f4c76bb5b8514833c34e.svg",
+      "thumbnail": "../assets/brand/brand-f4c76bb5b8514833c34e.svg",
+      "usage": "Декоративный слой"
+    },
+    {
+      "id": "brand-ee941b7ae69453c1806a",
+      "name": "Стрелка вниз SVG 29",
+      "category": "decoration",
+      "sourceFiles": [
+        "image-8-29.svg",
+        "image-8-31.svg",
+        "image-8-33.svg"
+      ],
+      "slides": [
+        22
+      ],
+      "sha256": "ee941b7ae69453c1806ad0c24a772af9c71a2dd8b89c5c837afe7de498f0d729",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 577,
+      "width": "23",
+      "height": "66",
+      "transparent": true,
+      "url": "../assets/brand/brand-ee941b7ae69453c1806a.svg",
+      "thumbnail": "../assets/brand/brand-ee941b7ae69453c1806a.svg",
+      "usage": "Декоративный слой"
+    },
+    {
+      "id": "brand-93ee2c53d94768dae364",
+      "name": "Светлая геометрия",
+      "category": "background",
+      "sourceFiles": [
+        "image1.png"
+      ],
+      "slides": [
+        1
+      ],
+      "sha256": "93ee2c53d94768dae364eb9fbf57f9db64ab1f6c28b8c11f80bb908ea54c2e90",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 63495,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-93ee2c53d94768dae364.webp",
+      "thumbnail": "../assets/brand/brand-93ee2c53d94768dae364-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-54ddb68464f478e321f2",
+      "name": "Алабуга — горизонтальный логотип",
+      "category": "logo",
+      "sourceFiles": [
+        "image10.png"
+      ],
+      "slides": [
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17,
+        22,
+        24,
+        25,
+        26,
+        27,
+        9
+      ],
+      "sha256": "54ddb68464f478e321f27de7495638508f94e611e309a947bbde137ef1d1a3c3",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 9164,
+      "width": 614,
+      "height": 127,
+      "transparent": true,
+      "url": "../assets/brand/brand-54ddb68464f478e321f2.webp",
+      "thumbnail": "../assets/brand/brand-54ddb68464f478e321f2-thumb.webp",
+      "usage": "Сохранять пропорции и свободное поле"
+    },
+    {
+      "id": "brand-a1b31bc454ba5a8b5d53",
+      "name": "Светлая сетка",
+      "category": "background",
+      "sourceFiles": [
+        "image11.png"
+      ],
+      "slides": [
+        11,
+        20,
+        21
+      ],
+      "sha256": "a1b31bc454ba5a8b5d5314ba1b1fd9c1a397a28071e438307fd24fc5fc8fe488",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 224301,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-a1b31bc454ba5a8b5d53.webp",
+      "thumbnail": "../assets/brand/brand-a1b31bc454ba5a8b5d53-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-6dafbf3b4d13dc4bb5ed",
+      "name": "Белый ритм",
+      "category": "background",
+      "sourceFiles": [
+        "image12.png"
+      ],
+      "slides": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        22,
+        25
+      ],
+      "sha256": "6dafbf3b4d13dc4bb5edd0a994a98cd7b526b6ec05c0ac552eac49969d4b5f46",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 63465,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-6dafbf3b4d13dc4bb5ed.webp",
+      "thumbnail": "../assets/brand/brand-6dafbf3b4d13dc4bb5ed-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-35f657e9961279ce37a3",
+      "name": "Графика image13.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image13.png"
+      ],
+      "slides": [
+        12
+      ],
+      "sha256": "35f657e9961279ce37a3207e6139dd91ef43bba072d31f7691de79dee2cf75a6",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 350,
+      "width": 17,
+      "height": 16,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-dfd7ab0b549398ffb7d3",
+      "name": "Графика image14.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image14.png"
+      ],
+      "slides": [
+        12
+      ],
+      "sha256": "dfd7ab0b549398ffb7d3e823c2e9d23bbd5e6933cac36d0824f5bfaad43efbce",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 123,
+      "width": 2,
+      "height": 15,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-def444eb93dec8153c02",
+      "name": "Графика image15.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image15.png"
+      ],
+      "slides": [
+        12
+      ],
+      "sha256": "def444eb93dec8153c02a1904243204f0adedec4d4591a18f47258f6ac6103a7",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 121,
+      "width": 15,
+      "height": 2,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-d3e3f07c081b97518c54",
+      "name": "Графика image16.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image16.png"
+      ],
+      "slides": [
+        12
+      ],
+      "sha256": "d3e3f07c081b97518c54cd73d123387c80182565bf25ccce48ebbcb77aec1865",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 124380,
+      "width": 892,
+      "height": 676,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-79843a7e7e93e69a22dc",
+      "name": "Графика image17.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image17.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "79843a7e7e93e69a22dc6dd9706214bfba189ac6d19332c03aa2675d4d60e45c",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 449,
+      "width": 17,
+      "height": 15,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-bc74e723a28480626a18",
+      "name": "Графика image18.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image18.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "bc74e723a28480626a18a73e47e022e03d8cb9c22a8bde6a5838cfbfd34b1850",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 170,
+      "width": 13,
+      "height": 15,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-3b8c8042df65581196ff",
+      "name": "Графика image19.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image19.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "3b8c8042df65581196ff8566d223d87a93cd4d3d84d337cca468b5113d766bdb",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 458,
+      "width": 18,
+      "height": 21,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-1ce919b59c13ec5b05a0",
+      "name": "Белые грани",
+      "category": "background",
+      "sourceFiles": [
+        "image2.png"
+      ],
+      "slides": [
+        2
+      ],
+      "sha256": "1ce919b59c13ec5b05a09b432ceef35c7246e45c53cffb777ed641b295f99f84",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 268146,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-1ce919b59c13ec5b05a0.webp",
+      "thumbnail": "../assets/brand/brand-1ce919b59c13ec5b05a0-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-607857a49dc168eb88b9",
+      "name": "Графика image20.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image20.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "607857a49dc168eb88b9f32f9831995c167474001a3ab55303d2a1393a4f356c",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 593,
+      "width": 19,
+      "height": 22,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-4f50dc3126d9e3d1e1ea",
+      "name": "Графика image21.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image21.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "4f50dc3126d9e3d1e1eaacbd8b2c85db5df096373a089e652ac68e98ea4309ca",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 283,
+      "width": 18,
+      "height": 15,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-6b2b731c0692f314d9c9",
+      "name": "Графика image22.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image22.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "6b2b731c0692f314d9c9e34e8530d7496c38fd830ff596d2f055b1213c532ef3",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 302,
+      "width": 15,
+      "height": 11,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-d2bb2ae6578ef87f705e",
+      "name": "Графика image23.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image23.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "d2bb2ae6578ef87f705e56fecfc3cde1a93a79d5074f6c90e38c85801978b17c",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 299,
+      "width": 13,
+      "height": 12,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-fb155eb0903d8fab6dae",
+      "name": "Графика image24.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image24.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "fb155eb0903d8fab6dae8d3a1d8ced99f0a2ec477b52d6eb3651ca8d6de24f9a",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 276,
+      "width": 14,
+      "height": 11,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-24285b5e4555cb178af0",
+      "name": "Графика image25.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image25.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "24285b5e4555cb178af0a2b072a858b3c8ce7bac4ba8ef27852d7f4c00c18916",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 300,
+      "width": 13,
+      "height": 12,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-c8af17b9f85e733f83e4",
+      "name": "Графика image26.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image26.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "c8af17b9f85e733f83e409166e4e91cc863adf10dd9b9c6f2bb8de5c9562e7d8",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 281,
+      "width": 11,
+      "height": 13,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-4eeca91d700016a634f3",
+      "name": "Графика image27.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image27.png"
+      ],
+      "slides": [
+        12,
+        20,
+        21
+      ],
+      "sha256": "4eeca91d700016a634f37f81697438315ff2c1ca7b480d6b5e0e741e31fa8387",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 282,
+      "width": 14,
+      "height": 11,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-9ece437f42e8073701cd",
+      "name": "Геометрический слой",
+      "category": "background",
+      "sourceFiles": [
+        "image28.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "9ece437f42e8073701cdd0f8dd79d09cdc67eac248b1e701446f1a12439b4b54",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 8205,
+      "width": 1920,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-9ece437f42e8073701cd.webp",
+      "thumbnail": "../assets/brand/brand-9ece437f42e8073701cd-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-76fcc38ccfbb46ebf9cb",
+      "name": "Фоновый слой",
+      "category": "background",
+      "sourceFiles": [
+        "image29.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "76fcc38ccfbb46ebf9cbc9ad735b972ad667f5a7b7867c3d76db90ee4806fd5d",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 45447,
+      "width": 1920,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-76fcc38ccfbb46ebf9cb.webp",
+      "thumbnail": "../assets/brand/brand-76fcc38ccfbb46ebf9cb-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-d16bebc4e888015df290",
+      "name": "Светлый рельеф",
+      "category": "background",
+      "sourceFiles": [
+        "image3.png"
+      ],
+      "slides": [
+        3
+      ],
+      "sha256": "d16bebc4e888015df290eaa55acfa0b9e8ef908ead0a5f748e8b4fcdfc790d92",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 209841,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-d16bebc4e888015df290.webp",
+      "thumbnail": "../assets/brand/brand-d16bebc4e888015df290-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-df0487f43016a73594b4",
+      "name": "Графика image30.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image30.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "df0487f43016a73594b4b6330cd1928497826c941ad94fc85d49e760cff9c832",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 105118,
+      "width": 1587,
+      "height": 318,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-91b226d97a9c8070401d",
+      "name": "Графика image31.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image31.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "91b226d97a9c8070401debefcdf141d92faf9e9bc6ce7dc5b2fbbe4f0f5f714a",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 23493,
+      "width": 1623,
+      "height": 113,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-8f622415c33da7c5c7c8",
+      "name": "Графика image32.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image32.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "8f622415c33da7c5c7c8af22bdd72a4d8b9079fb3f3d0def7ae5be111524245f",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 50647,
+      "width": 1699,
+      "height": 213,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-375dacadb8c2215f99c5",
+      "name": "Графика image33.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image33.png"
+      ],
+      "slides": [
+        18,
+        28
+      ],
+      "sha256": "375dacadb8c2215f99c513d2984a2a47c44d6825251486f1a29767be2882eb78",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 149,
+      "width": 1,
+      "height": 1,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-8ae8d95d4430cf34d3e0",
+      "name": "Светлый слой",
+      "category": "background",
+      "sourceFiles": [
+        "image34.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "8ae8d95d4430cf34d3e03c5d700cb32fceaebb497e5ed4891b7ef72c8b1a1af3",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 76235,
+      "width": 1920,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-8ae8d95d4430cf34d3e0.webp",
+      "thumbnail": "../assets/brand/brand-8ae8d95d4430cf34d3e0-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-a34fdd4e798e345c4c7d",
+      "name": "Прозрачный акцент",
+      "category": "background",
+      "sourceFiles": [
+        "image35.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "a34fdd4e798e345c4c7d61fcf15badc7d8fd1e9df607b9a415d322748524f27d",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 78512,
+      "width": 1920,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-a34fdd4e798e345c4c7d.webp",
+      "thumbnail": "../assets/brand/brand-a34fdd4e798e345c4c7d-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-a4eb5baee500f125b19b",
+      "name": "Архитектура",
+      "category": "photo",
+      "sourceFiles": [
+        "image36.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "a4eb5baee500f125b19b4177625cf78f6f8df56d25c2a1d4c4a99e21b50e2538",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1352651,
+      "width": 1355,
+      "height": 990,
+      "transparent": true,
+      "url": "../assets/brand/brand-a4eb5baee500f125b19b.webp",
+      "thumbnail": "../assets/brand/brand-a4eb5baee500f125b19b-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-886002bbc93a8ceaaf95",
+      "name": "Алабуга — основной логотип",
+      "category": "logo",
+      "sourceFiles": [
+        "image37.png"
+      ],
+      "slides": [
+        18
+      ],
+      "sha256": "886002bbc93a8ceaaf95bec48a0b3967f5200afa2fcb103264d4ed52a518b0cc",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 24944,
+      "width": 859,
+      "height": 468,
+      "transparent": true,
+      "url": "../assets/brand/brand-886002bbc93a8ceaaf95.webp",
+      "thumbnail": "../assets/brand/brand-886002bbc93a8ceaaf95-thumb.webp",
+      "usage": "Сохранять пропорции и свободное поле"
+    },
+    {
+      "id": "brand-8fd2eab66ac1e9706e81",
+      "name": "Производственный корпус",
+      "category": "photo",
+      "sourceFiles": [
+        "image38.png"
+      ],
+      "slides": [
+        19
+      ],
+      "sha256": "8fd2eab66ac1e9706e81e82e9fb69394c5bce77252ed0b8895c1854405e19a4f",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1892759,
+      "width": 950,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-8fd2eab66ac1e9706e81.webp",
+      "thumbnail": "../assets/brand/brand-8fd2eab66ac1e9706e81-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-4d62b487ca62edb6dcff",
+      "name": "Синий ромб",
+      "category": "decoration",
+      "sourceFiles": [
+        "image39.png"
+      ],
+      "slides": [
+        19
+      ],
+      "sha256": "4d62b487ca62edb6dcffaaf5cef3a157f0efdcb43e1699c3b777b9219d60ff30",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 3964,
+      "width": 391,
+      "height": 391,
+      "transparent": true,
+      "url": "../assets/brand/brand-4d62b487ca62edb6dcff.webp",
+      "thumbnail": "../assets/brand/brand-4d62b487ca62edb6dcff-thumb.webp",
+      "usage": "Декоративный слой"
+    },
+    {
+      "id": "brand-47c9e13154f9b572414a",
+      "name": "Глубокий синий",
+      "category": "background",
+      "sourceFiles": [
+        "image4.png"
+      ],
+      "slides": [
+        10,
+        4
+      ],
+      "sha256": "47c9e13154f9b572414ac0125b3f60001fbec19c4af3ffe323d9e1c48a675a0a",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1387887,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-47c9e13154f9b572414a.webp",
+      "thumbnail": "../assets/brand/brand-47c9e13154f9b572414a-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-4b4a5456ea44d3331ce7",
+      "name": "Алабуга — белый логотип",
+      "category": "logo",
+      "sourceFiles": [
+        "image40.png"
+      ],
+      "slides": [
+        19
+      ],
+      "sha256": "4b4a5456ea44d3331ce7f5cdaad960dbfb6c36c8659475d5ca47f45eb0a06d00",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 23664,
+      "width": 1049,
+      "height": 562,
+      "transparent": true,
+      "url": "../assets/brand/brand-4b4a5456ea44d3331ce7.webp",
+      "thumbnail": "../assets/brand/brand-4b4a5456ea44d3331ce7-thumb.webp",
+      "usage": "Сохранять пропорции и свободное поле"
+    },
+    {
+      "id": "brand-6d8aead7b988c286b68a",
+      "name": "Графика image41.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image41.png"
+      ],
+      "slides": [
+        20
+      ],
+      "sha256": "6d8aead7b988c286b68a19056ad0e8f6f292465f04998c20e6e292d973360867",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 29363,
+      "width": 877,
+      "height": 643,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-20046d25342997ab7ecb",
+      "name": "Графика image42.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image42.png"
+      ],
+      "slides": [
+        20
+      ],
+      "sha256": "20046d25342997ab7ecbf897f63d63f93f15636b1c761a5b19719b53ed7403b1",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1535,
+      "width": 208,
+      "height": 48,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-51bfc770c9e851bd5878",
+      "name": "Специалист на производстве",
+      "category": "photo",
+      "sourceFiles": [
+        "image43.png"
+      ],
+      "slides": [
+        20
+      ],
+      "sha256": "51bfc770c9e851bd58787d0cb8bfcf85ce978dec6f9f7c373f3f5afdf3fae6e0",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 885962,
+      "width": 872,
+      "height": 856,
+      "transparent": true,
+      "url": "../assets/brand/brand-51bfc770c9e851bd5878.webp",
+      "thumbnail": "../assets/brand/brand-51bfc770c9e851bd5878-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-1feb103caa7d45424611",
+      "name": "Графика image44.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image44.png"
+      ],
+      "slides": [
+        21
+      ],
+      "sha256": "1feb103caa7d45424611f6950686ff3a4e0583dfd59448b525db69130e5f1d5d",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 23371,
+      "width": 877,
+      "height": 480,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-3e59c7abe67baf8aac98",
+      "name": "Графика image45.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image45.png"
+      ],
+      "slides": [
+        21
+      ],
+      "sha256": "3e59c7abe67baf8aac98b6ebfe3995adeabaa37829d0290d2356b97be69f81ea",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1576,
+      "width": 792,
+      "height": 172,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-9a3f6a4a64ce0b982089",
+      "name": "Промышленное производство",
+      "category": "photo",
+      "sourceFiles": [
+        "image46.jpg"
+      ],
+      "slides": [
+        21
+      ],
+      "sha256": "9a3f6a4a64ce0b982089f60bd978e8a265fc2d425f4000a1922a3afa1c1da39b",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1105426,
+      "width": 2000,
+      "height": 1333,
+      "transparent": false,
+      "url": "../assets/brand/brand-9a3f6a4a64ce0b982089.webp",
+      "thumbnail": "../assets/brand/brand-9a3f6a4a64ce0b982089-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-297956faa1501a0486aa",
+      "name": "Графика image47.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image47.png"
+      ],
+      "slides": [
+        22
+      ],
+      "sha256": "297956faa1501a0486aabab11243e4018a4fef4e2e5d6af28c8b740c4751d5fb",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 411,
+      "width": 23,
+      "height": 66,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-d1d01cbb6f6380bd0173",
+      "name": "Синий треугольник",
+      "category": "decoration",
+      "sourceFiles": [
+        "image48.png"
+      ],
+      "slides": [
+        22
+      ],
+      "sha256": "d1d01cbb6f6380bd017392bf5b8a55ce0f576bd7ccdc0527bee82c027817f8af",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1704,
+      "width": 150,
+      "height": 150,
+      "transparent": true,
+      "url": "../assets/brand/brand-d1d01cbb6f6380bd0173.webp",
+      "thumbnail": "../assets/brand/brand-d1d01cbb6f6380bd0173-thumb.webp",
+      "usage": "Декоративный слой"
+    },
+    {
+      "id": "brand-eb59f9c0f634152cf67a",
+      "name": "Образование",
+      "category": "photo",
+      "sourceFiles": [
+        "image49.png"
+      ],
+      "slides": [
+        23
+      ],
+      "sha256": "eb59f9c0f634152cf67a4d7012d699de83454970a9602c509dd4f6d96eb12f86",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1029701,
+      "width": 960,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-eb59f9c0f634152cf67a.webp",
+      "thumbnail": "../assets/brand/brand-eb59f9c0f634152cf67a-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-e3b87137b1f1f2a216a9",
+      "name": "Световая геометрия",
+      "category": "background",
+      "sourceFiles": [
+        "image5.png"
+      ],
+      "slides": [
+        5
+      ],
+      "sha256": "e3b87137b1f1f2a216a9547e89b07758e27d1529d8b612a756ba78aa61fe67e2",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 3369496,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-e3b87137b1f1f2a216a9.webp",
+      "thumbnail": "../assets/brand/brand-e3b87137b1f1f2a216a9-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-534ec4c0fc766e4e54b5",
+      "name": "Белая композиция",
+      "category": "background",
+      "sourceFiles": [
+        "image50.png"
+      ],
+      "slides": [
+        24,
+        26,
+        27
+      ],
+      "sha256": "534ec4c0fc766e4e54b5d706bc92c6bc2110d6f088ae7daaf3ca35ee468fd77d",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 224275,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-534ec4c0fc766e4e54b5.webp",
+      "thumbnail": "../assets/brand/brand-534ec4c0fc766e4e54b5-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-8313c8155c8b94835003",
+      "name": "Прозрачное поле",
+      "category": "background",
+      "sourceFiles": [
+        "image51.png"
+      ],
+      "slides": [
+        24,
+        27
+      ],
+      "sha256": "8313c8155c8b9483500363489745857b9c9489aa1872715c6af9898dd818c350",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 12895,
+      "width": 1920,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-8313c8155c8b94835003.webp",
+      "thumbnail": "../assets/brand/brand-8313c8155c8b94835003-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-b5455289bd3361b24598",
+      "name": "Роботизированное производство",
+      "category": "photo",
+      "sourceFiles": [
+        "image52.png"
+      ],
+      "slides": [
+        24
+      ],
+      "sha256": "b5455289bd3361b2459853d2f80f1a481a094937ff0676ca069c9eacf10f0a86",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1487923,
+      "width": 1216,
+      "height": 640,
+      "transparent": true,
+      "url": "../assets/brand/brand-b5455289bd3361b24598.webp",
+      "thumbnail": "../assets/brand/brand-b5455289bd3361b24598-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-757d67f2c4af6a97f413",
+      "name": "Команда",
+      "category": "photo",
+      "sourceFiles": [
+        "image53.png"
+      ],
+      "slides": [
+        25
+      ],
+      "sha256": "757d67f2c4af6a97f413c6cb58d5eaf7ede3314e0e292c9a84c832829dc0e545",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1113064,
+      "width": 856,
+      "height": 760,
+      "transparent": true,
+      "url": "../assets/brand/brand-757d67f2c4af6a97f413.webp",
+      "thumbnail": "../assets/brand/brand-757d67f2c4af6a97f413-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-80d877aa266b10b290f4",
+      "name": "Лаборатория",
+      "category": "photo",
+      "sourceFiles": [
+        "image54.png"
+      ],
+      "slides": [
+        25
+      ],
+      "sha256": "80d877aa266b10b290f410c4fe8fb242fb8397a4260fbc8a6bab904cd79409e9",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1115364,
+      "width": 856,
+      "height": 760,
+      "transparent": true,
+      "url": "../assets/brand/brand-80d877aa266b10b290f4.webp",
+      "thumbnail": "../assets/brand/brand-80d877aa266b10b290f4-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-3469fa5e7c0c4899063d",
+      "name": "Градиентный многогранник",
+      "category": "decoration",
+      "sourceFiles": [
+        "image55.png"
+      ],
+      "slides": [
+        26
+      ],
+      "sha256": "3469fa5e7c0c4899063d42cdcbb71b27b91aa333d45806462df84ef10f842df5",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 770512,
+      "width": 1018,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-3469fa5e7c0c4899063d.webp",
+      "thumbnail": "../assets/brand/brand-3469fa5e7c0c4899063d-thumb.webp",
+      "usage": "Декоративный слой"
+    },
+    {
+      "id": "brand-253d3a2bc7b47acd3d9e",
+      "name": "Портрет на прозрачном фоне",
+      "category": "photo",
+      "sourceFiles": [
+        "image56.png"
+      ],
+      "slides": [
+        26
+      ],
+      "sha256": "253d3a2bc7b47acd3d9e5528a7cec095d586970d11b6a6d1fd14ad6672eb0d64",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 618651,
+      "width": 756,
+      "height": 1000,
+      "transparent": true,
+      "url": "../assets/brand/brand-253d3a2bc7b47acd3d9e.webp",
+      "thumbnail": "../assets/brand/brand-253d3a2bc7b47acd3d9e-thumb.webp",
+      "usage": "Корпоративная фотография, не иллюстрация функций конструктора"
+    },
+    {
+      "id": "brand-19a49b2643c0d8875273",
+      "name": "Синий квадрат",
+      "category": "decoration",
+      "sourceFiles": [
+        "image57.png"
+      ],
+      "slides": [
+        26
+      ],
+      "sha256": "19a49b2643c0d88752737e3b63a2bca3924b8b2641beabb2416e5019811aba4a",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1498,
+      "width": 150,
+      "height": 150,
+      "transparent": true,
+      "url": "../assets/brand/brand-19a49b2643c0d8875273.webp",
+      "thumbnail": "../assets/brand/brand-19a49b2643c0d8875273-thumb.webp",
+      "usage": "Декоративный слой"
+    },
+    {
+      "id": "brand-d631d54bd5df943deb4c",
+      "name": "Светлый градиент",
+      "category": "background",
+      "sourceFiles": [
+        "image58.png"
+      ],
+      "slides": [
+        28
+      ],
+      "sha256": "d631d54bd5df943deb4c4143042c1a42fff92050b65069649cba0d3e5319df94",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 237351,
+      "width": 1920,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-d631d54bd5df943deb4c.webp",
+      "thumbnail": "../assets/brand/brand-d631d54bd5df943deb4c-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-3f0284d4a837a18ad1d9",
+      "name": "Графика с цитатой",
+      "category": "background",
+      "sourceFiles": [
+        "image59.png"
+      ],
+      "slides": [
+        28
+      ],
+      "sha256": "3f0284d4a837a18ad1d9c4b50cbc1445e211944f0cdbe17ddadea290ca3e8bcb",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1474813,
+      "width": 1760,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-3f0284d4a837a18ad1d9.webp",
+      "thumbnail": "../assets/brand/brand-3f0284d4a837a18ad1d9-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-4f5e588e73a56284b81c",
+      "name": "Синие грани",
+      "category": "background",
+      "sourceFiles": [
+        "image6.png"
+      ],
+      "slides": [
+        6
+      ],
+      "sha256": "4f5e588e73a56284b81c94e02e6196dafd85a79e721ede5e46c99312d1776189",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1874218,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-4f5e588e73a56284b81c.webp",
+      "thumbnail": "../assets/brand/brand-4f5e588e73a56284b81c-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-bb570f0c6ceb4f63de23",
+      "name": "Синее свечение",
+      "category": "background",
+      "sourceFiles": [
+        "image60.png"
+      ],
+      "slides": [
+        28
+      ],
+      "sha256": "bb570f0c6ceb4f63de235214167ec42a7510f3ab2198f3565bf6e41ec5f3a1c4",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 248961,
+      "width": 1295,
+      "height": 760,
+      "transparent": true,
+      "url": "../assets/brand/brand-bb570f0c6ceb4f63de23.webp",
+      "thumbnail": "../assets/brand/brand-bb570f0c6ceb4f63de23-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-4fd291e5ce9afd1dbf74",
+      "name": "Графика image61.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image61.png"
+      ],
+      "slides": [
+        28
+      ],
+      "sha256": "4fd291e5ce9afd1dbf7433f44de5de5eb741b856962f1d83dc15d1b20ea200ab",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1618,
+      "width": 50,
+      "height": 50,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-8b61170bcd9792dc5854",
+      "name": "Графика image62.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image62.png"
+      ],
+      "slides": [
+        28
+      ],
+      "sha256": "8b61170bcd9792dc5854110aff028364d1d7c6de7844cbfda9158740e2df218f",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1355,
+      "width": 50,
+      "height": 50,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-73325f52ad3fb25567f5",
+      "name": "Графика image63.png",
+      "category": "reference",
+      "sourceFiles": [
+        "image63.png"
+      ],
+      "slides": [
+        28
+      ],
+      "sha256": "73325f52ad3fb25567f5d5988baaead10ecf616c83c6efd4a920eb8445314092",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 447,
+      "width": 22,
+      "height": 18,
+      "transparent": true,
+      "usage": "Только источник; не увеличивать и не использовать как готовый компонент"
+    },
+    {
+      "id": "brand-19453be3f1b9c54b7b02",
+      "name": "Стеклянная геометрия",
+      "category": "background",
+      "sourceFiles": [
+        "image7.png"
+      ],
+      "slides": [
+        7
+      ],
+      "sha256": "19453be3f1b9c54b7b02d170df36a358d869c543164e710e17690bb4dc85bba0",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 1427761,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-19453be3f1b9c54b7b02.webp",
+      "thumbnail": "../assets/brand/brand-19453be3f1b9c54b7b02-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-939d1b56022a9b768aeb",
+      "name": "Прозрачная геометрия",
+      "category": "background",
+      "sourceFiles": [
+        "image8.png"
+      ],
+      "slides": [
+        8
+      ],
+      "sha256": "939d1b56022a9b768aeb04f029daa2bae2230731cdc0f2beb874d58dada4f8e7",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 12174,
+      "width": 1920,
+      "height": 1080,
+      "transparent": true,
+      "url": "../assets/brand/brand-939d1b56022a9b768aeb.webp",
+      "thumbnail": "../assets/brand/brand-939d1b56022a9b768aeb-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    },
+    {
+      "id": "brand-ab9ca487e9d6ed02a546",
+      "name": "Светлое поле",
+      "category": "background",
+      "sourceFiles": [
+        "image9.png"
+      ],
+      "slides": [
+        9
+      ],
+      "sha256": "ab9ca487e9d6ed02a54605a2c431781456e9229b024c2a5b89606eea2daee7b0",
+      "source": "Шаблон презентации Алабуга.pptx",
+      "originalBytes": 63491,
+      "width": 1920,
+      "height": 1080,
+      "transparent": false,
+      "url": "../assets/brand/brand-ab9ca487e9d6ed02a546.webp",
+      "thumbnail": "../assets/brand/brand-ab9ca487e9d6ed02a546-thumb.webp",
+      "usage": "Фон секции; текст с проверенным затемнением"
+    }
+  ]
+}

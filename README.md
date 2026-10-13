@@ -1,4 +1,13 @@
-# PostgreSQL + Flyway + SeaweedFS
+# HR DAM — распределение кандидатов по кластерам
+
+Веб-приложение на React + TypeScript с Alabuga Framework, API, фоновой обработкой,
+антивирусом, PostgreSQL и S3. Запуск: `docker compose up -d --build`,
+интерфейс: http://localhost:3000.
+
+[Описание приложения, сценарии, правила и разработка](docs/application.md).
+[Разделение frontend, backend, worker и ranker](docs/architecture.md).
+
+## PostgreSQL + Flyway + SeaweedFS
 
 Минимальная инфраструктура по [спецификации](docs/candidate_matching_architecture.md):
 8 прикладных таблиц, служебная `flyway_schema_history`, S3 bucket для резюме.
@@ -111,8 +120,8 @@ PostgreSQL/SeaweedFS и повторяет `up`. В конце удаляет т
 Спецификация говорит о двух значениях `clusters.track`, но не называет их.
 Поэтому поле реализовано как обязательный `VARCHAR(20)` без выдуманного
 CHECK. После уточнения значения следует закрепить новой миграцией.
-Правило блокировки после совпадения с чёрным списком также не задано;
-бизнес-логика на этом этапе не реализуется. Других отклонений от схемы нет.
+Приложение предупреждает о совпадении с чёрным списком, продолжая оценку резюме.
+Правила приложения и пределы встроенного обработчика описаны в [документации](docs/application.md).
 
 Использованы поддерживаемые механизмы
 [учётных данных SeaweedFS](https://github.com/seaweedfs/seaweedfs/wiki/S3-Credentials),
