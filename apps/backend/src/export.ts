@@ -63,7 +63,7 @@ export function reportHtml(
         );
         return rating
           ? [
-              `<tr><td>${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td>${Number(rating.score).toFixed(1)} / 100</td><td>${escapeHtml(rating.explanation)}<br>Совпадения: ${escapeHtml(rating.matched_keywords?.join(", ") || "нет")}<br>Стоп-факторы: ${escapeHtml(rating.triggered_stop_factors?.join(", ") || "нет")}${rating.details ? `<pre>${escapeHtml(JSON.stringify(rating.details, null, 2))}</pre>` : ""}<small>${escapeHtml(new Date(rating.calculated_at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" }))}</small></td></tr>`,
+              `<tr><td>${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td>${Number(rating.score).toFixed(1)} / 100</td><td>${escapeHtml(rating.explanation)}<br>Совпадения: ${escapeHtml(rating.matched_keywords?.join(", ") || "нет")}<br>Стоп-факторы: ${escapeHtml(rating.triggered_stop_factors?.join(", ") || "нет")}<br><small>${escapeHtml(new Date(rating.calculated_at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" }))}</small></td></tr>`,
             ]
           : [];
       }),

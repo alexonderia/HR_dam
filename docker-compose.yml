@@ -57,7 +57,10 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
-    environment: *application-environment
+    environment:
+      <<: *application-environment
+      ANALYSIS_MAX_RETRIES: ${ANALYSIS_MAX_RETRIES:-2}
+      ANALYSIS_RETRY_DELAY_MS: ${ANALYSIS_RETRY_DELAY_MS:-15000}
     expose: ["3003"]
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3003/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -102,6 +105,7 @@ services:
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_MAX_LOADED_MODELS: "1"
       OLLAMA_CONTEXT_LENGTH: "16384"
+      LLAMA_ARG_CACHE_RAM: ${OLLAMA_PROMPT_CACHE_MB:-1024}
     expose: ["11434"]
     deploy:
       resources:

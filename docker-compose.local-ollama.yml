@@ -1,0 +1,10 @@
+# Use with: docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up -d --build
+services:
+  # Keep the bundled GPU services inactive when using a native Ollama server.
+  ollama:
+    profiles: [docker-ollama]
+  ollama-init:
+    profiles: [docker-ollama]
+  resume-analyzer:
+    environment:
+      OLLAMA_BASE_URL: ${LOCAL_OLLAMA_BASE_URL:-http://host.docker.internal:11434}

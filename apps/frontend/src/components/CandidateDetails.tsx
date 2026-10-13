@@ -138,9 +138,6 @@ export function CandidateDetails({
                           <strong>Стоп-факторы:</strong>{" "}
                           {r.triggered_stop_factors?.join(", ") || "не найдены"}
                         </p>
-                        {r.details != null && (
-                          <pre>{JSON.stringify(r.details, null, 2)}</pre>
-                        )}
                         <small>
                           Рассчитано:{" "}
                           {new Date(r.calculated_at).toLocaleString("ru-RU", {

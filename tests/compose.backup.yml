@@ -1,0 +1,60 @@
+# Isolated restore test: unique --project-name, no published ports or fixed names.
+services:
+  postgres:
+    image: postgres:16.13-alpine3.23
+    environment:
+      POSTGRES_DB: backup_test
+      POSTGRES_USER: backup_test
+      POSTGRES_PASSWORD: backup-test-only-password
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U backup_test -d backup_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.29
+    command: [server, "-dir=/data", "-master.dir=/data", "-ip=seaweedfs", "-ip.bind=0.0.0.0", "-master.volumeSizeLimitMB=1024", "-volume.max=2", "-filer", "-s3", "-s3.port=8333", "-s3.iam=false", "-s3.port.iceberg=0"]
+    environment:
+      AWS_ACCESS_KEY_ID: backup-test-key
+      AWS_SECRET_ACCESS_KEY: backup-test-only-secret
+    volumes: ["seaweedfs_data:/data"]
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && wget -q -O /dev/null http://127.0.0.1:8888/ && wget -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/1.1 403'"]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+  flyway:
+    image: flyway/flyway:12.1.0
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/backup_test
+      FLYWAY_USER: backup_test
+      FLYWAY_PASSWORD: backup-test-only-password
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_CLEAN_DISABLED: "true"
+      REDGATE_DISABLE_TELEMETRY: "true"
+    volumes: ["../db/migrations:/flyway/sql:ro"]
+  s3-init:
+    image: amazon/aws-cli:2.27.49
+    entrypoint: [/bin/sh, /init/bucket.sh]
+    environment:
+      AWS_ACCESS_KEY_ID: backup-test-key
+      AWS_SECRET_ACCESS_KEY: backup-test-only-secret
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_PAGER: ""
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_BUCKET: ${BACKUP_TEST_BUCKET:-resumes}
+    volumes: ["../infra/s3/bucket.sh:/init/bucket.sh:ro"]
+  backend:
+    image: hr-dam-backend:local
+    environment:
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_REGION: us-east-1
+      S3_BUCKET: ${BACKUP_TEST_BUCKET:-resumes}
+      S3_ACCESS_KEY: backup-test-key
+      S3_SECRET_KEY: backup-test-only-secret
+volumes:
+  postgres_data:
+  seaweedfs_data:

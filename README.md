@@ -30,6 +30,18 @@ docker compose ps -a
 docker compose logs flyway s3-init
 ```
 
+Для Ollama, установленной на хосте вне Docker, используйте отдельный режим:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up -d --build
+```
+
+Он подключается к `http://host.docker.internal:11434` и не запускает контейнеры
+`ollama`/`ollama-init`, поэтому доступ к NVIDIA GPU из Docker не требуется.
+Для модели на другой машине задайте `LOCAL_OLLAMA_BASE_URL=http://<IP>:11434`
+в `.env`; имя установленной модели задаётся через `OLLAMA_MODEL`.
+Подготовка Ollama и переключение режимов описаны в [инструкции](docs/analysis.md#ollama-на-хосте).
+
 Контейнеры имеют фиксированные имена без суффикса `-1`: `hr_dam-postgres`,
 `hr_dam-pgadmin`, `hr_dam-flyway`, `hr_dam-seaweedfs`, `hr_dam-s3-init`.
 

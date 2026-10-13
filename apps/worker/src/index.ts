@@ -5,7 +5,7 @@ import { pool, transaction, getAnalysisStatus } from "@hr/data-access";
 import { getClusters } from "@hr/data-access";
 import { getFile } from "@hr/data-access";
 import { config } from "./config.js";
-import { validateRankResponse } from "@hr/contracts";
+import { analyzeResume } from "./analysis.js";
 import type { WorkerStatus } from "@hr/contracts";
 
 let status: WorkerStatus = { state: "idle", current_resume_id: null };
@@ -57,29 +57,10 @@ async function processNext() {
   status = { state: "processing", current_resume_id: job.id };
   try {
     const buffer = await getFile(job.bucket, job.object_key);
-    const form = new FormData();
-    form.append(
-      "file",
-      new Blob([new Uint8Array(buffer)], { type: job.mime_type }),
-      job.file_name,
-    );
-    form.append("requirements", JSON.stringify({ clusters }));
-    const response = await fetch(config.rankUrl, {
-      method: "POST",
-      body: form,
-      signal: AbortSignal.timeout(config.timeoutMs),
+    const file = new Blob([new Uint8Array(buffer)], { type: job.mime_type });
+    const result = await analyzeResume(clusters, file, job.file_name, config, event => {
+      console.info(JSON.stringify({ event: `analysis_${event.type}`, resume_id: job.id, ...event }));
     });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        detail?: string;
-      };
-      throw new Error(
-        (body.error || body.detail)?.slice(0, 500) ||
-          `Обработчик вернул HTTP ${response.status}`,
-      );
-    }
-    const result = validateRankResponse(await response.json(), clusters);
     await transaction(async (client) => {
       const current = await client.query(
         "SELECT file_id,scoring_status,updated_at::text AS lease FROM resumes WHERE id=$1 FOR UPDATE",
