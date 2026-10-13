@@ -32,7 +32,10 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
       S3_SECRET_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
       CLAMAV_HOST: clamav
-      RANKER_URL: ${RANKER_URL:-http://ranker:3002/rank}
+      RESUME_ANALYZER_URL: ${RESUME_ANALYZER_URL:-http://resume-analyzer:8000/rank}
+      RESUME_ANALYZER_READY_URL: ${RESUME_ANALYZER_READY_URL:-}
+      RESUME_ANALYZER_TIMEOUT_MS: ${RESUME_ANALYZER_TIMEOUT_MS:-900000}
+      WORKER_HEALTH_URL: http://worker:3003/health
     expose: ["3001"]
     networks: [infrastructure]
     depends_on: &application-dependencies
@@ -55,26 +58,83 @@ services:
       context: .
       dockerfile: apps/worker/Dockerfile
     environment: *application-environment
+    expose: ["3003"]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3003/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks: [infrastructure]
     depends_on: *application-dependencies
     restart: unless-stopped
 
-  ranker:
-    container_name: hr_dam-ranker
-    image: hr-dam-ranker:local
+  resume-analyzer:
+    container_name: hr_dam-resume-analyzer
+    image: hr-dam-resume-analyzer:local
     build:
-      context: .
-      dockerfile: apps/ranker/Dockerfile
-    expose: ["3002"]
+      context: ./apps/resume-analyzer
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-180}
+      RANK_TIMEOUT_SECONDS: ${RANK_TIMEOUT_SECONDS:-840}
+      MODEL_PROBE_TIMEOUT_SECONDS: ${MODEL_PROBE_TIMEOUT_SECONDS:-60}
+      MODEL_PROBE_INTERVAL_SECONDS: ${MODEL_PROBE_INTERVAL_SECONDS:-15}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose: ["8000"]
     networks: [infrastructure]
-    mem_limit: 512m
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s
-      timeout: 6s
+      timeout: 5s
       retries: 10
       start_period: 15s
     restart: unless-stopped
+
+  # Model download/readiness is independent of API and frontend startup.
+  ollama:
+    container_name: hr_dam-ollama
+    image: &ollama-image ollama/ollama:0.40.3
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_CONTEXT_LENGTH: "16384"
+    expose: ["11434"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ollama_data:/root/.ollama
+    networks: [infrastructure]
+    healthcheck:
+      test: [CMD-SHELL, "OLLAMA_HOST=http://127.0.0.1:11434 ollama list >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  ollama-init:
+    container_name: hr_dam-ollama-init
+    image: *ollama-image
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
+    entrypoint: [/bin/sh, /init/model.sh]
+    volumes:
+      - ./infra/ollama/model.sh:/init/model.sh:ro
+    networks: [infrastructure]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: on-failure
 
   clamav:
     container_name: hr_dam-clamav
@@ -236,3 +296,4 @@ volumes:
   postgres_data:
   seaweedfs_data:
   pgadmin_data:
+  ollama_data:

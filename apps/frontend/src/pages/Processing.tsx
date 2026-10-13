@@ -3,14 +3,15 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowUpRight,
   Check,
-  Circle,
-  Database,
+  Files,
+  SearchCheck,
+  ShieldCheck,
   FileCheck2,
   LoaderCircle,
   RotateCcw,
   Workflow,
 } from "lucide-react";
-import { type ResumeEvent, fullName } from "@hr/contracts";
+import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { api, mutate } from "../lib/api";
 import {
@@ -24,10 +25,12 @@ import {
 import { CandidateDetails } from "../components/CandidateDetails";
 
 export function Processing() {
-  const { candidates, refresh } = useData(),
+  const { candidates, refresh, analysis } = useData(),
     [params] = useSearchParams();
   const [selected, setSelected] = useState(params.get("resume") || ""),
     [events, setEvents] = useState<ResumeEvent[]>([]),
+    [queue, setQueue] = useState<QueueStatus | null>(null),
+    [queueError, setQueueError] = useState(""),
     [error, setError] = useState(""),
     [details, setDetails] = useState<string>(),
     [busy, setBusy] = useState(false);
@@ -54,26 +57,48 @@ export function Processing() {
       clearInterval(timer);
     };
   }, [current?.resume_id]);
+  useEffect(() => {
+    setQueue(null);
+    setQueueError("");
+    if (!current || current.scoring_status !== "pending") return;
+    let disposed = false;
+    let running = false;
+    const load = async () => {
+      if (running) return;
+      running = true;
+      try {
+        const data = await api<ResumeProcessing>(`/resumes/${current.resume_id}/processing`, { signal: AbortSignal.timeout(6500) });
+        if (!disposed) { setQueue(data.queue); setQueueError(""); }
+      } catch {
+        if (!disposed) setQueueError("Не удалось уточнить причину ожидания. Резюме сохранено; информация обновится автоматически.");
+      } finally { running = false; }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 5000);
+    return () => { disposed = true; clearInterval(timer); };
+  }, [current?.resume_id, current?.scoring_status]);
   const completed = current?.scoring_status === "completed",
     failed = current?.scoring_status === "failed",
     processing = current?.scoring_status === "processing";
   const steps = [
     {
-      title: "Сохранение",
-      text: "Данные проверены, файл сохранён",
+      title: "Проверка кандидата",
+      text: "Проверены другие резюме и чёрный список",
       done: true,
       active: false,
-      icon: Database,
+      icon: SearchCheck,
     },
     {
-      title: "Обработчик",
+      title: "Оценка по профилям",
       text: failed
-        ? "Проверка завершилась ошибкой"
+        ? "Анализ не завершён"
         : processing
-          ? "Оценка активных профилей"
+          ? "Резюме анализируется"
           : completed
             ? "Оценки получены"
-            : "Ожидание в очереди",
+            : analysis.available
+              ? "Ожидание в очереди"
+              : "Резюме сохранено, ожидает доступности анализа",
       done: completed,
       active: processing,
       icon: Workflow,
@@ -135,10 +160,32 @@ export function Processing() {
                 </div>
                 <CandidateStatus candidate={current} />
               </div>
-              {current.blacklisted && (
-                <div className="notice warning">
-                  Есть совпадение с чёрным списком. Требуется ручная проверка.
+              <div className="candidate-checks" aria-label="Результат проверки кандидата">
+                <div className="candidate-check">
+                  <Files size={20} />
+                  <div>
+                    <strong>Другие резюме</strong>
+                    <p>{current.other_resumes_count > 0
+                      ? `Ранее загружено резюме: ${current.other_resumes_count}.`
+                      : "Других резюме не найдено."}</p>
+                  </div>
                 </div>
+                <div className={`candidate-check ${current.blacklisted ? "warning" : ""}`}>
+                  <ShieldCheck size={20} />
+                  <div>
+                    <strong>Чёрный список</strong>
+                    <p>{current.blacklisted ? "Есть совпадение. Требуется проверка сотрудником." : "Совпадений с чёрным списком нет."}</p>
+                  </div>
+                </div>
+              </div>
+              {current.scoring_status === "pending" && (
+                queue ? (queue.delayed || queue.reason !== "starting") && (
+                  <div className="notice warning queue-reason" aria-label="Причина ожидания" aria-live="polite">
+                    <strong>Причина ожидания</strong>
+                    <p>{queue.message}</p>
+                    <small>{queue.waiting_seconds >= 60 ? `В очереди: ${Math.floor(queue.waiting_seconds / 60)} мин.` : "В очереди меньше минуты."}</small>
+                  </div>
+                ) : <p className="queue-loading muted">{queueError || "Уточняем причину ожидания…"}</p>
               )}
               <div className="pipeline">
                 {steps.map(({ title, text, done, active, icon: Icon }, i) => (
@@ -174,7 +221,8 @@ export function Processing() {
                 {["failed", "completed"].includes(current.scoring_status) && (
                   <Button
                     secondary
-                    disabled={busy}
+                    disabled={busy || !analysis.available}
+                    title={!analysis.available ? analysis.message : undefined}
                     onClick={async () => {
                       setBusy(true);
                       try {
@@ -215,7 +263,7 @@ export function Processing() {
                           scored: "Оценка завершена",
                           scoring_failed: "Ошибка оценки",
                           status_changed: "Статус изменён",
-                        }[event.event_type] || event.event_type}
+                        }[event.event_type] || "Событие обработки"}
                       </strong>
                       <p>{event.message}</p>
                       <small>

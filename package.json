@@ -9,14 +9,14 @@
   ],
   "scripts": {
     "build:packages": "npm run build -w @hr/contracts && npm run build -w @hr/documents && npm run build -w @hr/data-access",
-    "build": "npm run build:packages && npm run build -w @hr/backend && npm run build -w @hr/worker && npm run build -w @hr/ranker && npm run build -w @hr/frontend && tsc --noEmit",
+    "build": "npm run build:packages && npm run build -w @hr/backend && npm run build -w @hr/worker && npm run build -w @hr/frontend && tsc --noEmit",
     "dev": "npm run build -w @hr/contracts && npm run dev -w @hr/frontend",
     "api": "npm run build:packages && npm run dev -w @hr/backend",
     "worker": "npm run build:packages && npm run dev -w @hr/worker",
-    "ranker": "npm run build:packages && npm run dev -w @hr/ranker",
     "test": "npm run build:packages && tsx --test tests/*.test.ts",
     "test:integration": "npm run build:packages && tsx --env-file=.env tests/integration.ts",
-    "test:architecture": "node tests/architecture.mjs"
+    "test:architecture": "node tests/architecture.mjs",
+    "test:service-outage": "tsx --env-file=.env tests/service-outage.ts"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

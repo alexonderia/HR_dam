@@ -7,7 +7,7 @@ import {
   profileSchema,
   blacklistSchema,
 } from "@hr/contracts";
-import { pool, transaction } from "@hr/data-access";
+import { pool, transaction, getAnalysisStatus } from "@hr/data-access";
 import { config } from "./config.js";
 import { HttpError } from "./errors.js";
 import { submitCandidate } from "./submission.js";
@@ -15,6 +15,7 @@ import { getCandidates, getClusters } from "@hr/data-access";
 import { getFile } from "@hr/data-access";
 import { exportCsv, reportHtml, escapeHtml, htmlDocument } from "./export.js";
 import { extractDocxText } from "@hr/documents";
+import { presentResumeEvent, probeWorker, queueStatus } from "./processing.js";
 
 export const router = Router();
 const upload = multer({
@@ -30,6 +31,16 @@ router.get("/health", async (_req, res) => {
   await pool.query("SELECT 1");
   res.json({ ok: true });
 });
+router.get("/analysis/status", async (_req, res) => {
+  res.json(await getAnalysisStatus());
+});
+async function requireAnalysis() {
+  const status = await getAnalysisStatus(true);
+  if (!status.available) throw new HttpError(503, status.message);
+  const clusters = await getClusters();
+  if (!clusters.some(c => c.is_active && c.profiles.some(p => p.is_active)))
+    throw new HttpError(409, "Добавьте активный кластер с активным профилем перед анализом.");
+}
 router.get("/overview", async (_req, res) => {
   const [clusters, candidates, blacklist] = await Promise.all([
     getClusters(),
@@ -52,10 +63,28 @@ router.get("/resumes/:id/events", async (req, res) => {
     "SELECT * FROM resume_events WHERE resume_id=$1 ORDER BY created_at,id",
     [id],
   );
-  res.json(result.rows);
+  res.json(result.rows.map(presentResumeEvent));
+});
+router.get("/resumes/:id/processing", async (req, res) => {
+  const id = z.uuid().parse(req.params.id);
+  const result = await pool.query(
+    `SELECT r.scoring_status,r.updated_at,
+      (SELECT count(*)::int FROM profiles p JOIN clusters c ON c.id=p.cluster_id WHERE p.is_active AND c.is_active) AS active_profiles,
+      (SELECT count(*)::int FROM resumes q WHERE q.scoring_status='pending' AND (q.updated_at,q.id)<(r.updated_at,r.id)) AS ahead,
+      (SELECT count(*)::int FROM resumes q WHERE q.scoring_status='processing') AS processing
+     FROM resumes r WHERE r.id=$1`, [id],
+  );
+  const row = result.rows[0];
+  if (!row) throw new HttpError(404, "Резюме не найдено.");
+  if (row.scoring_status !== "pending") { res.json({ queue: null }); return; }
+  const analysis = await getAnalysisStatus();
+  const worker = analysis.available && row.active_profiles ? await probeWorker(config.workerHealthUrl) : null;
+  res.json({ queue: queueStatus({ queuedAt: new Date(row.updated_at).toISOString(), activeProfiles: row.active_profiles,
+    analysisAvailable: analysis.available, worker, ahead: row.ahead, processing: row.processing }) });
 });
 router.post("/resumes/:id/retry", async (req, res) => {
   const id = z.uuid().parse(req.params.id);
+  await requireAnalysis();
   const result = await pool.query(
     `UPDATE resumes SET scoring_status='pending',updated_at=now() WHERE id=$1 AND scoring_status IN ('failed','completed') RETURNING id`,
     [id],

@@ -6,13 +6,10 @@ from io import BytesIO
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
     """Извлекает текст из PDF"""
     try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        text = ""
-        
-        for page in doc:
-            text += page.get_text()
-        
-        doc.close()
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+            if len(doc) > 100:
+                raise ValueError("Документ содержит более 100 страниц")
+            text = "\n".join(page.get_text() for page in doc)
         return text.strip()
     
     except Exception as e:
@@ -28,6 +25,9 @@ def extract_text_from_docx_bytes(docx_bytes: bytes) -> str:
         for paragraph in doc.paragraphs:
             if paragraph.text.strip():
                 text += paragraph.text + "\n"
+        for table in doc.tables:
+            for row in table.rows:
+                text += " | ".join(cell.text for cell in row.cells) + "\n"
         
         return text.strip()
     

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, relative, join } from 'node:path';
 
-const apps = ['frontend', 'backend', 'worker', 'ranker'];
+const apps = ['frontend', 'backend', 'worker'];
 const manifests = Object.fromEntries(apps.map(name => [name, JSON.parse(readFileSync(`apps/${name}/package.json`, 'utf8'))]));
 const common = ['contracts', 'documents', 'data-access'];
 const sources = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? sources(join(directory, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(directory, entry.name)] : []);
@@ -34,3 +34,11 @@ assert.equal(Object.keys(JSON.parse(readFileSync('package.json','utf8')).depende
 for (const app of apps) assert.ok(readFileSync(`apps/${app}/Dockerfile`, 'utf8').includes(`apps/${app}`));
 assert.ok(!readFileSync('apps/backend/src/index.ts', 'utf8').includes('express.static'));
 console.log('Architecture: isolated application imports, declared dependencies, browser-only frontend and separate Dockerfiles passed');
+assert.ok(readFileSync('.npmrc', 'utf8').includes('install-strategy=nested'));
+const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+for (const dep of ['react', 'react-dom', 'vite']) {
+  assert.ok(lock.packages[`apps/frontend/node_modules/${dep}`], `frontend dependency must be installed inside frontend: ${dep}`);
+  assert.ok(!lock.packages[`node_modules/${dep}`], `frontend dependency hoisted to root: ${dep}`);
+}
+assert.ok(readFileSync('apps/frontend/vite.config.ts', 'utf8').indexOf('../../public') === -1);
+assert.ok(readFileSync('apps/resume-analyzer/Dockerfile', 'utf8').includes('uvicorn'));

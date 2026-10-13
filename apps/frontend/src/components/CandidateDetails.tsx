@@ -30,7 +30,7 @@ export function CandidateDetails({
   candidateId: string;
   onClose: () => void;
 }) {
-  const { candidates, clusters, refresh } = useData();
+  const { candidates, clusters, refresh, analysis } = useData();
   const candidate = candidates.find((c) => c.id === candidateId);
   const [preview, setPreview] = useState(false),
     [error, setError] = useState(""),
@@ -165,6 +165,7 @@ export function CandidateDetails({
           <Button
             secondary
             disabled={
+              !analysis.available ||
               busy ||
               !["failed", "completed"].includes(candidate.scoring_status)
             }

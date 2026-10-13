@@ -5,7 +5,8 @@
 интерфейс: http://localhost:3000.
 
 [Описание приложения, сценарии, правила и разработка](docs/application.md).
-[Разделение frontend, backend, worker и ranker](docs/architecture.md).
+[Разделение frontend, backend, worker и resume-analyzer](docs/architecture.md).
+[Подключение агента Ollama, Compose и проверка отказов модели](docs/analysis.md).
 
 ## PostgreSQL + Flyway + SeaweedFS
 

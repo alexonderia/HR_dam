@@ -5,4 +5,5 @@ export const config = {
   clamHost: process.env.CLAMAV_HOST || "127.0.0.1",
   clamPort: Number(process.env.CLAMAV_PORT || 3310),
   maxFileSize: 10 * 1024 * 1024,
+  workerHealthUrl: process.env.WORKER_HEALTH_URL || "http://127.0.0.1:3003/health",
 };

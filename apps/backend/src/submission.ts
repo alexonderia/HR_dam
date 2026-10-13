@@ -147,7 +147,7 @@ export async function submitCandidate(
           randomUUID(),
           resumeId,
           same?.resume_id ? "replaced" : "uploaded",
-          `Файл проверен антивирусом, сохранён в S3. ${warning || "Совпадений с чёрным списком нет."}`,
+          `${same?.resume_id ? "Найдено ранее загруженное резюме. Текущее резюме обновлено." : "Других резюме не найдено."} ${warning || "Совпадений с чёрным списком нет."}`,
         ],
       );
       return {

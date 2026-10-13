@@ -1,5 +1,27 @@
 import { z } from "zod";
 
+export interface AnalysisStatus {
+  available: boolean;
+  message: string;
+}
+
+export interface WorkerStatus {
+  state: "idle" | "waiting_analysis" | "waiting_requirements" | "processing" | "error";
+  current_resume_id: string | null;
+}
+
+export interface QueueStatus {
+  reason: "analysis_unavailable" | "no_profiles" | "processing_paused" | "waiting_turn" | "starting" | "delayed";
+  message: string;
+  waiting_seconds: number;
+  position: number;
+  delayed: boolean;
+}
+
+export interface ResumeProcessing {
+  queue: QueueStatus | null;
+}
+
 export const normalizeName = (value: string) =>
   value.normalize("NFKC").replace(/\s+/gu, " ").trim();
 export const identityKey = (value: string) =>
@@ -96,6 +118,7 @@ export interface Candidate {
   created_at: string;
   updated_at: string;
   blacklisted: boolean;
+  other_resumes_count: number;
   ratings: Rating[];
 }
 export interface ResumeEvent {

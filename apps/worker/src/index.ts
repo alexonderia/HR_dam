@@ -1,24 +1,49 @@
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
-import { pool, transaction } from "@hr/data-access";
+import { pool, transaction, getAnalysisStatus } from "@hr/data-access";
 import { getClusters } from "@hr/data-access";
 import { getFile } from "@hr/data-access";
 import { config } from "./config.js";
 import { validateRankResponse } from "@hr/contracts";
+import type { WorkerStatus } from "@hr/contracts";
+
+let status: WorkerStatus = { state: "idle", current_resume_id: null };
+const healthServer = createServer((req, res) => {
+  if (req.url !== "/health" || req.method !== "GET") { res.writeHead(404); res.end(); return; }
+  res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+  res.end(JSON.stringify(status));
+}).listen(config.healthPort, "0.0.0.0");
 
 let stopping = false;
 for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () => {
     stopping = true;
+    healthServer.close();
   });
 async function processNext() {
+  // Leave queued jobs intact while the service/model is offline.
+  if (!(await getAnalysisStatus()).available) {
+    status = { state: "waiting_analysis", current_resume_id: null };
+    return false;
+  }
+  const clusters = (await getClusters())
+    .filter((c) => c.is_active)
+    .map((c) => ({ ...c, profiles: c.profiles.filter((p) => p.is_active) }))
+    .filter((c) => c.profiles.length);
+  // Accept uploads independently of requirements; claim only runnable jobs.
+  if (!clusters.length) {
+    status = { state: "waiting_requirements", current_resume_id: null };
+    return false;
+  }
   const job = await transaction(async (client) => {
     // A crashed worker leaves a lease that expires, without resetting other live workers.
     await client.query(
-      `UPDATE resumes SET scoring_status='pending',updated_at=now() WHERE scoring_status='processing' AND updated_at < now()-interval '5 minutes'`,
+      `UPDATE resumes SET scoring_status='pending',updated_at=now() WHERE scoring_status='processing' AND updated_at < now()-($1 * interval '1 millisecond')`,
+      [config.timeoutMs + 60000],
     );
     const result = await client.query(
-      `SELECT r.*,f.bucket,f.object_key,f.file_name,f.mime_type FROM resumes r JOIN files f ON f.id=r.file_id WHERE r.scoring_status='pending' ORDER BY r.updated_at FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
+      `SELECT r.*,f.bucket,f.object_key,f.file_name,f.mime_type FROM resumes r JOIN files f ON f.id=r.file_id WHERE r.scoring_status='pending' ORDER BY r.updated_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
     );
     if (!result.rowCount) return null;
     const row = result.rows[0];
@@ -28,16 +53,9 @@ async function processNext() {
     );
     return { ...row, lease: claimed.rows[0].lease };
   });
-  if (!job) return false;
+  if (!job) { status = { state: "idle", current_resume_id: null }; return false; }
+  status = { state: "processing", current_resume_id: job.id };
   try {
-    const clusters = (await getClusters())
-      .filter((c) => c.is_active)
-      .map((c) => ({ ...c, profiles: c.profiles.filter((p) => p.is_active) }))
-      .filter((c) => c.profiles.length);
-    if (!clusters.length)
-      throw new Error(
-        "Нет активных кластеров с активными профилями. Добавьте требования и повторите оценку.",
-      );
     const buffer = await getFile(job.bucket, job.object_key);
     const form = new FormData();
     form.append(
@@ -49,14 +67,15 @@ async function processNext() {
     const response = await fetch(config.rankUrl, {
       method: "POST",
       body: form,
-      signal: AbortSignal.timeout(120000),
+      signal: AbortSignal.timeout(config.timeoutMs),
     });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
+        detail?: string;
       };
       throw new Error(
-        body.error?.slice(0, 500) ||
+        (body.error || body.detail)?.slice(0, 500) ||
           `Обработчик вернул HTTP ${response.status}`,
       );
     }
@@ -102,7 +121,7 @@ async function processNext() {
         [
           randomUUID(),
           job.id,
-          `Сохранены оценки ${result.clusters.reduce((count, c) => count + c.profiles.length, 0)} профилей. Требования взяты на момент запуска оценки.`,
+          "Оценка завершена. Результат доступен в карточке кандидата.",
         ],
       );
     });
@@ -125,12 +144,14 @@ async function processNext() {
         );
     });
   }
+  status = { state: "idle", current_resume_id: null };
   return true;
 }
 while (!stopping) {
   try {
     if (!(await processNext())) await delay(1500);
   } catch {
+    status = { state: "error", current_resume_id: null };
     console.error("Worker infrastructure unavailable; retrying");
     await delay(5000);
   }

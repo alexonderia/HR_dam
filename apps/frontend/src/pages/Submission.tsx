@@ -18,7 +18,7 @@ import { useData } from "../lib/store";
 import { Button, ErrorMessage, Field, PageHeading } from "../components/ui";
 
 export function Submission() {
-  const { refresh } = useData();
+  const { refresh, analysis } = useData();
   const [person, setPerson] = useState({
       last_name: "",
       first_name: "",
@@ -102,6 +102,9 @@ export function Submission() {
               <p>
                 Файл прошёл проверку, сохранён и отправлен в очередь обработки.
               </p>
+              {!analysis.available && (
+                <p>Анализ начнётся автоматически, когда сервис и модель будут доступны.</p>
+              )}
               {result.warning && (
                 <div className="notice warning">{result.warning}</div>
               )}

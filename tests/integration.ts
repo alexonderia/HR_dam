@@ -13,6 +13,8 @@ import type {
 } from "@hr/contracts";
 
 const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3000";
+const method = process.env.TEST_ANALYSIS_METHOD || "ollama-agent-v1";
+const modelControl = process.env.TEST_MODEL_CONTROL_URL;
 const ids = {
   clusters: [] as string[],
   profiles: [] as string[],
@@ -210,17 +212,17 @@ try {
     candidate.ratings.filter((r) => ids.profiles.includes(r.profile_id)).length,
     2,
   );
-  assert.equal(
+  if (modelControl) assert.equal(
     candidate.ratings.find((r) => r.profile_id === developer.id)?.score,
     100,
   );
-  assert.equal(
+  if (modelControl) assert.equal(
     candidate.ratings.find((r) => r.profile_id === analyst.id)?.score,
     0,
   );
   assert.equal(candidate.file_name, "Тестовое резюме.pdf");
   console.log(
-    "Pipeline: browser upload → ClamAV → S3 → ranker → ratings, inactive requirements excluded",
+    "Pipeline: browser upload → ClamAV → S3 → resume-analyzer → ratings, inactive requirements excluded",
   );
 
   assert.equal((await upload(person, pdf, "resume.pdf")).status, 409);
@@ -326,7 +328,7 @@ try {
   );
   assert.equal(report.status, 200);
   assert.match(report.headers.get("content-disposition") || "", /attachment/);
-  assert.match(await report.text(), /keyword-baseline-v1/);
+  assert.ok((await report.text()).includes(method));
   const csv = await fetch(base + "/api/export");
   assert.equal(csv.status, 200);
   assert.match(await csv.text(), /Backend-разработчик/);
@@ -415,6 +417,78 @@ try {
   console.log(
     "Exports/lifecycle: CSV, HTML, print PDF, DOCX preview/download, replacement, work lock and blacklist deactivation passed",
   );
+  if (modelControl) {
+    const setMode = async (mode: string) => {
+      const response = await fetch(modelControl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) });
+      assert.ok(response.ok);
+    };
+    const waitAnalysis = async (available: boolean) => {
+      let matchingSince = 0;
+      for (let i = 0; i < 30; i++) {
+        const status = await request<{ available: boolean }>("/analysis/status");
+        if (status.available === available) {
+          matchingSince ||= Date.now();
+          // Outlast the backend cache; a cached pre-failure true is not recovery.
+          if (Date.now() - matchingSince >= 5500) return;
+        } else matchingSince = 0;
+        await delay(1000);
+      }
+      throw new Error(`Analysis did not become available=${available}`);
+    };
+    try {
+      for (const mode of ["offline", "timeout"]) {
+        await setMode(mode);
+        await waitAnalysis(false);
+        await request("/health");
+        const before = (await overview()).candidates.find(c => c.id === candidate.id)!;
+        const retry = await fetch(base + `/api/resumes/${candidate.resume_id}/retry`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        assert.equal(retry.status, 503);
+        const after = (await overview()).candidates.find(c => c.id === candidate.id)!;
+        assert.equal(after.file_id, before.file_id);
+        assert.deepEqual(after.ratings, before.ratings);
+        assert.equal((await fetch(base + `/api/files/${candidate.file_id}?download=true`)).status, 200);
+        assert.equal((await fetch(base + `/api/resumes/${candidate.resume_id}/report`)).status, 200);
+        assert.equal((await fetch(base + "/api/export")).status, 200);
+        await request(`/blacklist/${blocked.id}`, { ...blocked, is_active: false }, "PUT");
+        await request(`/clusters/${cluster.id}`, { ...cluster, comment: "Updated while model offline" }, "PUT");
+        await page.goto(base + "/submit");
+        await expect(page.getByRole("button", { name: "Отправить резюме" })).toBeEnabled();
+        for (const route of ["/", "/requirements", "/blacklist", "/processing"]) {
+          await page.goto(base + route);
+          await expect(page.locator("main h1")).toBeVisible();
+          await expect(page.getByRole("alert")).toHaveCount(0);
+        }
+        if (mode === "offline") {
+          await request(`/resumes/${candidate.resume_id}/status`, { status: "in_process" }, "PATCH");
+          await request(`/resumes/${candidate.resume_id}/status`, { status: "historical" }, "PATCH");
+        }
+        const saved = await upload(person, pdf, `saved-${mode}.pdf`, true);
+        assert.equal(saved.status, 201, JSON.stringify(saved));
+        candidate = (await overview()).candidates.find(c => c.id === candidate.id)!;
+        assert.notEqual(candidate.file_id, before.file_id);
+        assert.equal(candidate.ratings.length, 0);
+        const downloaded = await fetch(base + `/api/files/${candidate.file_id}?download=true`);
+        assert.equal(downloaded.status, 200);
+        assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), pdf);
+        await delay(3000);
+        assert.equal((await overview()).candidates.find(c => c.id === candidate.id)?.scoring_status, "pending", "Worker must preserve queued jobs while model offline");
+        await setMode("online");
+        await waitAnalysis(true);
+        candidate = await waitFor(candidate.id, "completed");
+        await request(`/resumes/${candidate.resume_id}/retry`, {});
+        candidate = await waitFor(candidate.id, "completed");
+      }
+      await setMode("invalid");
+      await request(`/resumes/${candidate.resume_id}/retry`, {});
+      candidate = await waitFor(candidate.id, "failed");
+      assert.ok(candidate.ratings.length > 0, "Failed reanalysis must preserve previous ratings");
+      await setMode("online");
+      await waitAnalysis(true);
+      await request(`/resumes/${candidate.resume_id}/retry`, {});
+      await waitFor(candidate.id, "completed");
+      console.log("Model outage: uploads/replacements persist in DB and S3 before scoring; queued jobs recover; invalid responses preserve previous ratings");
+    } finally { await setMode("online"); }
+  }
 } finally {
   await browser?.close();
   const files = await pool.query(

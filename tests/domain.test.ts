@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { normalizePhone, personSchema, identityKey } from "@hr/contracts";
-import { baselineScore } from "../apps/ranker/src/scoring.js";
 import { validateRankResponse } from "@hr/contracts";
 import { exportCsv, escapeHtml } from "../apps/backend/src/export.js";
 import type { Candidate, Cluster, Profile } from "@hr/contracts";
@@ -37,18 +36,6 @@ test("normalization catches Russian phone variants and rejects malformed identit
       phone: "89991234567",
     }).last_name,
     "Иванов",
-  );
-});
-test("baseline does not invent education/experience scores and handles stop factors", () => {
-  assert.equal(baselineScore("Опыт Python", profile).score, 50);
-  assert.equal(baselineScore("Python SQL; нет допуска", profile).score, 0);
-  assert.equal(
-    baselineScore("Python SQL", { ...profile, keywords: [] }).score,
-    0,
-  );
-  assert.equal(
-    baselineScore("Python SQL", profile).details.education,
-    "Не оценено",
   );
 });
 test("rank contract rejects omitted, duplicate, foreign and out-of-range ratings", () => {

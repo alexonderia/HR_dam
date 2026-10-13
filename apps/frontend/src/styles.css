@@ -1187,6 +1187,36 @@ footer {
 .processing-detail > .notice {
   margin: 20px;
 }
+.candidate-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px 24px 0;
+}
+.candidate-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #f5f8fc;
+  border-radius: 10px;
+  min-width: 0;
+}
+.candidate-check > svg {
+  flex-shrink: 0;
+  color: #53a575;
+  margin-top: 2px;
+}
+.candidate-check.warning > svg { color: #bd8a34; }
+.candidate-check strong { font-size: 13px; }
+.candidate-check p { color: #64758e; font-size: 12px; margin-top: 4px; }
+.queue-reason { display: block; }
+.queue-reason p { margin-top: 4px; }
+.queue-reason small { display: block; margin-top: 6px; }
+.queue-loading { padding: 20px 24px 0; }
+@media (max-width: 640px) {
+  .candidate-checks { grid-template-columns: 1fr; padding: 16px 20px 0; }
+}
 .pipeline {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

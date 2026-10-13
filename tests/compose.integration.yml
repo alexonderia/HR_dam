@@ -1,0 +1,21 @@
+# Use with: docker compose -f docker-compose.yml -f tests/compose.integration.yml ...
+services:
+  # Synthetic tests do not download or require a real GPU/model.
+  ollama:
+    profiles: [real-model]
+  ollama-init:
+    profiles: [real-model]
+  model-stub:
+    image: hr-dam-resume-analyzer:local
+    entrypoint: [python, /tests/model_stub.py]
+    volumes:
+      - ./tests/model_stub.py:/tests/model_stub.py:ro
+    ports:
+      - "127.0.0.1:11435:11434"
+    networks: [infrastructure]
+  resume-analyzer:
+    environment:
+      OLLAMA_BASE_URL: http://model-stub:11434
+      MODEL_PROBE_INTERVAL_SECONDS: 2
+      MODEL_PROBE_TIMEOUT_SECONDS: 2
+      OLLAMA_TIMEOUT_SECONDS: 3

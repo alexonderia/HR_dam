@@ -29,7 +29,7 @@ const navigation = [
   { path: "/blacklist", label: "Чёрный список", icon: ShieldAlert },
 ];
 function Shell() {
-  const { candidates, clusters, error, loading, refresh, refreshedAt } =
+  const { candidates, clusters, analysis, error, loading, refresh, refreshedAt } =
       useData(),
     location = useLocation();
   const pending = candidates.filter((c) =>
@@ -109,6 +109,7 @@ function Shell() {
           </div>
         </header>
         <main>
+          {!analysis.available && <div className="notice warning" role="status">{analysis.message}</div>}
           {error && (
             <div className="notice danger" role="alert">
               Не удалось подключиться к API. {error}{" "}

@@ -30,6 +30,7 @@ export async function getCandidates(): Promise<Candidate[]> {
   const result =
     await pool.query(`SELECT c.*, r.id AS resume_id, r.file_id, r.status, r.scoring_status, r.updated_at,
     f.file_name, f.mime_type,
+    (SELECT count(*)::int FROM resume_events e WHERE e.resume_id=r.id AND e.event_type='replaced') AS other_resumes_count,
     EXISTS(SELECT 1 FROM candidate_blacklist b WHERE b.is_active AND ${blacklistMatchSql}) AS blacklisted,
     coalesce((SELECT jsonb_agg(jsonb_build_object('profile_id', pr.profile_id, 'score', pr.score,
       'matched_keywords', pr.matched_keywords, 'triggered_stop_factors', pr.triggered_stop_factors,
