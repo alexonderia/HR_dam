@@ -1,0 +1,51 @@
+import fitz  # PyMuPDF
+from docx import Document
+from io import BytesIO
+
+
+def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
+    """Извлекает текст из PDF"""
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        text = ""
+        
+        for page in doc:
+            text += page.get_text()
+        
+        doc.close()
+        return text.strip()
+    
+    except Exception as e:
+        raise Exception(f"Ошибка при извлечении текста из PDF: {str(e)}")
+
+
+def extract_text_from_docx_bytes(docx_bytes: bytes) -> str:
+    """Извлекает текст из DOCX"""
+    try:
+        doc = Document(BytesIO(docx_bytes))
+        text = ""
+        
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                text += paragraph.text + "\n"
+        
+        return text.strip()
+    
+    except Exception as e:
+        raise Exception(f"Ошибка при извлечении текста из DOCX: {str(e)}")
+
+
+def extract_text_from_file(file_bytes: bytes, filename: str) -> str:
+    """
+    Извлекает текст из файла в зависимости от расширения.
+    """
+    filename_lower = filename.lower()
+    
+    if filename_lower.endswith('.pdf'):
+        return extract_text_from_pdf_bytes(file_bytes)
+    
+    elif filename_lower.endswith('.docx'):
+        return extract_text_from_docx_bytes(file_bytes)
+    
+    else:
+        raise Exception("Поддерживаются только файлы PDF и DOCX")
