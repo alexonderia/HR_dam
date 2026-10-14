@@ -42,7 +42,7 @@ export function Requirements() {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [search, setSearch] = useState(""),
-    [collapsed, setCollapsed] = useState<string[]>([]);
+    [expanded, setExpanded] = useState<string[]>([]);
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError("");
@@ -75,12 +75,12 @@ export function Requirements() {
   const split = (value: string) => [
     ...new Set(
       value
-        .split(/\n|;/)
+        .split(/[\n;,]/)
         .map((v) => v.trim())
         .filter(Boolean),
     ),
   ];
-  const filtered = clusters.filter((c) =>
+  const filtered = [...clusters].sort((a, b) => Number(b.is_active) - Number(a.is_active)).filter((c) =>
     (c.name + c.profiles.map((p) => p.position_name).join(" "))
       .toLowerCase()
       .includes(search.toLowerCase()),
@@ -102,7 +102,7 @@ export function Requirements() {
           </Button>
         }
       />
-      <div className="notice info">
+      <div className="af-alert af-alert--info notice">
         <SlidersHorizontal size={20} />
         <span>
           Проверяются только активные профили активных кластеров. Отключённые
@@ -129,19 +129,20 @@ export function Requirements() {
       <ErrorMessage message={error} />
       <div className="cluster-list">
         {filtered.map((cluster) => (
-          <section className="panel cluster-panel" key={cluster.id}>
+          <section className="af-card panel cluster-panel" key={cluster.id}>
             <div className="cluster-title">
               <button
-                className="cluster-toggle"
+                className="af-btn af-btn--clear cluster-toggle"
+                aria-expanded={expanded.includes(cluster.id)}
                 onClick={() =>
-                  setCollapsed((p) =>
+                  setExpanded((p) =>
                     p.includes(cluster.id)
                       ? p.filter((id) => id !== cluster.id)
                       : [...p, cluster.id],
                   )
                 }
               >
-                {collapsed.includes(cluster.id) ? (
+                {!expanded.includes(cluster.id) ? (
                   <ChevronRight size={20} />
                 ) : (
                   <ChevronDown size={20} />
@@ -157,8 +158,9 @@ export function Requirements() {
                 </span>
               </button>
               <div className="toolbar">
-                <label className="switch-label">
+                <label className="af-check switch-label">
                   <input
+                    className="af-switch"
                     type="checkbox"
                     role="switch"
                     checked={cluster.is_active}
@@ -180,7 +182,7 @@ export function Requirements() {
                   <span>{cluster.is_active ? "Активен" : "Неактивен"}</span>
                 </label>
                 <button
-                  className="icon-button"
+                  className="af-btn af-btn--clear icon-button"
                   aria-label={`Изменить кластер ${cluster.name}`}
                   onClick={() => {
                     setClusterDraft({
@@ -198,13 +200,13 @@ export function Requirements() {
                 </Button>
               </div>
             </div>
-            {!collapsed.includes(cluster.id) && (
+            {expanded.includes(cluster.id) && (
               <>
                 {cluster.comment && (
                   <p className="cluster-comment">{cluster.comment}</p>
                 )}
-                <div className="table-scroll">
-                  <table className="requirements-table">
+                <div className="af-table-scroll table-scroll">
+                  <table className="af-table requirements-table">
                     <thead>
                       <tr>
                         <th>Профиль</th>
@@ -218,7 +220,7 @@ export function Requirements() {
                       </tr>
                     </thead>
                     <tbody>
-                      {cluster.profiles.map((profile) => (
+                      {[...cluster.profiles].sort((a, b) => Number(b.is_active) - Number(a.is_active)).map((profile) => (
                         <tr key={profile.id}>
                           <td>
                             <strong>{profile.position_name}</strong>
@@ -235,7 +237,7 @@ export function Requirements() {
                           <td>
                             <div className="tags">
                               {profile.keywords?.map((k) => (
-                                <span key={k} className="tag">
+                                <span key={k} className="af-badge tag">
                                   {k}
                                 </span>
                               ))}
@@ -245,7 +247,7 @@ export function Requirements() {
                           <td>
                             <div className="tags">
                               {profile.stop_factors?.map((s) => (
-                                <span key={s} className="tag danger">
+                                <span key={s} className="af-badge tag badge--danger">
                                   {s}
                                 </span>
                               ))}
@@ -253,12 +255,14 @@ export function Requirements() {
                             </div>
                           </td>
                           <td>
-                            <label className="switch-label">
+                            <label className={`af-check switch-label${!cluster.is_active ? " profile-control--muted" : ""}`}>
                               <input
+                                className="af-switch"
                                 type="checkbox"
                                 role="switch"
                                 checked={profile.is_active}
-                                disabled={busy}
+                                disabled={busy || !cluster.is_active}
+                                title={!cluster.is_active ? "Сначала активируйте кластер" : undefined}
                                 aria-label={`Активность профиля ${profile.position_name}`}
                                 onChange={() =>
                                   void run(() =>
@@ -286,7 +290,7 @@ export function Requirements() {
                           </td>
                           <td>
                             <button
-                              className="icon-button"
+                              className="af-btn af-btn--clear icon-button"
                               aria-label={`Изменить профиль ${profile.position_name}`}
                               onClick={() => openProfile(cluster, profile)}
                             >
@@ -315,7 +319,7 @@ export function Requirements() {
           </section>
         ))}
         {!filtered.length && (
-          <section className="panel">
+          <section className="af-card panel">
             <Empty
               title={
                 search ? "Требования не найдены" : "Создайте структуру подбора"
@@ -386,7 +390,7 @@ export function Requirements() {
             </Field>
             <Field label="Общие требования и комментарий">
               <textarea
-                className="af-input"
+                className="af-textarea"
                 rows={4}
                 maxLength={10000}
                 value={clusterDraft.comment}
@@ -395,8 +399,9 @@ export function Requirements() {
                 }
               />
             </Field>
-            <label className="checkbox">
+            <label className="af-check checkbox">
               <input
+                className="af-checkbox"
                 type="checkbox"
                 checked={clusterDraft.is_active}
                 onChange={(e) =>
@@ -452,7 +457,7 @@ export function Requirements() {
             <div className="form-grid">
               <Field label="Кластер *">
                 <select
-                  className="af-input"
+                  className="af-select"
                   value={profileDraft.cluster_id}
                   onChange={(e) =>
                     setProfileDraft({
@@ -486,7 +491,7 @@ export function Requirements() {
               </Field>
               <Field label="Образование">
                 <textarea
-                  className="af-input"
+                  className="af-textarea"
                   rows={3}
                   maxLength={5000}
                   value={profileDraft.education}
@@ -500,7 +505,7 @@ export function Requirements() {
               </Field>
               <Field label="Опыт работы">
                 <textarea
-                  className="af-input"
+                  className="af-textarea"
                   rows={3}
                   maxLength={5000}
                   value={profileDraft.experience}
@@ -514,10 +519,10 @@ export function Requirements() {
               </Field>
               <Field
                 label="Ключевые слова"
-                hint="По одному на строку. Также можно разделить точкой с запятой."
+                hint="Разделяйте запятыми, точками с запятой или переносами строк."
               >
                 <textarea
-                  className="af-input"
+                  className="af-textarea"
                   rows={5}
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
@@ -526,10 +531,10 @@ export function Requirements() {
               </Field>
               <Field
                 label="Стоп-факторы"
-                hint="По одному на строку. Условия, требующие отдельной проверки."
+                hint="Разделяйте запятыми, точками с запятой или переносами строк."
               >
                 <textarea
-                  className="af-input"
+                  className="af-textarea"
                   rows={5}
                   value={stops}
                   onChange={(e) => setStops(e.target.value)}
@@ -538,7 +543,7 @@ export function Requirements() {
             </div>
             <Field label="Дополнительные требования">
               <textarea
-                className="af-input"
+                className="af-textarea"
                 rows={3}
                 maxLength={10000}
                 value={profileDraft.comment}
@@ -547,10 +552,13 @@ export function Requirements() {
                 }
               />
             </Field>
-            <label className="checkbox">
+            <label className={`af-check checkbox${!clusters.find(c => c.id === profileDraft.cluster_id)?.is_active ? " profile-control--muted" : ""}`}>
               <input
+                className="af-checkbox"
                 type="checkbox"
                 checked={profileDraft.is_active}
+                disabled={busy || !clusters.find(c => c.id === profileDraft.cluster_id)?.is_active}
+                title={!clusters.find(c => c.id === profileDraft.cluster_id)?.is_active ? "Сначала активируйте кластер" : undefined}
                 onChange={(e) =>
                   setProfileDraft({
                     ...profileDraft,

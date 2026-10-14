@@ -8,8 +8,8 @@ export const blacklistMatchSql = `(b.phone = c.phone OR (
 ))`;
 export async function getClusters(): Promise<Cluster[]> {
   const [clusters, profiles] = await Promise.all([
-    pool.query("SELECT * FROM clusters ORDER BY name"),
-    pool.query("SELECT * FROM profiles ORDER BY position_name"),
+    pool.query("SELECT * FROM clusters ORDER BY is_active DESC,name"),
+    pool.query("SELECT * FROM profiles ORDER BY is_active DESC,position_name"),
   ]);
   return clusters.rows.map((c) => ({
     ...c,

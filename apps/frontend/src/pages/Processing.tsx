@@ -10,6 +10,9 @@ import {
   LoaderCircle,
   RotateCcw,
   Workflow,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName } from "@hr/contracts";
 import { useData } from "../lib/store";
@@ -23,19 +26,26 @@ import {
   Person,
 } from "../components/ui";
 import { CandidateDetails } from "../components/CandidateDetails";
+import { BlacklistAction, CandidateWorkflow } from "../components/CandidateActions";
 
 export function Processing() {
   const { candidates, refresh, analysis } = useData(),
     [params] = useSearchParams();
   const [selected, setSelected] = useState(params.get("resume") || ""),
+    [search, setSearch] = useState(""),
     [events, setEvents] = useState<ResumeEvent[]>([]),
+    [eventPage, setEventPage] = useState(1),
     [queue, setQueue] = useState<QueueStatus | null>(null),
     [queueError, setQueueError] = useState(""),
     [error, setError] = useState(""),
     [details, setDetails] = useState<string>(),
     [busy, setBusy] = useState(false);
-  const current =
-    candidates.find((c) => c.resume_id === selected) || candidates[0];
+  const filtered = candidates.filter(c => `${fullName(c)} ${c.phone}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const current = filtered.find((c) => c.resume_id === selected) || filtered[0];
+  const eventPageCount = Math.max(1, Math.ceil(events.length / 5));
+  const currentEventPage = Math.min(eventPage, eventPageCount);
+  const shownEvents = events.slice((currentEventPage - 1) * 5, currentEventPage * 5);
+  useEffect(() => { setEventPage(1); }, [current?.resume_id]);
   useEffect(() => {
     if (!current) return;
     let disposed = false;
@@ -43,7 +53,7 @@ export function Processing() {
       api<ResumeEvent[]>(`/resumes/${current.resume_id}/events`)
         .then((data) => {
           if (!disposed) {
-            setEvents(data);
+            setEvents([...data].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)));
             setError("");
           }
         })
@@ -120,15 +130,17 @@ export function Processing() {
         text="Состояние проверки и журнал событий обновляются автоматически."
       />
       <div className="processing-layout">
-        <section className="panel queue">
+        <section className="af-card panel queue">
           <div className="panel-heading">
-            <h2>Резюме</h2>
-            <span className="badge neutral">{candidates.length}</span>
+            <h2 className="af-title">Резюме</h2>
+            <span className="af-badge badge badge--neutral">{candidates.length}</span>
           </div>
-          {candidates.map((c) => (
+          <div className="search queue-search"><Search size={17} /><input className="af-input" aria-label="Поиск кандидатов" placeholder="ФИО или телефон" value={search} onChange={e => { setSearch(e.target.value); setEvents([]); }} /></div>
+          {filtered.map((c) => (
             <button
               key={c.id}
               className={`queue-item ${current?.id === c.id ? "selected" : ""}`}
+              aria-pressed={current?.id === c.id}
               onClick={() => {
                 setSelected(c.resume_id);
                 setEvents([]);
@@ -138,28 +150,30 @@ export function Processing() {
               <CandidateStatus candidate={c} />
             </button>
           ))}
+          {!!candidates.length && !filtered.length && <p className="muted">Кандидаты не найдены. Измените запрос.</p>}
           {!candidates.length && (
             <Empty
               title="Очередь пуста"
               text="Загрузите первое резюме."
               action={
-                <Link to="/submit" className="text-link">
+                <Link to="/submit" className="af-link text-link">
                   Добавить кандидата
                 </Link>
               }
             />
           )}
         </section>
-        <section className="panel processing-detail">
+        <section className="af-card panel processing-detail">
           {current ? (
             <>
               <div className="panel-heading">
                 <div>
-                  <h2>{fullName(current)}</h2>
+                  <h2 className="af-title">{fullName(current)}</h2>
                   <p>{current.file_name}</p>
                 </div>
                 <CandidateStatus candidate={current} />
               </div>
+              <div className="processing-actions"><CandidateWorkflow key={current.id} candidate={current} /><BlacklistAction candidate={current} /></div>
               <div className="candidate-checks" aria-label="Результат проверки кандидата">
                 <div className="candidate-check">
                   <Files size={20} />
@@ -180,7 +194,7 @@ export function Processing() {
               </div>
               {current.scoring_status === "pending" && (
                 queue ? (queue.delayed || queue.reason !== "starting") && (
-                  <div className="notice warning queue-reason" aria-label="Причина ожидания" aria-live="polite">
+                  <div className="af-alert af-alert--warning notice queue-reason" aria-label="Причина ожидания" aria-live="polite">
                     <strong>Причина ожидания</strong>
                     <p>{queue.message}</p>
                     <small>{queue.waiting_seconds >= 60 ? `В очереди: ${Math.floor(queue.waiting_seconds / 60)} мин.` : "В очереди меньше минуты."}</small>
@@ -209,10 +223,10 @@ export function Processing() {
                 ))}
               </div>
               {failed && (
-                <div className="notice danger">
+                <div className="af-alert af-alert--danger notice">
                   {events
                     .filter((e) => e.event_type === "scoring_failed")
-                    .at(-1)?.message ||
+                    .at(0)?.message ||
                     "Ошибка оценки. Можно повторить запуск."}
                 </div>
               )}
@@ -247,9 +261,9 @@ export function Processing() {
                   <ArrowUpRight size={16} />
                 </Button>
               </div>
-              <h3 className="journal-title">Журнал обработки</h3>
+              <h3 className="af-title journal-title">Журнал обработки</h3>
               <div className="event-list">
-                {events.map((event) => (
+                {shownEvents.map((event) => (
                   <div key={event.id} className="event">
                     <span
                       className={`event-dot ${event.event_type.includes("failed") || event.event_type.includes("rejected") ? "danger" : ""}`}
@@ -277,6 +291,16 @@ export function Processing() {
                 ))}
                 {!events.length && <p className="muted">Загрузка журнала…</p>}
               </div>
+              {events.length > 5 && (
+                <div className="table-footer" aria-label="Страницы журнала обработки">
+                  <span>{(currentEventPage - 1) * 5 + 1}–{Math.min(currentEventPage * 5, events.length)} из {events.length} событий</span>
+                  <div className="pagination">
+                    <button className="af-btn af-btn--ghost af-btn--sm icon-button" aria-label="Предыдущие события" disabled={currentEventPage <= 1} onClick={() => setEventPage(currentEventPage - 1)}><ChevronLeft size={16} /></button>
+                    <span>{currentEventPage} / {eventPageCount}</span>
+                    <button className="af-btn af-btn--ghost af-btn--sm icon-button" aria-label="Следующие события" disabled={currentEventPage >= eventPageCount} onClick={() => setEventPage(currentEventPage + 1)}><ChevronRight size={16} /></button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <Empty

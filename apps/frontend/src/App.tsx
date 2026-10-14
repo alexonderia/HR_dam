@@ -10,7 +10,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { DataProvider, useData } from "./lib/store";
-import { Framework } from "./components/ui";
+import { Button, Framework } from "./components/ui";
 import { Distribution } from "./pages/Distribution";
 import { Submission } from "./pages/Submission";
 import { Processing } from "./pages/Processing";
@@ -18,15 +18,16 @@ import { Requirements } from "./pages/Requirements";
 import { Blacklist } from "./pages/Blacklist";
 
 const navigation = [
-  { path: "/", label: "Распределение", icon: LayoutGrid },
-  { path: "/submit", label: "Приём резюме", icon: FilePlus2 },
-  { path: "/processing", label: "Обработка", icon: Workflow },
+  { path: "/", label: "Распределение", mobileLabel: "Подбор", icon: LayoutGrid },
+  { path: "/submit", label: "Приём резюме", mobileLabel: "Приём", icon: FilePlus2 },
+  { path: "/processing", label: "Обработка", mobileLabel: "Обработка", icon: Workflow },
   {
     path: "/requirements",
     label: "Кластеры и профили",
+    mobileLabel: "Профили",
     icon: SlidersHorizontal,
   },
-  { path: "/blacklist", label: "Чёрный список", icon: ShieldAlert },
+  { path: "/blacklist", label: "Чёрный список", mobileLabel: "Список", icon: ShieldAlert },
 ];
 function Shell() {
   const { candidates, clusters, analysis, error, loading, refresh, refreshedAt } =
@@ -55,11 +56,12 @@ function Shell() {
           </div>
         </div>
         <div className="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-        <nav>
-          {navigation.map(({ path, label, icon: Icon }) => (
-            <NavLink key={path} to={path} end={path === "/"}>
+        <nav aria-label="Разделы подбора кандидатов">
+          {navigation.map(({ path, label, mobileLabel, icon: Icon }) => (
+            <NavLink key={path} to={path} end={path === "/"} aria-label={label} title={label}>
               <Icon size={19} />
-              <span>{label}</span>
+              <span className="nav-full">{label}</span>
+              <span className="nav-short" aria-hidden="true">{mobileLabel}</span>
               {path === "/processing" && pending > 0 && <b>{pending}</b>}
             </NavLink>
           ))}
@@ -99,7 +101,7 @@ function Shell() {
               {clusters.filter((c) => c.is_active).length} активных кластеров
             </span>
             <button
-              className="icon-button"
+              className="af-btn af-btn--clear icon-button"
               aria-label="Обновить данные"
               onClick={() => void refresh()}
             >
@@ -109,11 +111,11 @@ function Shell() {
           </div>
         </header>
         <main>
-          {!analysis.available && <div className="notice warning" role="status">{analysis.message}</div>}
+          {!analysis.available && <div className="af-alert af-alert--warning notice" role="status">{analysis.message}</div>}
           {error && (
-            <div className="notice danger" role="alert">
-              Не удалось подключиться к API. {error}{" "}
-              <button onClick={() => void refresh()}>Повторить</button>
+            <div className="af-alert af-alert--danger notice" role="alert">
+              <span>Не удалось подключиться к API. {error}</span>
+              <Button secondary onClick={() => void refresh()}>Повторить</Button>
             </div>
           )}
           <Routes>
@@ -125,9 +127,9 @@ function Shell() {
             <Route
               path="*"
               element={
-                <div className="empty">
-                  <h1>Страница не найдена</h1>
-                  <NavLink to="/">К распределению</NavLink>
+                <div className="af-empty empty">
+                  <h1 className="af-heading">Страница не найдена</h1>
+                  <NavLink className="af-link" to="/">К распределению</NavLink>
                 </div>
               }
             />

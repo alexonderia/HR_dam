@@ -55,7 +55,8 @@ export function presentResumeEvent(event: ResumeEvent): ResumeEvent {
       ? "Не удалось прочитать текст резюме. Загрузите документ с доступным текстом."
       : "Не удалось завершить анализ. Повторите оценку позже.";
   } else if (event.event_type === "status_changed") {
-    display = message.includes("in_process") ? "Кандидат передан в работу."
+    display = message.startsWith("Статус изменён:") ? message
+      : message.includes("in_process") ? "Кандидат передан в работу."
       : message.includes("historical") ? "Работа с кандидатом завершена; резюме перенесено в архив."
       : "Статус кандидата изменён.";
   }

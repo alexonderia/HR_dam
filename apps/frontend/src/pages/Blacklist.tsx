@@ -68,7 +68,7 @@ export function Blacklist() {
           </Button>
         }
       />
-      <div className="notice warning">
+      <div className="af-alert af-alert--warning notice">
         <ShieldAlert size={20} />
         <span>
           Совпадение по телефону или полному ФИО создаёт предупреждение. Оценка
@@ -76,7 +76,7 @@ export function Blacklist() {
           между таблицами.
         </span>
       </div>
-      <section className="panel">
+      <section className="af-card panel">
         <div className="table-filters">
           <div className="search">
             <Search size={17} />
@@ -88,8 +88,9 @@ export function Blacklist() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <label className="checkbox">
+          <label className="af-check checkbox">
             <input
+              className="af-checkbox"
               type="checkbox"
               checked={active}
               onChange={(e) => setActive(e.target.checked)}
@@ -99,8 +100,8 @@ export function Blacklist() {
           <span className="muted">{filtered.length} записей</span>
         </div>
         <ErrorMessage message={error} />
-        <div className="table-scroll">
-          <table className="requirements-table">
+        <div className="af-table-scroll table-scroll">
+          <table className="af-table requirements-table">
             <thead>
               <tr>
                 <th>ФИО</th>
@@ -121,8 +122,9 @@ export function Blacklist() {
                   <td>{p.phone}</td>
                   <td>{p.company_name}</td>
                   <td>
-                    <label className="switch-label">
+                    <label className="af-check switch-label">
                       <input
+                        className="af-switch"
                         type="checkbox"
                         role="switch"
                         checked={p.is_active}
@@ -147,7 +149,7 @@ export function Blacklist() {
                   </td>
                   <td>
                     <button
-                      className="icon-button"
+                      className="af-btn af-btn--clear icon-button"
                       aria-label={`Изменить запись ${fullName(p)}`}
                       onClick={() => {
                         setDraft({ ...p, middle_name: p.middle_name || "" });
@@ -238,8 +240,9 @@ export function Blacklist() {
                 </Field>
               ))}
             </div>
-            <label className="checkbox">
+            <label className="af-check checkbox">
               <input
+                className="af-checkbox"
                 type="checkbox"
                 checked={draft.is_active}
                 onChange={(e) =>

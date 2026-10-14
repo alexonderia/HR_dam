@@ -4,6 +4,7 @@ import { fileTypeFromBuffer } from "file-type";
 import { unzipSync } from "fflate";
 import { config } from "./config.js";
 import { HttpError } from "./errors.js";
+import { decodeText, extractDocumentText } from "@hr/documents";
 
 export async function scanFile(buffer: Buffer) {
   await new Promise<void>((resolve, reject) => {
@@ -48,8 +49,8 @@ export async function scanFile(buffer: Buffer) {
 export async function validateFile(buffer: Buffer, filename: string) {
   if (!buffer.length || buffer.length > config.maxFileSize)
     throw new HttpError(422, "Размер файла должен быть от 1 байта до 10 МБ.");
-  const type = await fileTypeFromBuffer(buffer);
   const ext = filename.toLowerCase().split(".").pop();
+  const type = ["pdf", "docx"].includes(ext || "") ? await fileTypeFromBuffer(buffer) : undefined;
   if (type?.ext === "pdf" && ext === "pdf") {
     if (
       /\/(JavaScript|JS|Launch|EmbeddedFile|RichMedia)\b/.test(
@@ -78,7 +79,25 @@ export async function validateFile(buffer: Buffer, filename: string) {
       throw new HttpError(422, "Повреждённый DOCX.");
     return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   }
-  throw new HttpError(422, "Разрешены только настоящие PDF и DOCX.");
+  if (ext === "txt") {
+    const text = decodeText(buffer);
+    if (/[\x00-\x08\x0e-\x1f]/.test(text)) throw new HttpError(422, "TXT содержит двоичные данные.");
+    return "text/plain";
+  }
+  if (ext === "rtf" && /^\{\\rtf\d/.test(buffer.toString("latin1"))) {
+    if (/\\(object|objdata|field|bin)\b/i.test(buffer.toString("latin1")))
+      throw new HttpError(422, "RTF содержит вложенные объекты или активные поля.");
+    await extractDocumentText(buffer, "application/rtf");
+    return "application/rtf";
+  }
+  if (ext === "doc" && buffer.subarray(0, 8).equals(Buffer.from("d0cf11e0a1b11ae1", "hex"))) {
+    if (/VBA|Macros|ObjectPool/i.test(buffer.toString("utf16le")))
+      throw new HttpError(422, "DOC содержит макросы или вложенные объекты.");
+    try { await extractDocumentText(buffer, "application/msword"); }
+    catch { throw new HttpError(422, "Не удалось прочитать DOC."); }
+    return "application/msword";
+  }
+  throw new HttpError(422, "Поддерживаются PDF, DOCX, DOC, RTF и TXT. Содержимое должно соответствовать формату.");
 }
 export const hashFile = (buffer: Buffer) =>
   createHash("sha256").update(buffer).digest("hex");

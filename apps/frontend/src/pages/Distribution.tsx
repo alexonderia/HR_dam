@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowDownToLine,
   ArrowUpRight,
-  ChevronDown,
+  ChevronLeft,
   ChevronRight,
   FilePlus2,
   Printer,
@@ -16,7 +16,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useData } from "../lib/store";
-import { fullName, type Candidate, type Cluster } from "@hr/contracts";
+import { fullName, clusterScore, matrixColumns } from "@hr/contracts";
 import {
   Button,
   CandidateStatus,
@@ -26,13 +26,8 @@ import {
   Score,
 } from "../components/ui";
 import { CandidateDetails } from "../components/CandidateDetails";
+import { ExportDialog } from "../components/ExportDialog";
 
-function clusterScore(candidate: Candidate, cluster: Cluster) {
-  const values = candidate.ratings
-    .filter((r) => cluster.profiles.some((p) => p.id === r.profile_id))
-    .map((r) => Number(r.score));
-  return values.length ? Math.max(...values) : undefined;
-}
 export function Distribution() {
   const { candidates, clusters, loading } = useData();
   const [search, setSearch] = useState(""),
@@ -40,9 +35,15 @@ export function Distribution() {
     [activeOnly, setActiveOnly] = useState(true),
     [expanded, setExpanded] = useState<string[]>([]),
     [selected, setSelected] = useState<string>(),
+    [focus, setFocus] = useState<{ clusterId?: string; profileId?: string }>({}),
+    [exportMode, setExportMode] = useState<"export" | "print">(),
     [sort, setSort] = useState("date"),
     [page, setPage] = useState(1);
   const shownClusters = clusters.filter((c) => !activeOnly || c.is_active);
+  const columns = matrixColumns(shownClusters, expanded);
+  const openCandidate = (id: string, clusterId?: string, profileId?: string) => {
+    setFocus({ clusterId, profileId }); setSelected(id);
+  };
   const filtered = useMemo(
     () =>
       candidates
@@ -129,33 +130,33 @@ export function Distribution() {
       />
       <div className="stats-grid">
         {stats.map(({ label, value, icon: Icon, note }) => (
-          <div className="stat" key={label}>
+          <div className="af-widget stat" key={label}>
             <div className="stat-top">
               <span>{label}</span>
               <Icon size={19} />
             </div>
-            <strong>{loading ? "—" : value}</strong>
-            <small>{note}</small>
+            <strong className="af-metric__value">{loading ? "—" : value}</strong>
+            <small className="af-caption">{note}</small>
           </div>
         ))}
       </div>
       <div className="table-intro">
         <div>
-          <h2>Матрица соответствия</h2>
+          <h2 className="af-title">Матрица соответствия</h2>
           <p>Раскройте кластер, чтобы увидеть оценки по каждому профилю.</p>
         </div>
         <div className="toolbar">
-          <a href="/api/export" className="af-btn af-btn--secondary">
+          <Button secondary onClick={() => setExportMode("export")}>
             <ArrowDownToLine size={16} />
-            Экспорт CSV
-          </a>
-          <Button secondary onClick={() => window.print()}>
+            Экспорт
+          </Button>
+          <Button secondary onClick={() => setExportMode("print")}>
             <Printer size={16} />
             Печать
           </Button>
         </div>
       </div>
-      <section className="panel distribution-panel">
+      <section className="af-card panel distribution-panel">
         <div className="table-filters no-print">
           <div className="search">
             <Search size={17} />
@@ -171,7 +172,7 @@ export function Distribution() {
             />
           </div>
           <select
-            className="af-input filter-select"
+            className="af-select filter-select"
             aria-label="Статус кандидата"
             value={status}
             onChange={(e) => {
@@ -180,14 +181,15 @@ export function Distribution() {
             }}
           >
             <option value="all">Все статусы</option>
-            <option value="in_work">Доступны для отбора</option>
-            <option value="in_process">В работе</option>
+            <option value="in_work">В работе</option>
+            <option value="in_process">В процессе</option>
             <option value="historical">Архив</option>
             <option value="pending">В обработке</option>
             <option value="blacklist">Чёрный список</option>
           </select>
-          <label className="checkbox">
+          <label className="af-check checkbox">
             <input
+              className="af-checkbox"
               type="checkbox"
               checked={activeOnly}
               onChange={(e) => setActiveOnly(e.target.checked)}
@@ -195,7 +197,7 @@ export function Distribution() {
             Активные кластеры
           </label>
           <select
-            className="af-input filter-select sort"
+            className="af-select filter-select sort"
             value={sort}
             aria-label="Сортировать"
             onChange={(e) => setSort(e.target.value)}
@@ -209,21 +211,25 @@ export function Distribution() {
             ))}
           </select>
         </div>
-        <div className="table-scroll">
-          <table className="matrix">
+        <div className="af-table-scroll table-scroll matrix-scroll">
+          <table className="af-table matrix" style={{ width: "100%", minWidth: 290 + columns.length * 200 + 240 }}>
+            <colgroup><col style={{ width: 290 }} />{columns.map(c => <col key={c.id} style={{ width: 200 }} />)}<col style={{ width: 180 }} /><col style={{ width: 60 }} /></colgroup>
             <thead>
               <tr>
                 <th className="candidate-column">
                   Кандидат <span>{filtered.length}</span>
                 </th>
-                {shownClusters.map((c) => (
-                  <th key={c.id} className="cluster-column">
+                {columns.map(({ cluster: c, profile }) => profile ? (
+                  <th key={profile.id} className="profile-column"><span>{profile.position_name}</span>{!profile.is_active && <small>Неактивен</small>}</th>
+                ) : (
+                  <th key={c.id} className={`cluster-column${expanded.includes(c.id) ? " cluster-column--expanded" : ""}`}>
                     <button
                       onClick={() => toggle(c.id)}
-                      className="cluster-header"
+                      className="af-table__sort cluster-header"
+                      aria-expanded={expanded.includes(c.id)}
                     >
                       {expanded.includes(c.id) ? (
-                        <ChevronDown size={15} />
+                        <ChevronLeft size={15} />
                       ) : (
                         <ChevronRight size={15} />
                       )}
@@ -242,39 +248,14 @@ export function Distribution() {
                   <span className="sr-only">Действия</span>
                 </th>
               </tr>
-              {expanded.length > 0 && (
-                <tr className="profile-head">
-                  <th />
-                  <>
-                    {shownClusters.map((c) => (
-                      <th key={c.id}>
-                        {expanded.includes(c.id) ? (
-                          <div className="profile-cells">
-                            {c.profiles.map((p) => (
-                              <span key={p.id}>
-                                {p.position_name}
-                                {!p.is_active && <small>Неактивен</small>}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          "Максимальный рейтинг"
-                        )}
-                      </th>
-                    ))}
-                  </>
-                  <th />
-                  <th className="no-print" />
-                </tr>
-              )}
             </thead>
             <tbody>
               {rows.map((candidate) => (
                 <tr key={candidate.id}>
                   <td>
                     <button
-                      className="person-button"
-                      onClick={() => setSelected(candidate.id)}
+                      className="af-table__sort person-button"
+                      onClick={() => openCandidate(candidate.id)}
                     >
                       <Person candidate={candidate} />
                     </button>
@@ -285,36 +266,15 @@ export function Distribution() {
                       </span>
                     )}
                   </td>
-                  {shownClusters.map((cluster) => (
-                    <td key={cluster.id}>
-                      {expanded.includes(cluster.id) ? (
-                        <div className="profile-cells">
-                          {cluster.profiles.map((p) => (
-                            <button
-                              key={p.id}
-                              className="score-button"
-                              aria-label={`${p.position_name}: детали рейтинга`}
-                              onClick={() => setSelected(candidate.id)}
-                            >
-                              <Score
-                                value={
-                                  candidate.ratings.find(
-                                    (r) => r.profile_id === p.id,
-                                  )?.score
-                                }
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
+                  {columns.map(({ cluster, profile, id }) => (
+                    <td key={id}>
                         <button
-                          className="score-button"
-                          aria-label={`${cluster.name}: детали рейтинга`}
-                          onClick={() => setSelected(candidate.id)}
+                          className="af-btn af-btn--clear score-button"
+                          aria-label={`${profile?.position_name || cluster.name}: детали рейтинга`}
+                          onClick={() => openCandidate(candidate.id, cluster.id, profile?.id)}
                         >
-                          <Score value={clusterScore(candidate, cluster)} />
+                          <Score value={profile ? candidate.ratings.find(r => r.profile_id === profile.id)?.score : clusterScore(candidate, cluster)} />
                         </button>
-                      )}
                     </td>
                   ))}
                   <td>
@@ -322,9 +282,9 @@ export function Distribution() {
                   </td>
                   <td className="no-print">
                     <button
-                      className="icon-button"
+                      className="af-btn af-btn--clear icon-button"
                       aria-label={`Карточка: ${fullName(candidate)}`}
-                      onClick={() => setSelected(candidate.id)}
+                      onClick={() => openCandidate(candidate.id)}
                     >
                       <ArrowUpRight size={18} />
                     </button>
@@ -351,7 +311,7 @@ export function Distribution() {
             action={
               !search && status === "all" ? (
                 <Link
-                  className="text-link"
+                  className="af-link text-link"
                   to={clusters.length ? "/submit" : "/requirements"}
                 >
                   {clusters.length
@@ -381,21 +341,23 @@ export function Distribution() {
           </span>
           <div className="pagination">
             <button
+              className="af-btn af-btn--ghost af-btn--sm icon-button"
               disabled={currentPage <= 1}
               onClick={() => setPage(currentPage - 1)}
               aria-label="Предыдущая страница"
             >
-              ‹
+              <ChevronLeft size={16} />
             </button>
             <span>
               {currentPage} / {pageCount}
             </span>
             <button
+              className="af-btn af-btn--ghost af-btn--sm icon-button"
               disabled={currentPage >= pageCount}
               onClick={() => setPage(currentPage + 1)}
               aria-label="Следующая страница"
             >
-              ›
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
@@ -417,7 +379,7 @@ export function Distribution() {
         </div>
         <span>Рейтинг кластера = максимум по его профилям</span>
       </div>
-      <div className="helper-strip">
+      <div className="af-alert af-alert--info helper-strip">
         <SlidersHorizontal size={20} />
         <div>
           <strong>Точность начинается с требований</strong>
@@ -426,21 +388,23 @@ export function Distribution() {
             можно пересчитать.
           </span>
         </div>
-        <Link to="/requirements">
+        <Link className="af-link" to="/requirements">
           Настроить профили
           <ArrowUpRight size={16} />
         </Link>
       </div>
       <p className="muted export-note">
-        CSV содержит всю базу и все профили. Печать — текущую страницу таблицы с
-        выбранными фильтрами.
+        Экспорт и печать учитывают текущие фильтры, порядок кандидатов и раскрытые профили на всех страницах.
       </p>
       {selected && (
         <CandidateDetails
           candidateId={selected}
+          focusClusterId={focus.clusterId}
+          focusProfileId={focus.profileId}
           onClose={() => setSelected(undefined)}
         />
       )}
+      {exportMode && <ExportDialog candidates={filtered} clusters={shownClusters} expanded={expanded} mode={exportMode} onClose={() => setExportMode(undefined)} />}
     </>
   );
 }

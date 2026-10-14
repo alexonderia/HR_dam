@@ -72,16 +72,11 @@ export async function submitCandidate(
             [
               randomUUID(),
               same.resume_id,
-              "Замена запрещена: кандидат в работе",
+              "Замена запрещена: кандидат в процессе отбора",
             ],
           );
           return { rejected: true as const };
         }
-        if (body.allow_replace !== "true")
-          throw new HttpError(
-            409,
-            "Кандидат уже существует. Для обновления подтвердите замену резюме.",
-          );
       }
       const candidateId = same?.id || randomUUID(),
         resumeId = same?.resume_id || randomUUID(),

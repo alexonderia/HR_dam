@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Download,
   ExternalLink,
@@ -6,264 +6,266 @@ import {
   Printer,
   RotateCcw,
   ShieldAlert,
-  ArrowRight,
+  ChevronRight,
 } from "lucide-react";
-import type { Candidate } from "@hr/contracts";
-import { fullName } from "@hr/contracts";
+import { clusterScore } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate, reportUrl, openWindow } from "../lib/api";
 import {
   Button,
   CandidateStatus,
   ErrorMessage,
-  Field,
   Modal,
   Person,
   Score,
 } from "./ui";
 import { ResumePreview } from "./ResumePreview";
+import { ExportDialog } from "./ExportDialog";
+import { BlacklistAction, CandidateWorkflow } from "./CandidateActions";
 
 export function CandidateDetails({
   candidateId,
   onClose,
+  focusClusterId,
+  focusProfileId,
 }: {
   candidateId: string;
   onClose: () => void;
+  focusClusterId?: string;
+  focusProfileId?: string;
 }) {
   const { candidates, clusters, refresh, analysis } = useData();
   const candidate = candidates.find((c) => c.id === candidateId);
   const [preview, setPreview] = useState(false),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [blacklist, setBlacklist] = useState(false),
-    [company, setCompany] = useState("");
+    [exportMode, setExportMode] = useState<"export" | "print">();
+  const ratingsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusClusterId && !focusProfileId) return;
+    const element = ratingsRef.current?.querySelector<HTMLElement>(
+      `[data-rating-id="${focusProfileId || focusClusterId}"]`,
+    );
+    if (!element) return;
+    if (element instanceof HTMLDetailsElement) element.open = true;
+    const dialog = element.closest<HTMLDialogElement>("dialog");
+    if (!dialog) return;
+    const header = dialog.querySelector<HTMLElement>(".dialog-header");
+    const top = element.getBoundingClientRect().top
+      - dialog.getBoundingClientRect().top + dialog.scrollTop
+      - (header?.offsetHeight || 0) - 16;
+    dialog.scrollTop = Math.max(0, top);
+  }, [focusClusterId, focusProfileId, candidateId, preview]);
   if (!candidate) return null;
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true);
-    setError("");
-    try {
-      await fn();
-      await refresh();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const processed = candidate.ratings
+    .map((r) => r.calculated_at)
+    .sort()
+    .at(-1);
+  const anchor = focusProfileId
+    ? `#profile-${focusProfileId}`
+    : focusClusterId
+      ? `#cluster-${focusClusterId}`
+      : "";
   return (
     <>
-      <Modal title="Карточка кандидата" onClose={onClose} wide>
-        <div className="candidate-summary">
-          <Person candidate={candidate} />
-          <CandidateStatus candidate={candidate} />
-        </div>
-        <ErrorMessage message={error} />
-        {candidate.blacklisted && (
-          <div className="notice warning">
-            <ShieldAlert size={19} />
-            <span>
-              Совпадение с чёрным списком по телефону или ФИО. Проверьте данные
-              до передачи в работу.
-            </span>
+      {!preview && (
+        <Modal title="Карточка кандидата" onClose={onClose} wide>
+          <div className="candidate-summary">
+            <Person candidate={candidate} />
+            <CandidateStatus candidate={candidate} />
           </div>
-        )}
-        <div className="toolbar">
-          <Button secondary onClick={() => setPreview(true)}>
-            <FileText size={16} />
-            Резюме
-          </Button>
-          <a
-            className="af-btn af-btn--secondary"
-            href={reportUrl(candidate.resume_id, "download")}
-          >
-            <Download size={16} />
-            Отчёт
-          </a>
-          <Button
-            secondary
-            onClick={() => openWindow(reportUrl(candidate.resume_id))}
-          >
-            <ExternalLink size={16} />
-            Открыть отчёт
-          </Button>
-          <Button
-            secondary
-            onClick={() => openWindow(reportUrl(candidate.resume_id, "print"))}
-          >
-            <Printer size={16} />
-            Печать
-          </Button>
-        </div>
-        <h3>Соответствие профилям</h3>
-        <p className="muted">
-          Оценки на момент последней обработки. Максимум по профилям формирует
-          рейтинг кластера.
-        </p>
-        <div className="rating-details">
-          {clusters.map((cluster) => {
-            const rated = cluster.profiles.filter((p) =>
-              candidate.ratings.some((r) => r.profile_id === p.id),
-            );
-            return rated.length ? (
-              <section key={cluster.id}>
-                <h4>
-                  {cluster.name}
-                  {!cluster.is_active && (
-                    <span className="badge neutral">Неактивен</span>
-                  )}
-                </h4>
-                {rated.map((p) => {
-                  const r = candidate.ratings.find(
-                    (r) => r.profile_id === p.id,
-                  )!;
-                  return (
-                    <details key={p.id}>
-                      <summary>
-                        <span>
-                          {p.position_name}
-                          {!p.is_active && <small> · неактивен</small>}
-                        </span>
-                        <Score value={Number(r.score)} />
-                      </summary>
-                      <div className="rating-explanation">
-                        <p>
-                          {r.explanation ||
-                            "Обработчик не предоставил пояснение."}
-                        </p>
-                        <p>
-                          <strong>Ключевые слова:</strong>{" "}
-                          {r.matched_keywords?.join(", ") || "нет совпадений"}
-                        </p>
-                        <p>
-                          <strong>Стоп-факторы:</strong>{" "}
-                          {r.triggered_stop_factors?.join(", ") || "не найдены"}
-                        </p>
-                        <small>
-                          Рассчитано:{" "}
-                          {new Date(r.calculated_at).toLocaleString("ru-RU", {
-                            timeZone: "Europe/Moscow",
-                          })}
-                        </small>
-                      </div>
-                    </details>
-                  );
-                })}
-              </section>
-            ) : null;
-          })}
-          {!candidate.ratings.length && (
-            <p className="notice">
-              Оценки ещё не сформированы. Состояние доступно на экране
-              «Обработка».
-            </p>
+          <div className="candidate-processing">
+          <p className="muted">
+            Последняя обработка:{" "}
+            {processed
+              ? new Date(processed).toLocaleString("ru-RU", {
+                  timeZone: "Europe/Moscow",
+                }) + " МСК"
+              : "оценка ещё не завершена"}
+          </p>
+            <div className="toolbar candidate-document-actions">
+              <Button aria-label="Открыть резюме" title="Открыть резюме" onClick={() => setPreview(true)}>
+                <FileText size={16} />
+                Резюме
+              </Button>
+              <Button
+                secondary
+                aria-label="Открыть отчёт"
+                title="Открыть отчёт"
+                onClick={() =>
+                  openWindow(reportUrl(candidate.resume_id) + anchor)
+                }
+              >
+                <ExternalLink size={16} />
+                Отчёт
+              </Button>
+              <Button secondary aria-label="Экспорт" title="Экспорт" onClick={() => setExportMode("export")}>
+                <Download size={16} />
+                Экспорт
+              </Button>
+              <Button secondary aria-label="Печать" title="Печать" onClick={() => setExportMode("print")}>
+                <Printer size={16} />
+                Печать
+              </Button>
+            </div>
+          </div>
+          <ErrorMessage message={error} />
+          {candidate.blacklisted && (
+            <div className="af-alert af-alert--warning notice">
+              <ShieldAlert size={19} />
+              <span>
+                Совпадение с чёрным списком по телефону или ФИО. Проверьте
+                данные до передачи в работу.
+              </span>
+            </div>
           )}
-        </div>
-        <div className="dialog-footer">
-          <Button
-            secondary
-            disabled={
-              !analysis.available ||
-              busy ||
-              !["failed", "completed"].includes(candidate.scoring_status)
-            }
-            onClick={() =>
-              void run(() =>
-                mutate(`/resumes/${candidate.resume_id}/retry`, {}),
-              )
-            }
-          >
-            <RotateCcw size={16} />
-            Пересчитать
-          </Button>
-          <Button secondary disabled={busy} onClick={() => setBlacklist(true)}>
-            <ShieldAlert size={16} />В чёрный список
-          </Button>
-          {candidate.status === "in_work" && (
-            <Button
-              disabled={busy || candidate.scoring_status !== "completed"}
-              onClick={() =>
-                void run(() =>
-                  mutate(
-                    `/resumes/${candidate.resume_id}/status`,
-                    { status: "in_process" },
-                    "PATCH",
-                  ),
-                )
-              }
-            >
-              Взять в работу
-              <ArrowRight size={16} />
+          <div className="candidate-controls">
+            <CandidateWorkflow key={candidate.id} candidate={candidate} />
+            <div className="toolbar candidate-management">
+              <Button
+                secondary
+                disabled={
+                  !analysis.available ||
+                  busy ||
+                  !["failed", "completed"].includes(candidate.scoring_status)
+                }
+                onClick={async () => {
+                  setBusy(true);
+                  setError("");
+                  try {
+                    await mutate(`/resumes/${candidate.resume_id}/retry`, {});
+                    await refresh();
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <RotateCcw size={16} />
+                Пересчитать оценку
+              </Button>
+              <BlacklistAction candidate={candidate} />
+            </div>
+          </div>
+          <h3 className="af-title">Соответствие профилям</h3>
+          <p className="muted">
+            Рейтинг кластера — максимальная оценка по его профилям. Раскройте
+            профиль, чтобы увидеть обоснование.
+          </p>
+          <div className="rating-details" ref={ratingsRef}>
+            {clusters.map((cluster) => {
+              const rated = cluster.profiles.filter((p) =>
+                candidate.ratings.some((r) => r.profile_id === p.id),
+              );
+              return rated.length ? (
+                <section
+                  key={cluster.id}
+                  data-rating-id={cluster.id}
+                >
+                  <h4>
+                    {cluster.name}
+                    {!cluster.is_active && (
+                      <span className="af-badge badge badge--neutral">
+                        Неактивен
+                      </span>
+                    )}
+                    <Score value={clusterScore(candidate, cluster)} />
+                  </h4>
+                  {rated.map((p) => {
+                    const r = candidate.ratings.find(
+                      (r) => r.profile_id === p.id,
+                    )!;
+                    return (
+                      <details
+                        key={p.id}
+                        data-rating-id={p.id}
+                        open={focusProfileId === p.id || undefined}
+                      >
+                        <summary>
+                          <ChevronRight size={16} aria-hidden="true" />
+                          <span>
+                            {p.position_name}
+                            {!p.is_active && <small> · неактивен</small>}
+                          </span>
+                          <Score value={Number(r.score)} />
+                        </summary>
+                        <div className="rating-explanation">
+                          <section>
+                            <h5>Обоснование оценки</h5>
+                            <p className="explanation-text">
+                              {r.explanation ||
+                                "Обработчик не предоставил пояснение."}
+                            </p>
+                          </section>
+                          <div className="evidence-grid">
+                            <section>
+                              <h5>Совпадения с требованиями</h5>
+                              <div className="tags">
+                                {r.matched_keywords?.length ? (
+                                  r.matched_keywords.map((word, i) => (
+                                    <span key={i} className="af-badge tag">
+                                      {word}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <p>Нет совпадений</p>
+                                )}
+                              </div>
+                            </section>
+                            <section>
+                              <h5>Стоп-факторы</h5>
+                              <div className="tags">
+                                {r.triggered_stop_factors?.length ? (
+                                  r.triggered_stop_factors.map((word, i) => (
+                                    <span
+                                      key={i}
+                                      className="af-badge tag"
+                                    >
+                                      {word}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <p>Не найдены</p>
+                                )}
+                              </div>
+                            </section>
+                          </div>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </section>
+              ) : null;
+            })}
+            {!candidate.ratings.length && (
+              <p className="af-alert af-alert--info notice">
+                Оценки ещё не сформированы. Состояние доступно на экране
+                «Обработка».
+              </p>
+            )}
+          </div>
+          <div className="dialog-footer">
+            <Button secondary onClick={onClose}>
+              Закрыть
             </Button>
-          )}
-          {candidate.status === "in_process" && (
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void run(() =>
-                  mutate(
-                    `/resumes/${candidate.resume_id}/status`,
-                    { status: "historical" },
-                    "PATCH",
-                  ),
-                )
-              }
-            >
-              Завершить работу
-            </Button>
-          )}
-        </div>
-      </Modal>
+          </div>
+        </Modal>
+      )}
       {preview && (
         <ResumePreview
           candidate={candidate}
           onClose={() => setPreview(false)}
         />
       )}
-      {blacklist && (
-        <Modal
-          title="Добавить в чёрный список"
-          onClose={() => setBlacklist(false)}
-        >
-          <p>
-            {fullName(candidate)} · {candidate.phone}
-          </p>
-          <p className="muted">
-            Данные будут скопированы в независимую запись чёрного списка.
-          </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run(async () => {
-                await mutate("/blacklist", {
-                  phone: candidate.phone,
-                  last_name: candidate.last_name,
-                  first_name: candidate.first_name,
-                  middle_name: candidate.middle_name || "",
-                  company_name: company,
-                  is_active: true,
-                });
-                setBlacklist(false);
-              });
-            }}
-          >
-            <Field label="Компания">
-              <input
-                className="af-input"
-                required
-                minLength={2}
-                maxLength={255}
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-              />
-            </Field>
-            <ErrorMessage message={error} />
-            <div className="dialog-footer">
-              <Button type="submit" disabled={busy}>
-                Добавить
-              </Button>
-            </div>
-          </form>
-        </Modal>
+      {exportMode && (
+        <ExportDialog
+          candidates={[candidate]}
+          clusters={clusters}
+          candidateReport
+          mode={exportMode}
+          onClose={() => setExportMode(undefined)}
+        />
       )}
     </>
   );

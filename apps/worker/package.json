@@ -9,6 +9,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@hr/documents": "1.0.0",
     "@hr/contracts": "1.0.0",
     "@hr/data-access": "1.0.0"
   },

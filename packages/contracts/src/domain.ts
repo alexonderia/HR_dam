@@ -28,8 +28,8 @@ export const identityKey = (value: string) =>
   normalizeName(value).toLocaleLowerCase("ru").replace(/ё/gu, "е");
 export function normalizePhone(value: string) {
   let digits = value.replace(/[^0-9]/g, "");
-  if (digits.length === 10) digits = "7" + digits;
-  if (digits.length === 11 && digits[0] === "8") digits = "7" + digits.slice(1);
+  if (!value.trim().startsWith("+") && digits.length === 10) digits = "7" + digits;
+  if (!value.trim().startsWith("+") && digits.length === 11 && digits[0] === "8") digits = "7" + digits.slice(1);
   return digits ? "+" + digits : "";
 }
 const name = z
@@ -46,7 +46,8 @@ export const personSchema = z.object({
   phone: z
     .string()
     .transform(normalizePhone)
-    .pipe(z.string().regex(/^\+[1-9]\d{9,14}$/, "Проверьте номер телефона")),
+    .pipe(z.string().regex(/^\+[1-9]\d{7,14}$/, "Проверьте номер телефона")
+      .refine(value => !value.startsWith("+7") || value.length === 12, "Номер +7 должен содержать 11 цифр")),
   last_name: name,
   first_name: name,
   middle_name: z
@@ -133,8 +134,8 @@ export const fullName = (p: {
   middle_name?: string;
 }) => [p.last_name, p.first_name, p.middle_name].filter(Boolean).join(" ");
 export const statusLabels = {
-  in_work: "Доступен для отбора",
-  in_process: "В работе",
+  in_work: "В работе",
+  in_process: "В процессе",
   historical: "Архив",
 };
 export const scoringLabels = {

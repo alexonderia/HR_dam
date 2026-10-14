@@ -46,6 +46,8 @@ def extract_text_from_file(file_bytes: bytes, filename: str) -> str:
     
     elif filename_lower.endswith('.docx'):
         return extract_text_from_docx_bytes(file_bytes)
+    elif filename_lower.endswith('.txt'):
+        return file_bytes.decode('utf-8-sig')
     
     else:
-        raise Exception("Поддерживаются только файлы PDF и DOCX")
+        raise Exception("Поддерживаются PDF, DOCX и нормализованный TXT")

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -11,11 +11,11 @@ import {
 import {
   personSchema,
   normalizeName,
-  normalizePhone,
 } from "@hr/contracts";
 import { api } from "../lib/api";
 import { useData } from "../lib/store";
 import { Button, ErrorMessage, Field, PageHeading } from "../components/ui";
+import { phoneCountries, nationalPhone, formatNationalPhone } from "../lib/phone";
 
 export function Submission() {
   const { refresh, analysis } = useData();
@@ -26,7 +26,7 @@ export function Submission() {
       phone: "",
     }),
     [file, setFile] = useState<File>(),
-    [replace, setReplace] = useState(false),
+    [countryId, setCountryId] = useState("RU"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [result, setResult] = useState<{
@@ -34,15 +34,17 @@ export function Submission() {
       warning: string | null;
     }>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const phoneId = useId();
+  const country = phoneCountries.find(c => c.id === countryId)!;
   const chooseFile = (selected?: File) => {
     setError("");
     if (!selected) return;
     if (
-      !/\.(pdf|docx)$/i.test(selected.name) ||
+      !/\.(pdf|docx|doc|rtf|txt)$/i.test(selected.name) ||
       selected.size > 10 * 1024 * 1024 ||
       !selected.size
     ) {
-      setError("Выберите PDF или DOCX размером до 10 МБ.");
+      setError("Выберите PDF, DOCX, DOC, RTF или TXT размером до 10 МБ.");
       return;
     }
     setFile(selected);
@@ -50,7 +52,11 @@ export function Submission() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const parsed = personSchema.safeParse(person);
+    if (!country.lengths.includes(person.phone.length)) {
+      setError(`Телефон: введите ${country.lengths.join(" или ")} цифр${country.code ? " после +" + country.code : " международного номера"}.`);
+      return;
+    }
+    const parsed = personSchema.safeParse({ ...person, phone: "+" + country.code + person.phone });
     if (!parsed.success) {
       setError(
         parsed.error.issues
@@ -71,7 +77,6 @@ export function Submission() {
       form.append(key, value),
     );
     form.append("resume", file);
-    form.append("allow_replace", String(replace));
     setBusy(true);
     try {
       const response = await api<{ resume_id: string; warning: string | null }>(
@@ -94,11 +99,11 @@ export function Submission() {
         text="Заполните данные кандидата. Подходящие профили определятся после обработки."
       />
       <div className="submission-layout">
-        <section className="panel form-panel">
+        <section className="af-card panel form-panel">
           {result ? (
             <div className="success-state">
               <CheckCircle2 size={46} />
-              <h2>Резюме принято</h2>
+              <h2 className="af-title">Резюме принято</h2>
               <p>
                 Файл прошёл проверку, сохранён и отправлен в очередь обработки.
               </p>
@@ -106,7 +111,7 @@ export function Submission() {
                 <p>Анализ начнётся автоматически, когда сервис и модель будут доступны.</p>
               )}
               {result.warning && (
-                <div className="notice warning">{result.warning}</div>
+                <div className="af-alert af-alert--warning notice">{result.warning}</div>
               )}
               <Link
                 className="af-btn"
@@ -126,7 +131,7 @@ export function Submission() {
                     phone: "",
                   });
                   setFile(undefined);
-                  setReplace(false);
+                  setCountryId("RU");
                 }}
               >
                 Добавить ещё кандидата
@@ -137,7 +142,7 @@ export function Submission() {
               <div className="section-label">
                 <span>01</span>
                 <div>
-                  <h2>Данные кандидата</h2>
+                  <h2 className="af-title">Данные кандидата</h2>
                   <p>Телефон и ФИО используются для проверки дублей.</p>
                 </div>
               </div>
@@ -189,38 +194,51 @@ export function Submission() {
                     </Field>
                   ),
                 )}
-                <Field
-                  label="Телефон *"
-                  hint="Российский номер 8… будет приведён к +7…"
-                >
+                <div className="af-field field">
+                  <label className="af-label" htmlFor={phoneId}>Телефон <span className="af-required">*</span></label>
+                  <div className="phone-input">
+                  <select
+                    className="af-select phone-country"
+                    aria-label="Страна номера"
+                    title={country.name}
+                    value={countryId}
+                    onChange={e => { setCountryId(e.target.value); setPerson(p => ({ ...p, phone: "" })); }}
+                  >
+                    {phoneCountries.filter((c, i, all) => all.findIndex(other => other.code === c.code) === i).map(c => <option key={c.id} value={c.id}>{c.code ? `+${c.code}` : "+"}</option>)}
+                  </select>
                   <input
+                    id={phoneId}
                     className="af-input"
                     type="tel"
-                    autoComplete="tel"
-                    placeholder="+7 (999) 123-45-67"
+                    aria-label="Телефон"
+                    aria-describedby={`${phoneId}-hint`}
+                    inputMode="tel"
+                    autoComplete="tel-national"
+                    placeholder={country.code === "7" ? "(999) 123-45-67" : "Номер телефона"}
                     required
-                    value={person.phone}
-                    maxLength={25}
+                    value={formatNationalPhone(person.phone, country.code)}
+                    onKeyDown={e => {
+                      const input = e.currentTarget;
+                      if (e.key === "Backspace" && input.selectionStart === input.selectionEnd && input.selectionStart === input.value.length && /\D$/.test(input.value)) {
+                        e.preventDefault(); setPerson(p => ({ ...p, phone: p.phone.slice(0, -1) }));
+                      }
+                    }}
                     onChange={(e) =>
                       setPerson({
                         ...person,
-                        phone: e.target.value.replace(/[^0-9+()\s-]/g, ""),
+                        phone: nationalPhone(e.target.value, country),
                       })
                     }
-                    onBlur={() =>
-                      setPerson((p) => ({
-                        ...p,
-                        phone: normalizePhone(p.phone),
-                      }))
-                    }
                   />
-                </Field>
+                  </div>
+                  <small className="af-help" id={`${phoneId}-hint`}>{`${country.code ? "+" + country.code + " · " : "Международный номер · "}${person.phone.length} из ${country.lengths.join("–")} цифр`}</small>
+                </div>
               </div>
               <div className="section-label second">
                 <span>02</span>
                 <div>
-                  <h2>Файл резюме</h2>
-                  <p>PDF или DOCX. Максимальный размер — 10 МБ.</p>
+                  <h2 className="af-title">Файл резюме</h2>
+                  <p>PDF, DOCX, DOC, RTF или TXT. Максимальный размер — 10 МБ.</p>
                 </div>
               </div>
               <div
@@ -244,24 +262,13 @@ export function Submission() {
                 <input
                   ref={inputRef}
                   type="file"
-                  accept=".pdf,.docx"
+                  accept=".pdf,.docx,.doc,.rtf,.txt"
                   className="sr-only"
                   aria-label="Файл резюме"
                   onChange={(e) => chooseFile(e.target.files?.[0])}
                 />
               </div>
-              <label className="checkbox replacement">
-                <input
-                  type="checkbox"
-                  checked={replace}
-                  onChange={(e) => setReplace(e.target.checked)}
-                />
-                Обновить резюме, если телефон и ФИО уже есть в базе
-              </label>
-              <small className="muted">
-                Для кандидата в работе замена недоступна. При замене прошлые
-                оценки будут очищены.
-              </small>
+              <p className="muted replacement">При совпадении телефона и ФИО резюме обновляется автоматически. Если резюме кандидата уже взято в процесс одним из кластеров, прикрепить новое резюме нельзя. Новое резюме проходит повторную оценку.</p>
               <ErrorMessage message={error} />
               <div className="form-footer">
                 <span>
@@ -286,10 +293,10 @@ export function Submission() {
           )}
         </section>
         <aside className="submission-aside">
-          <div className="brand-card">
+          <div className="af-card brand-card">
             <img src="/assets/brand/brand-f4c76bb5b8514833c34e.svg" alt="" />
-            <div className="eyebrow">АЛАБУГА · ЛЮДИ И ВОЗМОЖНОСТИ</div>
-            <h2>
+            <div className="af-eyebrow eyebrow">АЛАБУГА · ЛЮДИ И ВОЗМОЖНОСТИ</div>
+            <h2 className="af-heading af-heading--2">
               Каждому таланту —<br />
               свой профиль.
             </h2>
@@ -300,7 +307,7 @@ export function Submission() {
             </p>
           </div>
           <div className="process-guide">
-            <h3>Что произойдёт дальше</h3>
+            <h3 className="af-title">Что произойдёт дальше</h3>
             {[
               ["Проверка данных", "Нормализация ФИО и телефона, поиск дублей."],
               [

@@ -62,7 +62,7 @@ def rank_resume(file: UploadFile = File(...), requirements: str = Form(...)):
     try:
         resume_text = extract_text_from_file(file_bytes, file.filename or "")
     except Exception:
-        raise HTTPException(422, "Не удалось прочитать PDF или DOCX.")
+        raise HTTPException(422, "Не удалось извлечь текст резюме.")
     if len(resume_text.strip()) < 20:
         raise HTTPException(422, "Текст не извлечён. Для сканированного PDF необходим OCR.")
     if len(resume_text) > 50000:

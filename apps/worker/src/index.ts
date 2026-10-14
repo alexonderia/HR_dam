@@ -7,6 +7,7 @@ import { getFile } from "@hr/data-access";
 import { config } from "./config.js";
 import { analyzeResume } from "./analysis.js";
 import type { WorkerStatus } from "@hr/contracts";
+import { extractDocumentText } from "@hr/documents";
 
 let status: WorkerStatus = { state: "idle", current_resume_id: null };
 const healthServer = createServer((req, res) => {
@@ -57,8 +58,10 @@ async function processNext() {
   status = { state: "processing", current_resume_id: job.id };
   try {
     const buffer = await getFile(job.bucket, job.object_key);
-    const file = new Blob([new Uint8Array(buffer)], { type: job.mime_type });
-    const result = await analyzeResume(clusters, file, job.file_name, config, event => {
+    const legacy = ["application/msword", "application/rtf", "text/plain"].includes(job.mime_type);
+    const content = legacy ? Buffer.from(await extractDocumentText(buffer, job.mime_type), "utf8") : buffer;
+    const file = new Blob([new Uint8Array(content)], { type: legacy ? "text/plain" : job.mime_type });
+    const result = await analyzeResume(clusters, file, legacy ? "resume.txt" : job.file_name, config, event => {
       console.info(JSON.stringify({ event: `analysis_${event.type}`, resume_id: job.id, ...event }));
     });
     await transaction(async (client) => {
