@@ -84,10 +84,15 @@ services:
       RANK_TIMEOUT_SECONDS: ${RANK_TIMEOUT_SECONDS:-840}
       MODEL_PROBE_TIMEOUT_SECONDS: ${MODEL_PROBE_TIMEOUT_SECONDS:-60}
       MODEL_PROBE_INTERVAL_SECONDS: ${MODEL_PROBE_INTERVAL_SECONDS:-15}
+      LOG_DIR: /app/logs
+      DIAGNOSTIC_LOGS_ENABLED: ${DIAGNOSTIC_LOGS_ENABLED:-true}
+      DIAGNOSTIC_RETENTION_DAYS: ${DIAGNOSTIC_RETENTION_DAYS:-3}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     expose: ["8000"]
     networks: [infrastructure]
+    volumes:
+      - ./logs/resume-analyzer:/app/logs
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s

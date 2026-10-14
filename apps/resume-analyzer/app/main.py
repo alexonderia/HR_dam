@@ -1,94 +1,186 @@
+"""Главный модуль FastAPI приложения."""
+
 import json
-import os
-import threading
+import logging
 import time
-from contextlib import asynccontextmanager
+import uuid
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
-from pydantic import ValidationError
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 
-from app.ollama_client import ModelUnavailable, MODEL_TIMEOUT
-from app.rank_models import RequirementsRequest, RankResponse, ClusterResponse, ProfileResponse
+from app.config import settings
+from app.logging_config import setup_logging, get_logger, get_diagnostic_logger, log_event
+from app.ollama_client import ModelUnavailable
+from app.rank_models import (
+    RequirementsRequest,
+    RankResponse,
+    ClusterResponse,
+    ProfileResponse,
+)
 from app.scoring import rank_profile
-from app.readiness import is_ready, mark_ready, model_lock, monitor, PROBE_TIMEOUT
 from app.text_extractor import extract_text_from_file
 
-MAX_FILE_SIZE = 10 * 1024 * 1024
-RANK_TIMEOUT = float(os.getenv("RANK_TIMEOUT_SECONDS", "840"))
+# Инициализация логирования при старте приложения
+setup_logging()
 
+logger = get_logger("app.main")
+diag_logger = get_diagnostic_logger()
 
-@asynccontextmanager
-async def lifespan(_app):
-    stop = threading.Event()
-    thread = threading.Thread(target=monitor, args=(stop,), daemon=True)
-    thread.start()
-    yield
-    stop.set()
-
-
-app = FastAPI(title="Resume Analyzer API", lifespan=lifespan)
+app = FastAPI(title="Resume Analyzer API")
 
 
 @app.get("/")
-@app.get("/health")
-def health_check():
-    return {"ok": True}
+async def health_check():
+    """Проверка, что API работает."""
+    return {"status": "ok", "message": "Resume Analyzer API is running"}
 
+
+@app.get("/health")
+async def health():
+    """Healthcheck для Docker."""
+    return {"status": "ok"}
 
 @app.get("/ready")
-def readiness():
-    available = is_ready()
-    return JSONResponse(status_code=200 if available else 503,
-                        content={"available": available})
-
+async def ready():
+    """Проверка готовности сервиса принимать задачи."""
+    return {"status": "ready"}
 
 @app.post("/rank", response_model=RankResponse)
-def rank_resume(file: UploadFile = File(...), requirements: str = Form(...)):
-    # Synchronous route runs in FastAPI's thread pool, never blocks /health.
+async def rank_resume(
+    file: UploadFile = File(...),
+    requirements: str = Form(...),
+):
+    """
+    Принимает файл резюме и требования, возвращает оценки по профилям.
+    """
+    job_id = str(uuid.uuid4())
+    job_started_at = time.time()
+
+    log_event(logger, logging.INFO, "rank_job_started",
+              job_id=job_id,
+              filename=file.filename,
+              content_type=file.content_type)
+
+    # ── Парсинг требований ──────────────────────────────────────────────
     try:
-        if len(requirements.encode("utf-8")) > 1024 * 1024:
-            raise HTTPException(413, "Требования превышают 1 МБ.")
-        requirements_obj = RequirementsRequest.model_validate(json.loads(requirements))
-    except (ValueError, ValidationError):
-        raise HTTPException(422, "Невалидные требования к профилям.")
-    if not any(c.profiles for c in requirements_obj.clusters):
-        raise HTTPException(422, "Нет профилей для анализа.")
-    if not is_ready():
-        raise HTTPException(503, "Модель недоступна. Повторите анализ позже.")
-    file_bytes = file.file.read(MAX_FILE_SIZE + 1)
-    if len(file_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(413, "Размер резюме превышает 10 МБ.")
+        requirements_data = json.loads(requirements)
+        requirements_obj = RequirementsRequest(**requirements_data)
+    except (json.JSONDecodeError, ValueError) as exc:
+        log_event(logger, logging.WARNING, "rank_job_invalid_requirements",
+                  job_id=job_id, error=str(exc))
+        raise HTTPException(status_code=400, detail=f"Невалидные требования: {exc}")
+
+    total_profiles = sum(len(c.profiles) for c in requirements_obj.clusters)
+
+    log_event(logger, logging.INFO, "requirements_parsed",
+              job_id=job_id,
+              clusters_count=len(requirements_obj.clusters),
+              profiles_count=total_profiles)
+
+    # Диагностический лог: полный набор требований
+    log_event(diag_logger, logging.DEBUG, "requirements_full",
+              job_id=job_id,
+              requirements=requirements_data)
+
+    # ── Чтение файла ────────────────────────────────────────────────────
     try:
-        resume_text = extract_text_from_file(file_bytes, file.filename or "")
-    except Exception:
-        raise HTTPException(422, "Не удалось прочитать PDF или DOCX.")
-    if len(resume_text.strip()) < 20:
-        raise HTTPException(422, "Текст не извлечён. Для сканированного PDF необходим OCR.")
-    if len(resume_text) > 50000:
-        raise HTTPException(422, "Резюме слишком длинное: максимум 50 000 символов.")
-    if not model_lock.acquire(timeout=PROBE_TIMEOUT + 5):
-        raise HTTPException(503, "Модель занята. Повторите анализ позже.")
-    deadline = time.monotonic() + RANK_TIMEOUT
+        file_bytes = await file.read()
+    except Exception as exc:
+        log_event(logger, logging.ERROR, "rank_job_file_read_failed",
+                  job_id=job_id, error=str(exc))
+        raise HTTPException(status_code=500, detail="Ошибка чтения файла")
+
+    log_event(logger, logging.INFO, "file_received",
+              job_id=job_id,
+              filename=file.filename,
+              size_bytes=len(file_bytes))
+
+    # ── Извлечение текста ───────────────────────────────────────────────
+    extract_started_at = time.time()
+
+    log_event(logger, logging.INFO, "text_extraction_started", job_id=job_id)
+
     try:
-        if not is_ready():
-            raise ModelUnavailable("Модель недоступна. Повторите анализ позже.")
-        clusters = []
-        for cluster in requirements_obj.clusters:
-            profiles = []
-            for profile in cluster.profiles:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    raise ModelUnavailable("Истекло время анализа. Повторите позже.")
-                rating = rank_profile(resume_text, profile,
-                                      f"{cluster.name}\nНаправление: {cluster.track or ''}\n{cluster.comment or ''}",
-                                      timeout=min(MODEL_TIMEOUT, remaining))
-                profiles.append(ProfileResponse(id=profile.id, position_name=profile.position_name, **rating))
-            clusters.append(ClusterResponse(id=cluster.id, name=cluster.name, profiles=profiles))
-        mark_ready(True)
-        return RankResponse(clusters=clusters)
-    except ModelUnavailable as exc:
-        mark_ready(False)
-        raise HTTPException(503, str(exc))
-    finally:
-        model_lock.release()
+        resume_text = extract_text_from_file(file_bytes, file.filename or "resume")
+    except Exception as exc:
+        log_event(logger, logging.ERROR, "text_extraction_failed",
+                  job_id=job_id, error=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    extract_duration = time.time() - extract_started_at
+
+    log_event(logger, logging.INFO, "text_extraction_completed",
+              job_id=job_id,
+              duration_sec=round(extract_duration, 2),
+              text_length_chars=len(resume_text))
+
+    if not resume_text or len(resume_text.strip()) < 50:
+        log_event(logger, logging.WARNING, "rank_job_insufficient_text",
+                  job_id=job_id,
+                  text_length_chars=len(resume_text))
+        raise HTTPException(status_code=400, detail="Не удалось извлечь достаточно текста")
+
+    # Диагностический лог: извлечённый текст резюме
+    log_event(diag_logger, logging.DEBUG, "resume_text_extracted",
+              job_id=job_id,
+              text_length_chars=len(resume_text),
+              text_preview=resume_text[:2000])
+
+    # ── Оценка по профилям ──────────────────────────────────────────────
+    result_clusters = []
+    failed_profiles = 0
+
+    for cluster in requirements_obj.clusters:
+        cluster_profiles = []
+
+        for profile in cluster.profiles:
+            try:
+                ranking_result = rank_profile(
+                    resume_text,
+                    profile,
+                    cluster_requirements=cluster.comment or "",
+                    job_id=job_id,
+                )
+            except ModelUnavailable as exc:
+                failed_profiles += 1
+                log_event(logger, logging.ERROR, "profile_ranking_failed",
+                          job_id=job_id,
+                          profile_id=profile.id,
+                          position_name=profile.position_name,
+                          error=str(exc))
+
+                # Возвращаем профиль с нулевой оценкой и описанием ошибки
+                ranking_result = {
+                    "score": 0.0,
+                    "matched_keywords": [],
+                    "triggered_stop_factors": [],
+                    "explanation": f"Ошибка оценки: {exc}",
+                    "details": {"error": str(exc)},
+                }
+
+            profile_response = ProfileResponse(
+                id=profile.id,
+                position_name=profile.position_name,
+                score=ranking_result.get("score", 0.0),
+                matched_keywords=ranking_result.get("matched_keywords"),
+                triggered_stop_factors=ranking_result.get("triggered_stop_factors"),
+                details=ranking_result.get("details"),
+                explanation=ranking_result.get("explanation"),
+            )
+            cluster_profiles.append(profile_response)
+
+        result_clusters.append(ClusterResponse(
+            id=cluster.id,
+            name=cluster.name,
+            profiles=cluster_profiles,
+        ))
+
+    # ── Завершение задания ──────────────────────────────────────────────
+    total_duration = time.time() - job_started_at
+
+    log_event(logger, logging.INFO, "rank_job_completed",
+              job_id=job_id,
+              total_duration_sec=round(total_duration, 2),
+              profiles_total=total_profiles,
+              profiles_failed=failed_profiles)
+
+    return RankResponse(clusters=result_clusters)
