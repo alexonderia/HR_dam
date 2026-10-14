@@ -1,4 +1,6 @@
 import json
+import asyncio
+import threading
 import unittest
 from io import BytesIO
 from unittest.mock import patch, Mock
@@ -7,11 +9,11 @@ import requests
 from fastapi import HTTPException, UploadFile
 from docx import Document
 
-from app.main import rank_resume, health_check, readiness
+from app.main import app, lifespan, rank_resume, health_check, readiness
 from app.ollama_client import ask_ollama_chat, ModelUnavailable
 from app.rank_models import ProfileRequest
 from app.scoring import parse_ranking_response, rank_profile, build_ranking_prompt
-from app.readiness import mark_ready
+from app.readiness import mark_ready, model_lock, monitor
 from app.text_extractor import extract_text_from_file
 
 
@@ -27,7 +29,7 @@ class AnalyzerTests(unittest.TestCase):
 
     def upload(self):
         doc = Document()
-        doc.add_paragraph("Python SQL developer with five years of experience")
+        doc.add_paragraph("Python SQL developer with five years of experience building REST APIs")
         buf = BytesIO()
         doc.save(buf)
         buf.seek(0)
@@ -44,6 +46,7 @@ class AnalyzerTests(unittest.TestCase):
             with self.assertRaises(ModelUnavailable):
                 ask_ollama_chat("system", "resume")
         response = Mock()
+        response.status_code = 200
         response.json.return_value = {"message": {"content": ""}}
         with patch("app.ollama_client.requests.post", return_value=response):
             with self.assertRaises(ModelUnavailable):
@@ -54,10 +57,10 @@ class AnalyzerTests(unittest.TestCase):
             with self.assertRaises(ModelUnavailable):
                 rank_profile("resume", self.profile)
 
-    def test_stop_factors_and_cluster_requirements(self):
+    def test_stop_factors_preserve_model_rating_and_cluster_requirements(self):
         rating = {"score": 80, "explanation": "Stop", "triggered_stop_factors": ["stop"]}
         with patch("app.scoring.ask_ollama_chat", return_value={"response": json.dumps(rating)}):
-            self.assertEqual(rank_profile("resume", self.profile)["score"], 0)
+            self.assertEqual(rank_profile("resume", self.profile)["score"], 80)
         self.assertIn("Общие требования", build_ranking_prompt("resume", self.profile, "Общие требования")[1])
 
     def test_success_preserves_contract_and_details(self):
@@ -66,7 +69,7 @@ class AnalyzerTests(unittest.TestCase):
             result = rank_resume(self.upload(), self.requirements)
         self.assertEqual(result.clusters[0].profiles[0].score, 80)
         self.assertEqual(result.clusters[0].profiles[0].details["method"], "ollama-agent-v1")
-        self.assertIn("Общие требования", rank.call_args.args[2])
+        self.assertEqual(rank.call_args.kwargs["cluster_requirements"], "Общие требования")
 
     def test_partial_failure_returns_no_success_and_disables_analysis(self):
         req = json.loads(self.requirements)
@@ -87,6 +90,65 @@ class AnalyzerTests(unittest.TestCase):
         mark_ready(True)
         self.assertEqual(readiness().status_code, 200)
 
+    def test_readiness_matches_backend_contract_and_liveness_is_independent(self):
+        for available in (False, True):
+            mark_ready(available)
+            response = readiness()
+            self.assertEqual(response.status_code, 200 if available else 503)
+            self.assertEqual(json.loads(response.body), {"available": available})
+            self.assertEqual(health_check(), {"ok": True})
+
+    def test_monitor_checks_real_chat_client_and_recovers(self):
+        stop = threading.Event()
+        responses = [ModelUnavailable("offline"), {"message": {"content": "OK"}}]
+        observed = []
+
+        def chat_response(*args, **kwargs):
+            reply = responses.pop(0)
+            self.assertEqual(kwargs["json"]["options"]["num_predict"], 8)
+            if isinstance(reply, Exception):
+                raise requests.ConnectionError("offline")
+            response = Mock(status_code=200)
+            response.json.return_value = reply
+            return response
+
+        def wait(_interval):
+            observed.append(json.loads(readiness().body)["available"])
+            if not responses:
+                stop.set()
+
+        with patch("app.ollama_client.requests.post", side_effect=chat_response), \
+             patch.object(stop, "wait", side_effect=wait):
+            monitor(stop)
+        self.assertEqual(observed, [False, True])
+        self.assertFalse(model_lock.locked())
+
+    def test_monitor_skips_probe_while_ranking(self):
+        stop = threading.Event()
+        model_lock.acquire()
+        try:
+            with patch("app.readiness.ask_ollama_chat") as chat, \
+                 patch.object(stop, "wait", side_effect=lambda _interval: stop.set()):
+                monitor(stop)
+            chat.assert_not_called()
+            self.assertEqual(readiness().status_code, 200)
+        finally:
+            model_lock.release()
+
+    def test_malformed_chat_responses_disable_analysis(self):
+        for reply in (None, [], {}, {"message": None}, {"message": {"content": " "}}):
+            response = Mock(status_code=200)
+            response.json.return_value = reply
+            with self.subTest(reply=reply), \
+                 patch("app.ollama_client.requests.post", return_value=response):
+                with self.assertRaises(ModelUnavailable):
+                    ask_ollama_chat("system", "resume")
+        response = Mock(status_code=200)
+        response.json.side_effect = ValueError("invalid JSON")
+        with patch("app.ollama_client.requests.post", return_value=response):
+            with self.assertRaises(ModelUnavailable):
+                ask_ollama_chat("system", "resume")
+
     def test_input_errors_do_not_mark_model_unavailable(self):
         with self.assertRaises(HTTPException) as exc:
             rank_resume(self.upload(), "not json")
@@ -99,6 +161,28 @@ class AnalyzerTests(unittest.TestCase):
         buf = BytesIO()
         doc.save(buf)
         self.assertIn("Python SQL", extract_text_from_file(buf.getvalue(), "resume.docx"))
+
+
+class LifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_startup_runs_monitor_and_shutdown_signals_stop(self):
+        started = threading.Event()
+        stopped = threading.Event()
+
+        def fake_monitor(stop):
+            mark_ready(True)
+            started.set()
+            stop.wait(2)
+            if stop.is_set():
+                stopped.set()
+
+        try:
+            with patch("app.main.monitor", side_effect=fake_monitor):
+                async with lifespan(app):
+                    self.assertTrue(await asyncio.to_thread(started.wait, 1))
+                    self.assertEqual(json.loads(readiness().body), {"available": True})
+                self.assertTrue(await asyncio.to_thread(stopped.wait, 1))
+        finally:
+            mark_ready(False)
 
 
 if __name__ == "__main__":
