@@ -6,15 +6,22 @@ import {
   clusterSchema,
   profileSchema,
   blacklistSchema,
+  canChangeStatus,
+  statusLabels,
+  inProcessRestriction,
+  identityKey,
+  fullName,
 } from "@hr/contracts";
 import { pool, transaction, getAnalysisStatus } from "@hr/data-access";
+import { blacklistMatchSql, otherInProcessResumeSql } from "@hr/data-access";
 import { config } from "./config.js";
 import { HttpError } from "./errors.js";
 import { submitCandidate } from "./submission.js";
 import { getCandidates, getClusters } from "@hr/data-access";
 import { getFile } from "@hr/data-access";
 import { exportCsv, reportHtml, escapeHtml, htmlDocument } from "./export.js";
-import { extractDocxText } from "@hr/documents";
+import { extractDocumentText } from "@hr/documents";
+import { createExport, exportOptionsSchema } from "./export-options.js";
 import { presentResumeEvent, probeWorker, queueStatus } from "./processing.js";
 
 export const router = Router();
@@ -54,13 +61,13 @@ router.get("/overview", async (_req, res) => {
 router.post("/candidates", upload.single("resume"), async (req, res) => {
   const result = await submitCandidate(req.body, req.file);
   if (result.rejected)
-    throw new HttpError(409, "Кандидат уже в работе. Замена резюме запрещена.");
+    throw new HttpError(409, "Кандидат уже в процессе отбора. Замена резюме запрещена.");
   res.status(201).json(result);
 });
 router.get("/resumes/:id/events", async (req, res) => {
   const id = z.uuid().parse(req.params.id);
   const result = await pool.query(
-    "SELECT * FROM resume_events WHERE resume_id=$1 ORDER BY created_at,id",
+    "SELECT * FROM resume_events WHERE resume_id=$1 ORDER BY created_at DESC,id DESC",
     [id],
   );
   res.json(result.rows.map(presentResumeEvent));
@@ -98,33 +105,44 @@ router.post("/resumes/:id/retry", async (req, res) => {
 });
 router.patch("/resumes/:id/status", async (req, res) => {
   const id = z.uuid().parse(req.params.id),
-    { status } = z
-      .object({ status: z.enum(["in_process", "historical"]) })
+    { status, outcome } = z
+      .object({ status: z.enum(["in_work", "in_process", "historical"]), outcome: z.enum(["employed", "rejected_all"]).optional() })
       .parse(req.body);
   await transaction(async (client) => {
+    const identity = await client.query(
+      "SELECT c.* FROM candidates c JOIN resumes r ON r.candidate_id=c.id WHERE r.id=$1",
+      [id],
+    );
+    const person = identity.rows[0];
+    if (!person) throw new HttpError(404, "Резюме не найдено.");
+    // Match submission's lock order and serialize transitions for the same identity.
+    for (const key of [`name:${identityKey(fullName(person))}`, `phone:${person.phone}`].sort())
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [key]);
+    await client.query("SELECT id FROM candidates WHERE id=$1 FOR UPDATE", [person.id]);
     const result = await client.query(
-      "SELECT status,scoring_status FROM resumes WHERE id=$1 FOR UPDATE",
+      `SELECT r.status,r.scoring_status,
+        EXISTS(SELECT 1 FROM candidate_blacklist b WHERE b.is_active AND ${blacklistMatchSql}) AS blacklisted,
+        ${otherInProcessResumeSql} AS has_other_resume_in_process
+       FROM resumes r JOIN candidates c ON c.id=r.candidate_id WHERE r.id=$1 FOR UPDATE OF r`,
       [id],
     );
     const current = result.rows[0];
     if (!current) throw new HttpError(404, "Резюме не найдено.");
-    if (!(
-      (current.status === "in_work" &&
-        status === "in_process" &&
-        current.scoring_status === "completed") ||
-      (current.status === "in_process" && status === "historical")
-    ))
+    const restriction = status === "in_process" ? inProcessRestriction(current) : null;
+    if (restriction) throw new HttpError(409, restriction);
+    if (!canChangeStatus(current, status))
       throw new HttpError(
         409,
         "Недопустимый переход статуса. Дождитесь оценки.",
       );
+    if (status === "historical" && !outcome) throw new HttpError(422, "Укажите итог: трудоустроен или отклонён всеми кластерами.");
     await client.query(
       "UPDATE resumes SET status=$2,updated_at=now() WHERE id=$1",
       [id, status],
     );
     await client.query(
       `INSERT INTO resume_events (id,resume_id,event_type,message,created_at) VALUES ($1,$2,'status_changed',$3,now())`,
-      [randomUUID(), id, `Статус изменён на ${status}`],
+      [randomUUID(), id, `Статус изменён: ${statusLabels[status]}${outcome ? (outcome === "employed" ? ". Кандидат трудоустроен." : ". Кандидат отклонён всеми кластерами.") : ""}`],
     );
   });
   res.json({ ok: true });
@@ -164,11 +182,11 @@ router.get("/files/:id", async (req, res) => {
   const buffer = await getFile(file.bucket, file.object_key);
   res.set("Cache-Control", "no-store");
   if (req.query.preview === "true" && file.mime_type !== "application/pdf") {
-    const text = extractDocxText(buffer);
+    const text = await extractDocumentText(buffer, file.mime_type);
     // Plain text rendering avoids executing document HTML and external relationships.
     res.set(
       "Content-Security-Policy",
-      "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+      "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src data:; script-src 'unsafe-inline'",
     );
     res
       .type("html")
@@ -183,7 +201,7 @@ router.get("/files/:id", async (req, res) => {
     const mode = req.query.download === "true" ? "attachment" : "inline";
     res.set(
       "Content-Disposition",
-      `${mode}; filename="resume.${file.mime_type === "application/pdf" ? "pdf" : "docx"}"; filename*=UTF-8''${encodeURIComponent(file.file_name)}`,
+      `${mode}; filename="resume.${String(file.file_name).split(".").pop()?.replace(/[^a-z0-9]/gi, "") || "txt"}"; filename*=UTF-8''${encodeURIComponent(file.file_name)}`,
     );
     res.type(file.mime_type).send(buffer);
   }
@@ -198,12 +216,30 @@ router.get("/resumes/:id/report", async (req, res) => {
   if (!candidate) throw new HttpError(404, "Резюме не найдено.");
   res.set(
     "Content-Security-Policy",
-    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+    "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src data:; script-src 'unsafe-inline'; form-action 'self'",
   );
+  if (req.query.download === "true" && req.query.format && req.query.format !== "html") {
+    const options = exportOptionsSchema.parse({ candidate_ids: [candidate.id], cluster_ids: clusters.map(c => c.id), candidateReport: true, format: req.query.format, content: req.query.content || "report" });
+    const result = createExport([candidate], clusters, options);
+    res.attachment(`report-${id}.${result.extension}`).type(result.mime).send(result.body);
+    return;
+  }
   if (req.query.download === "true") res.attachment(`report-${id}.html`);
   res
     .type("html")
-    .send(reportHtml(candidate, clusters, req.query.print === "true"));
+    .send(reportHtml(candidate, clusters, req.query.print === "true", req.query.content === "table", req.query.print !== "true" && req.query.download !== "true"));
+});
+router.post("/export", async (req, res) => {
+  const options = exportOptionsSchema.parse(req.body);
+  if (options.print && options.format !== "html") throw new HttpError(422, "Для печати выберите HTML.");
+  const [allCandidates, allClusters] = await Promise.all([getCandidates(), getClusters()]);
+  const candidates = options.candidate_ids.flatMap(id => allCandidates.filter(c => c.id === id));
+  const clusters = options.cluster_ids.flatMap(id => allClusters.filter(c => c.id === id));
+  const result = createExport(candidates, clusters, options);
+  res.set("Cache-Control", "no-store");
+  res.set("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src data:; script-src 'unsafe-inline'");
+  if (!options.print) res.attachment(`candidate-${options.candidateReport ? "report" : "distribution"}.${result.extension}`);
+  res.type(result.mime).send(result.body);
 });
 router.get("/export", async (_req, res) => {
   const [candidates, clusters] = await Promise.all([

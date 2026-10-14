@@ -19,7 +19,7 @@ export function ResumePreview({
           href={fileUrl(candidate.file_id, "download")}
         >
           <Download size={16} />
-          Скачать
+          Скачать оригинал
         </a>
         <Button
           secondary
@@ -48,16 +48,17 @@ export function ResumePreview({
       </div>
       {!pdf && (
         <p className="muted">
-          Текстовый предпросмотр DOCX. Исходное оформление доступно в скачанном
+          Текстовый предпросмотр документа. Исходное оформление доступно в скачанном
           файле.
         </p>
       )}
       <iframe
         id="resume-frame"
         title="Предпросмотр резюме"
-        src={fileUrl(candidate.file_id)}
+        src={fileUrl(candidate.file_id) + (pdf ? "#toolbar=0" : "")}
         className="document-frame"
       />
+      <div className="dialog-footer"><Button secondary onClick={onClose}>Вернуться к карточке</Button></div>
     </Modal>
   );
 }

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { queueStatus, presentResumeEvent, probeWorker } from "../apps/backend/src/processing.js";
-import type { ResumeEvent } from "@hr/contracts";
+import { assessmentCompletedMessage, type ResumeEvent } from "@hr/contracts";
 
 const ready = { queuedAt: "2026-10-13T12:00:00Z", activeProfiles: 1, analysisAvailable: true,
   worker: { state: "idle" as const, current_resume_id: null }, ahead: 0, processing: 0 };
@@ -48,6 +48,16 @@ test("journal translates internal failure and lifecycle messages into candidate-
   assert.match(event("scoring_failed", "Текст не извлечён; нужен OCR").message, /доступным текстом/);
   assert.doesNotMatch(event("scoring_failed", 'violates foreign key constraint "profile_ratings_profile_id_fkey"').message, /constraint|profile_ratings/);
   assert.equal(event("scored", "Сохранены оценки 12 профилей").message, "Оценка завершена. Результат доступен в карточке кандидата.");
+});
+
+test("assessment journal retains the blacklist warning recorded at evaluation time", () => {
+  const warning = assessmentCompletedMessage(true);
+  const event: ResumeEvent = { id: "scored", event_type: "scored", created_at: ready.queuedAt, message: warning };
+  assert.match(warning, /Кандидат найден в чёрном списке/);
+  assert.equal(presentResumeEvent(event).message, warning);
+  assert.equal(event.message, warning);
+  const clear = presentResumeEvent({ ...event, message: assessmentCompletedMessage(false) });
+  assert.doesNotMatch(clear.message, /чёрном списке/);
 });
 
 test("worker health probe validates actual availability without leaking connection errors", async () => {

@@ -70,10 +70,12 @@ export function Field({
   return (
     <label className="af-field field" htmlFor={id}>
       <span className="af-label" id={`${id}-label`}>
-        {label}
+        {label.endsWith(" *") ? (
+          <>{label.slice(0, -2)} <span className="af-required">*</span></>
+        ) : label}
       </span>
       {control}
-      {hint && <small id={`${id}-hint`}>{hint}</small>}
+      {hint && <small className="af-help" id={`${id}-hint`}>{hint}</small>}
     </label>
   );
 }
@@ -87,11 +89,11 @@ export function Empty({
   action?: ReactNode;
 }) {
   return (
-    <div className="empty">
+    <div className="af-empty empty">
       <div className="empty-icon">
         <Inbox size={25} />
       </div>
-      <h3>{title}</h3>
+      <h3 className="af-title">{title}</h3>
       <p>{text}</p>
       {action}
     </div>
@@ -109,23 +111,29 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const dialog = ref.current!;
+    const opener = document.activeElement;
     dialog.showModal();
-    return () => dialog.close();
+    return () => {
+      dialog.close();
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
   }, []);
   return (
     <dialog
       ref={ref}
-      className={`app-dialog ${wide ? "wide" : ""}`}
+      className={`af-dialog app-dialog ${wide ? "wide" : ""}`}
+      aria-labelledby={titleId}
       onCancel={onClose}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="dialog-header">
-        <h2>{title}</h2>
-        <button className="icon-button" onClick={onClose} aria-label="Закрыть">
+        <h2 className="af-title" id={titleId}>{title}</h2>
+        <button type="button" className="af-btn af-btn--clear icon-button" onClick={onClose} aria-label="Закрыть">
           <X size={20} />
         </button>
       </div>
@@ -154,7 +162,7 @@ export function Score({ value }: { value?: number }) {
 export function CandidateStatus({ candidate }: { candidate: Candidate }) {
   return (
     <span
-      className={`badge ${candidate.scoring_status === "failed" ? "danger" : candidate.scoring_status === "completed" ? (candidate.status === "in_process" ? "blue" : "success") : "neutral"}`}
+      className={`af-badge badge ${candidate.scoring_status === "failed" ? "badge--danger" : candidate.scoring_status === "completed" ? (candidate.status === "in_process" ? "" : "af-badge--success") : "badge--neutral"}`}
     >
       {candidate.scoring_status === "processing" && (
         <LoaderCircle size={12} className="spin" />
@@ -193,8 +201,8 @@ export function PageHeading({
   return (
     <div className="page-heading">
       <div>
-        <div className="eyebrow">{eyebrow}</div>
-        <h1>{title}</h1>
+        <div className="af-eyebrow eyebrow">{eyebrow}</div>
+        <h1 className="af-heading">{title}</h1>
         <p>{text}</p>
       </div>
       <div className="heading-actions">{actions}</div>
@@ -203,7 +211,7 @@ export function PageHeading({
 }
 export function ErrorMessage({ message }: { message: string }) {
   return message ? (
-    <div className="notice danger" role="alert">
+    <div className="af-alert af-alert--danger notice" role="alert">
       {message}
     </div>
   ) : null;

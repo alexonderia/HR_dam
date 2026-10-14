@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
-import { pool, transaction, getAnalysisStatus } from "@hr/data-access";
+import { pool, transaction, getAnalysisStatus, blacklistMatchSql } from "@hr/data-access";
 import { getClusters } from "@hr/data-access";
 import { getFile } from "@hr/data-access";
 import { config } from "./config.js";
 import { analyzeResume } from "./analysis.js";
-import type { WorkerStatus } from "@hr/contracts";
+import { assessmentCompletedMessage, type WorkerStatus } from "@hr/contracts";
+import { extractDocumentText } from "@hr/documents";
 
 let status: WorkerStatus = { state: "idle", current_resume_id: null };
 const healthServer = createServer((req, res) => {
@@ -57,13 +58,17 @@ async function processNext() {
   status = { state: "processing", current_resume_id: job.id };
   try {
     const buffer = await getFile(job.bucket, job.object_key);
-    const file = new Blob([new Uint8Array(buffer)], { type: job.mime_type });
-    const result = await analyzeResume(clusters, file, job.file_name, config, event => {
+    const legacy = ["application/msword", "application/rtf", "text/plain"].includes(job.mime_type);
+    const content = legacy ? Buffer.from(await extractDocumentText(buffer, job.mime_type), "utf8") : buffer;
+    const file = new Blob([new Uint8Array(content)], { type: legacy ? "text/plain" : job.mime_type });
+    const result = await analyzeResume(clusters, file, legacy ? "resume.txt" : job.file_name, config, event => {
       console.info(JSON.stringify({ event: `analysis_${event.type}`, resume_id: job.id, ...event }));
     });
     await transaction(async (client) => {
       const current = await client.query(
-        "SELECT file_id,scoring_status,updated_at::text AS lease FROM resumes WHERE id=$1 FOR UPDATE",
+        `SELECT r.file_id,r.scoring_status,r.updated_at::text AS lease,
+          EXISTS(SELECT 1 FROM candidate_blacklist b WHERE b.is_active AND ${blacklistMatchSql}) AS blacklisted
+         FROM resumes r JOIN candidates c ON c.id=r.candidate_id WHERE r.id=$1 FOR UPDATE OF r`,
         [job.id],
       );
       const row = current.rows[0];
@@ -102,7 +107,7 @@ async function processNext() {
         [
           randomUUID(),
           job.id,
-          "Оценка завершена. Результат доступен в карточке кандидата.",
+          assessmentCompletedMessage(row.blacklisted),
         ],
       );
     });

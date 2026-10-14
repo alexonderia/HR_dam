@@ -193,7 +193,7 @@ try {
   await page.getByLabel("Фамилия *", { exact: true }).fill(person.last_name);
   await page.getByLabel("Имя *", { exact: true }).fill(person.first_name);
   await page.getByLabel("Отчество", { exact: true }).fill(person.middle_name);
-  await page.getByLabel(/^Телефон \*/).fill(phone);
+  await page.getByRole("textbox", { name: "Телефон", exact: true }).fill(phone);
   await page.getByLabel("Файл резюме").setInputFiles({
     name: "Тестовое резюме.pdf",
     mimeType: "application/pdf",
@@ -225,7 +225,8 @@ try {
     "Pipeline: browser upload → ClamAV → S3 → resume-analyzer → ratings, inactive requirements excluded",
   );
 
-  assert.equal((await upload(person, pdf, "resume.pdf")).status, 409);
+  assert.equal((await upload(person, pdf, "resume.pdf")).status, 201);
+  candidate = await waitFor(candidate.id, "completed");
   assert.equal(
     (await upload({ ...person, first_name: "Пётр" }, pdf, "resume.pdf")).status,
     409,
@@ -273,16 +274,16 @@ try {
   await expect(
     page.getByRole("heading", { name: "Карточка кандидата" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Резюме", exact: true }).click();
+  await page.getByRole("button", { name: "Открыть резюме", exact: true }).click();
   await expect(page.getByTitle("Предпросмотр резюме")).toBeVisible();
   await page
     .getByRole("dialog")
     .last()
-    .getByRole("button", { name: "Закрыть", exact: true })
+    .getByRole("button", { name: "Вернуться к карточке", exact: true })
     .click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Закрыть", exact: true })
+    .getByRole("button", { name: "Закрыть", exact: true }).first()
     .click();
   await mkdir(".qa", { recursive: true });
   await page.screenshot({
@@ -378,7 +379,7 @@ try {
   assert.ok(events.some((e) => e.event_type === "replacement_rejected"));
   await request(
     `/resumes/${candidate.resume_id}/status`,
-    { status: "historical" },
+    { status: "historical", outcome: "employed" },
     "PATCH",
   );
   await request(
@@ -460,7 +461,7 @@ try {
         }
         if (mode === "offline") {
           await request(`/resumes/${candidate.resume_id}/status`, { status: "in_process" }, "PATCH");
-          await request(`/resumes/${candidate.resume_id}/status`, { status: "historical" }, "PATCH");
+          await request(`/resumes/${candidate.resume_id}/status`, { status: "historical", outcome: "employed" }, "PATCH");
         }
         const saved = await upload(person, pdf, `saved-${mode}.pdf`, true);
         assert.equal(saved.status, 201, JSON.stringify(saved));

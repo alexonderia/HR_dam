@@ -4,6 +4,10 @@
 антивирусом, PostgreSQL и S3. Запуск: `docker compose up -d --build`,
 интерфейс: http://localhost:3000.
 
+[Памятка пользователя: функции и порядок работы](apps/frontend/src/content/user-guide.md).
+В приложении: «Памятка пользователя» в меню или http://localhost:3000/help;
+доступны оглавление, скачивание Markdown и печать / сохранение PDF.
+
 [Описание приложения, сценарии, правила и разработка](docs/application.md).
 [Разделение frontend, backend, worker и resume-analyzer](docs/architecture.md).
 [Подключение агента Ollama, Compose и проверка отказов модели](docs/analysis.md).
