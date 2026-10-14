@@ -1,4 +1,4 @@
-import type { QueueStatus, ResumeEvent, WorkerStatus } from "@hr/contracts";
+import { assessmentCompletedMessage, type QueueStatus, type ResumeEvent, type WorkerStatus } from "@hr/contracts";
 
 export async function probeWorker(url: string): Promise<WorkerStatus | null> {
   try {
@@ -49,7 +49,7 @@ export function presentResumeEvent(event: ResumeEvent): ResumeEvent {
       display = `${other} ${blacklist}`;
     }
   } else if (event.event_type === "scored") {
-    display = "Оценка завершена. Результат доступен в карточке кандидата.";
+    display = assessmentCompletedMessage(/Кандидат найден в чёрном списке|Совпадение с чёрным списком/i.test(message));
   } else if (event.event_type === "scoring_failed") {
     display = /извлеч|прочитать|OCR|поврежд[её]н|текст не/i.test(message)
       ? "Не удалось прочитать текст резюме. Загрузите документ с доступным текстом."

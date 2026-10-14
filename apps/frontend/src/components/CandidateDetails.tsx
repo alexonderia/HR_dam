@@ -114,8 +114,8 @@ export function CandidateDetails({
             <div className="af-alert af-alert--warning notice">
               <ShieldAlert size={19} />
               <span>
-                Совпадение с чёрным списком по телефону или ФИО. Проверьте
-                данные до передачи в работу.
+                Кандидат найден в чёрном списке по телефону или ФИО.
+                Переход в «В процессе» недоступен.
               </span>
             </div>
           )}

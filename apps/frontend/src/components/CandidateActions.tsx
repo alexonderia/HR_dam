@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { Info, ShieldAlert } from "lucide-react";
-import { fullName, canChangeStatus, statusLabels, type Candidate } from "@hr/contracts";
+import { fullName, canChangeStatus, inProcessRestriction, statusLabels, type Candidate } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate } from "../lib/api";
 import { Button, ErrorMessage, Field, Modal } from "./ui";
@@ -80,6 +80,7 @@ export function BlacklistAction({ candidate }: { candidate: Candidate }) {
 export function CandidateWorkflow({ candidate }: { candidate: Candidate }) {
   const { refresh } = useData();
   const statusId = useId();
+  const restriction = inProcessRestriction(candidate);
   const [busy, setBusy] = useState(false),
     [archive, setArchive] = useState(false),
     [pendingStatus, setPendingStatus] = useState<Candidate["status"]>(),
@@ -117,6 +118,7 @@ export function CandidateWorkflow({ candidate }: { candidate: Candidate }) {
           id={statusId}
           className="af-select"
           value={candidate.status}
+          aria-describedby={restriction ? `${statusId}-restriction` : undefined}
           disabled={
             busy ||
             candidate.scoring_status !== "completed" ||
@@ -157,6 +159,7 @@ export function CandidateWorkflow({ candidate }: { candidate: Candidate }) {
           </option>
         </select>
       </div>
+      {restriction && <p className="muted workflow-restriction" id={`${statusId}-restriction`}>{restriction}</p>}
       {candidate.scoring_status !== "completed" && (
         <p className="muted">Статус можно изменить после завершения оценки.</p>
       )}
@@ -165,10 +168,10 @@ export function CandidateWorkflow({ candidate }: { candidate: Candidate }) {
         <Modal title="Изменить статус кандидата" onClose={() => !busy && setPendingStatus(undefined)}>
           <p>{fullName(candidate)}</p>
           <p>Изменить статус с «{statusLabels[candidate.status]}» на «{statusLabels[pendingStatus]}»?</p>
-          <ErrorMessage message={error} />
+          <ErrorMessage message={error || (pendingStatus === "in_process" ? restriction : null) || ""} />
           <div className="dialog-footer">
             <Button secondary disabled={busy} onClick={() => setPendingStatus(undefined)}>Отмена</Button>
-            <Button disabled={busy} onClick={() => void change(pendingStatus)}>Подтвердить</Button>
+            <Button disabled={busy || !canChangeStatus(candidate, pendingStatus)} onClick={() => void change(pendingStatus)}>Подтвердить</Button>
           </div>
         </Modal>
       )}

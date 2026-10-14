@@ -6,6 +6,7 @@ import {
   Files,
   SearchCheck,
   ShieldCheck,
+  ShieldAlert,
   FileCheck2,
   LoaderCircle,
   RotateCcw,
@@ -14,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName } from "@hr/contracts";
+import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { api, mutate } from "../lib/api";
 import {
@@ -45,6 +46,7 @@ export function Processing() {
   const eventPageCount = Math.max(1, Math.ceil(events.length / 5));
   const currentEventPage = Math.min(eventPage, eventPageCount);
   const shownEvents = events.slice((currentEventPage - 1) * 5, currentEventPage * 5);
+  const latestScoredEventId = events.find(event => event.event_type === "scored")?.id;
   useEffect(() => { setEventPage(1); }, [current?.resume_id]);
   useEffect(() => {
     if (!current) return;
@@ -93,19 +95,23 @@ export function Processing() {
   const steps = [
     {
       title: "Проверка кандидата",
-      text: "Проверены другие резюме и чёрный список",
+      text: current?.blacklisted ? "Кандидат найден в чёрном списке"
+        : current?.has_other_resume_in_process ? "Другое резюме кандидата уже в процессе"
+        : "Проверены другие резюме и чёрный список",
+      warning: !!(current?.blacklisted || current?.has_other_resume_in_process),
       done: true,
       active: false,
       icon: SearchCheck,
     },
     {
       title: "Оценка по профилям",
+      warning: false,
       text: failed
         ? "Анализ не завершён"
         : processing
           ? "Резюме анализируется"
           : completed
-            ? "Оценки получены"
+            ? current?.blacklisted ? "Оценки получены. Кандидат найден в чёрном списке" : "Оценки получены"
             : analysis.available
               ? "Ожидание в очереди"
               : "Резюме сохранено, ожидает доступности анализа",
@@ -115,8 +121,11 @@ export function Processing() {
     },
     {
       title: "Результат",
+      warning: completed && !!(current?.blacklisted || current?.has_other_resume_in_process),
       text: completed
-        ? "Отчёт и рейтинги доступны"
+        ? current?.blacklisted ? "Найден в чёрном списке. Переход «В процессе» недоступен"
+          : current?.has_other_resume_in_process ? "Другое резюме уже «В процессе». Переход недоступен"
+          : "Отчёт и рейтинги доступны"
         : "Сформируется после оценки",
       done: completed,
       active: false,
@@ -175,11 +184,13 @@ export function Processing() {
               </div>
               <div className="processing-actions"><CandidateWorkflow key={current.id} candidate={current} /><BlacklistAction candidate={current} /></div>
               <div className="candidate-checks" aria-label="Результат проверки кандидата">
-                <div className="candidate-check">
+                <div className={`candidate-check${current.has_other_resume_in_process ? " warning" : ""}`}>
                   <Files size={20} />
                   <div>
                     <strong>Другие резюме</strong>
-                    <p>{current.other_resumes_count > 0
+                    <p>{current.has_other_resume_in_process
+                      ? "Найдено другое резюме этого кандидата со статусом «В процессе»."
+                      : current.other_resumes_count > 0
                       ? `Ранее загружено резюме: ${current.other_resumes_count}.`
                       : "Других резюме не найдено."}</p>
                   </div>
@@ -202,13 +213,13 @@ export function Processing() {
                 ) : <p className="queue-loading muted">{queueError || "Уточняем причину ожидания…"}</p>
               )}
               <div className="pipeline">
-                {steps.map(({ title, text, done, active, icon: Icon }, i) => (
+                {steps.map(({ title, text, done, active, warning, icon: Icon }, i) => (
                   <div
-                    className={`pipeline-step ${done ? "done" : active ? "active" : ""}`}
+                    className={`pipeline-step ${warning ? "warning" : done ? "done" : active ? "active" : ""}`}
                     key={title}
                   >
                     <div className="pipeline-icon">
-                      {done ? (
+                      {warning ? <ShieldAlert size={22} /> : done ? (
                         <Check size={22} />
                       ) : active ? (
                         <LoaderCircle size={22} className="spin" />
@@ -280,6 +291,9 @@ export function Processing() {
                         }[event.event_type] || "Событие обработки"}
                       </strong>
                       <p>{event.message}</p>
+                      {current.blacklisted && event.id === latestScoredEventId && !event.message.includes(blacklistAssessmentWarning) && (
+                        <p className="event-warning">Сейчас кандидат найден в чёрном списке. Переход в «В процессе» недоступен.</p>
+                      )}
                       <small>
                         {new Date(event.created_at).toLocaleString("ru-RU", {
                           timeZone: "Europe/Moscow",

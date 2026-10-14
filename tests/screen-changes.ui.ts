@@ -68,6 +68,7 @@ const candidate: Candidate = {
   updated_at: "2026-10-14T08:00:00Z",
   blacklisted: false,
   other_resumes_count: 0,
+  has_other_resume_in_process: false,
   ratings: cluster.profiles.map((p, i) => ({
     profile_id: p.id,
     score: 80 - i * 30,

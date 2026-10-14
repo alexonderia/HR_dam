@@ -27,12 +27,29 @@ export function matrixColumns(clusters: Cluster[], expanded: string[]) {
 }
 
 export function canChangeStatus(
-  candidate: Pick<Candidate, "status" | "scoring_status">,
+  candidate: Pick<Candidate, "status" | "scoring_status" | "blacklisted" | "has_other_resume_in_process">,
   next: Candidate["status"],
 ) {
   return (
     candidate.scoring_status === "completed" &&
     candidate.status !== "historical" &&
-    candidate.status !== next
+    candidate.status !== next &&
+    (next !== "in_process" || !inProcessRestriction(candidate))
   );
+}
+
+export function inProcessRestriction(
+  candidate: Pick<Candidate, "blacklisted" | "has_other_resume_in_process">,
+): string | null {
+  if (candidate.blacklisted)
+    return "Переход в «В процессе» недоступен: кандидат найден в чёрном списке.";
+  if (candidate.has_other_resume_in_process)
+    return "Переход в «В процессе» недоступен: у кандидата уже есть другое резюме с этим статусом.";
+  return null;
+}
+
+export const blacklistAssessmentWarning = "Кандидат найден в чёрном списке. Требуется проверка сотрудником.";
+
+export function assessmentCompletedMessage(blacklisted: boolean): string {
+  return `Оценка завершена. ${blacklisted ? blacklistAssessmentWarning + " " : ""}Результат доступен в карточке кандидата.`;
 }

@@ -1,11 +1,17 @@
 import { pool } from "./db.js";
 import type { Cluster, Candidate } from "@hr/contracts";
 
-export const blacklistMatchSql = `(b.phone = c.phone OR (
-  lower(replace(b.last_name,'ё','е')) = lower(replace(c.last_name,'ё','е')) AND
-  lower(replace(b.first_name,'ё','е')) = lower(replace(c.first_name,'ё','е')) AND
-  lower(replace(coalesce(b.middle_name,''),'ё','е')) = lower(replace(coalesce(c.middle_name,''),'ё','е'))
+const personMatchSql = (left: string, right: string) => `(${left}.phone = ${right}.phone OR (
+  replace(lower(${left}.last_name),'ё','е') = replace(lower(${right}.last_name),'ё','е') AND
+  replace(lower(${left}.first_name),'ё','е') = replace(lower(${right}.first_name),'ё','е') AND
+  replace(lower(coalesce(${left}.middle_name,'')),'ё','е') = replace(lower(coalesce(${right}.middle_name,'')),'ё','е')
 ))`;
+export const blacklistMatchSql = personMatchSql("b", "c");
+export const otherInProcessResumeSql = `EXISTS(
+  SELECT 1 FROM resumes other_r JOIN candidates other_c ON other_c.id=other_r.candidate_id
+  WHERE other_r.id<>r.id AND other_r.status='in_process'
+    AND (other_r.candidate_id=c.id OR ${personMatchSql("other_c", "c")})
+)`;
 export async function getClusters(): Promise<Cluster[]> {
   const [clusters, profiles] = await Promise.all([
     pool.query("SELECT * FROM clusters ORDER BY is_active DESC,name"),
@@ -32,6 +38,7 @@ export async function getCandidates(): Promise<Candidate[]> {
     f.file_name, f.mime_type,
     (SELECT count(*)::int FROM resume_events e WHERE e.resume_id=r.id AND e.event_type='replaced') AS other_resumes_count,
     EXISTS(SELECT 1 FROM candidate_blacklist b WHERE b.is_active AND ${blacklistMatchSql}) AS blacklisted,
+    ${otherInProcessResumeSql} AS has_other_resume_in_process,
     coalesce((SELECT jsonb_agg(jsonb_build_object('profile_id', pr.profile_id, 'score', pr.score,
       'matched_keywords', pr.matched_keywords, 'triggered_stop_factors', pr.triggered_stop_factors,
       'details', pr.details, 'explanation', pr.explanation, 'calculated_at', pr.calculated_at))

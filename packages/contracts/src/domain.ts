@@ -119,6 +119,7 @@ export interface Candidate {
   created_at: string;
   updated_at: string;
   blacklisted: boolean;
+  has_other_resume_in_process: boolean;
   other_resumes_count: number;
   ratings: Rating[];
 }

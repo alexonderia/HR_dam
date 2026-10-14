@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { unzipSync, strFromU8 } from "fflate";
 import {
   canChangeStatus,
+  inProcessRestriction,
   personSchema,
   type Candidate,
   type Cluster,
@@ -69,6 +70,7 @@ const candidate: Candidate = {
   updated_at: "2026-10-14T08:00:00Z",
   blacklisted: false,
   other_resumes_count: 0,
+  has_other_resume_in_process: false,
   ratings: cluster.profiles.map((p, i) => ({
     profile_id: p.id,
     score: 80 - i * 30,
@@ -177,6 +179,22 @@ test("workflow allows completed candidates to progress or return, and keeps arch
     message,
   );
 });
+test("blacklist and another active resume restrict only the transition to in_process", () => {
+  for (const blocked of [
+    { ...candidate, blacklisted: true },
+    { ...candidate, has_other_resume_in_process: true },
+  ]) {
+    assert.equal(canChangeStatus(blocked, "in_process"), false);
+    assert.ok(inProcessRestriction(blocked));
+    assert.ok(canChangeStatus(blocked, "historical"));
+    assert.ok(canChangeStatus({ ...blocked, status: "in_process" }, "in_work"));
+  }
+  assert.match(inProcessRestriction({ ...candidate, blacklisted: true })!, /чёрном списке/);
+  assert.match(inProcessRestriction({ ...candidate, has_other_resume_in_process: true })!, /другое резюме/);
+  assert.equal(inProcessRestriction(candidate), null);
+  assert.ok(canChangeStatus(candidate, "in_process"));
+});
+
 test("legacy text files preserve Cyrillic and reject binary TXT and active RTF", async () => {
   const cp1251 = Buffer.from([0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2]);
   assert.equal(await validateFile(cp1251, "resume.txt"), "text/plain");

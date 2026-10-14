@@ -1,34 +1,101 @@
+import { useEffect, useState } from "react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import {
-  LayoutGrid,
   UsersRound,
-  FilePlus2,
-  Workflow,
-  SlidersHorizontal,
-  ShieldAlert,
+  FileUp,
+  ScanText,
+  Layers3,
+  UserRoundX,
   ChevronRight,
   RefreshCw,
+  BookOpenText,
+  MoreHorizontal,
 } from "lucide-react";
 import { DataProvider, useData } from "./lib/store";
-import { Button, Framework } from "./components/ui";
+import { Button, Framework, Modal } from "./components/ui";
 import { Distribution } from "./pages/Distribution";
 import { Submission } from "./pages/Submission";
 import { Processing } from "./pages/Processing";
 import { Requirements } from "./pages/Requirements";
 import { Blacklist } from "./pages/Blacklist";
+import { Help } from "./pages/Help";
 
 const navigation = [
-  { path: "/", label: "Распределение", mobileLabel: "Подбор", icon: LayoutGrid },
-  { path: "/submit", label: "Приём резюме", mobileLabel: "Приём", icon: FilePlus2 },
-  { path: "/processing", label: "Обработка", mobileLabel: "Обработка", icon: Workflow },
+  { path: "/", label: "Кандидаты", title: "Распределение кандидатов", mobileLabel: "Подбор", icon: UsersRound, secondary: false },
+  { path: "/submit", label: "Приём резюме", title: "Приём резюме", mobileLabel: "Приём", icon: FileUp, secondary: false },
+  { path: "/processing", label: "Обработка", title: "Обработка", mobileLabel: "Оценка", icon: ScanText, secondary: false },
   {
     path: "/requirements",
-    label: "Кластеры и профили",
+    label: "Профили",
+    title: "Кластеры и профили",
     mobileLabel: "Профили",
-    icon: SlidersHorizontal,
+    icon: Layers3,
+    secondary: false,
   },
-  { path: "/blacklist", label: "Чёрный список", mobileLabel: "Список", icon: ShieldAlert },
+  { path: "/blacklist", label: "Чёрный список", title: "Чёрный список", mobileLabel: "Список", icon: UserRoundX, secondary: true },
+  { path: "/help", label: "Памятка", title: "Памятка пользователя", mobileLabel: "Памятка", icon: BookOpenText, secondary: true },
 ];
+function Navigation({ pending }: { pending: number }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const { pathname } = useLocation();
+  const secondaryActive = navigation.some(item => item.secondary && item.path === pathname);
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 720px)");
+    const closeOnDesktop = () => { if (!mobile.matches) setMoreOpen(false); };
+    mobile.addEventListener("change", closeOnDesktop);
+    return () => mobile.removeEventListener("change", closeOnDesktop);
+  }, []);
+  return (
+    <>
+      <nav aria-label="Разделы подбора кандидатов">
+        {navigation.map(({ path, label, title, mobileLabel, secondary, icon: Icon }) => (
+          <NavLink
+            key={path}
+            to={path}
+            end={path === "/"}
+            className={`af-btn af-btn--clear nav-link${secondary ? " nav-link--secondary" : ""}${path === "/help" ? " nav-link--help" : ""}`}
+            aria-label={label.toLowerCase().includes(mobileLabel.toLowerCase()) ? label : `${label}, ${mobileLabel}`}
+            aria-describedby={path === "/processing" && pending > 0 ? "processing-count-description" : undefined}
+            title={title}
+          >
+            <Icon size={20} aria-hidden="true" />
+            <span className="nav-full">{label}</span>
+            <span className="nav-short" aria-hidden="true">{mobileLabel}</span>
+            {path === "/processing" && pending > 0 && (
+              <>
+                <span className="nav-count" aria-hidden="true">{pending > 99 ? "99+" : pending}</span>
+                <span className="sr-only" id="processing-count-description">Резюме в очереди и на оценке: {pending}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+        <button
+          type="button"
+          className={`af-btn af-btn--clear nav-link nav-more${secondaryActive ? " active" : ""}`}
+          aria-label="Ещё"
+          aria-haspopup="dialog"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen(true)}
+        >
+          <MoreHorizontal size={20} aria-hidden="true" />
+          <span className="nav-short">Ещё</span>
+        </button>
+      </nav>
+      {moreOpen && (
+        <Modal title="Ещё" onClose={() => setMoreOpen(false)}>
+          <nav className="mobile-menu" aria-label="Дополнительные разделы">
+            {navigation.filter(item => item.secondary).map(({ path, label, title, icon: Icon }) => (
+              <NavLink key={path} to={path} className="af-btn af-btn--clear nav-link" aria-label={title} onClick={() => setMoreOpen(false)}>
+                <Icon size={20} aria-hidden="true" />
+                <span>{label}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </Modal>
+      )}
+    </>
+  );
+}
 function Shell() {
   const { candidates, clusters, analysis, error, loading, refresh, refreshedAt } =
       useData(),
@@ -39,50 +106,23 @@ function Shell() {
   return (
     <Framework>
       <aside className="sidebar">
-        <a href="/" className="brand">
+        <NavLink to="/" className="brand" aria-label="Алабуга — центр подбора">
           <img
             src="/assets/brand/brand-54ddb68464f478e321f2.webp"
             alt="Алабуга"
           />
-          <span>ЦЕНТР ПОДБОРА</span>
-        </a>
-        <div className="workspace">
-          <span className="workspace-icon">
-            <UsersRound size={18} />
-          </span>
-          <div>
-            <strong>Подбор кандидатов</strong>
-            <small>Корпоративная платформа</small>
-          </div>
-        </div>
-        <div className="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-        <nav aria-label="Разделы подбора кандидатов">
-          {navigation.map(({ path, label, mobileLabel, icon: Icon }) => (
-            <NavLink key={path} to={path} end={path === "/"} aria-label={label} title={label}>
-              <Icon size={19} />
-              <span className="nav-full">{label}</span>
-              <span className="nav-short" aria-hidden="true">{mobileLabel}</span>
-              {path === "/processing" && pending > 0 && <b>{pending}</b>}
-            </NavLink>
-          ))}
-        </nav>
+        </NavLink>
+        <Navigation pending={pending} />
         <div className="sidebar-bottom">
-          <div className="connection">
-            <i className={error ? "offline" : ""} />
+          <div className="connection" role="status" aria-live="polite">
+            <i className={error ? "offline" : loading ? "connecting" : ""} aria-hidden="true" />
             <span>
               {error
-                ? "Нет соединения"
+                ? "Нет связи"
                 : loading
                   ? "Подключение…"
-                  : "Система подключена"}
+                  : "Подключено"}
             </span>
-          </div>
-          <div className="sidebar-profile">
-            <span className="avatar">HR</span>
-            <div>
-              <strong>Команда подбора</strong>
-              <small>Алабуга</small>
-            </div>
           </div>
         </div>
       </aside>
@@ -93,7 +133,7 @@ function Shell() {
             <ChevronRight size={14} />
             <strong>
               {navigation.find((item) => item.path === location.pathname)
-                ?.label || "Страница"}
+                ?.title || "Страница"}
             </strong>
           </div>
           <div className="topbar-right">
@@ -124,6 +164,7 @@ function Shell() {
             <Route path="/processing" element={<Processing />} />
             <Route path="/requirements" element={<Requirements />} />
             <Route path="/blacklist" element={<Blacklist />} />
+            <Route path="/help" element={<Help />} />
             <Route
               path="*"
               element={
