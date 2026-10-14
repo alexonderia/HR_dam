@@ -57,6 +57,9 @@ def extract_text_from_docx_bytes(docx_bytes: bytes) -> str:
         for paragraph in doc.paragraphs:
             if paragraph.text.strip():
                 text += paragraph.text + "\n"
+        for table in doc.tables:
+            for row in table.rows:
+                text += " | ".join(cell.text for cell in row.cells) + "\n"
         return text.strip()
     except Exception as e:
         raise Exception(f"Ошибка при извлечении текста из DOCX: {str(e)}")

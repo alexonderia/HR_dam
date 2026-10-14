@@ -109,8 +109,13 @@ def ask_ollama_chat(
                   response_preview=response.text[:500])
         raise ModelUnavailable(f"Модель вернула HTTP {http_status}")
 
-    data = response.json()
-    content = data.get("message", {}).get("content", "")
+    try:
+        data = response.json()
+        content = data["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Пустой ответ модели")
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ModelUnavailable("Модель вернула некорректный или пустой ответ") from exc
 
     prompt_tokens = data.get("prompt_eval_count")
     generated_tokens = data.get("eval_count")

@@ -2,14 +2,17 @@
 
 import json
 import logging
+import os
+import threading
 import time
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import JSONResponse
 
-from app.config import settings
 from app.logging_config import setup_logging, get_logger, get_diagnostic_logger, log_event
-from app.ollama_client import ModelUnavailable
+from app.ollama_client import ModelUnavailable, DEFAULT_TIMEOUT
 from app.rank_models import (
     RequirementsRequest,
     RankResponse,
@@ -17,6 +20,7 @@ from app.rank_models import (
     ProfileResponse,
 )
 from app.scoring import rank_profile
+from app.readiness import is_ready, mark_ready, model_lock, monitor, PROBE_TIMEOUT
 from app.text_extractor import extract_text_from_file
 
 # Инициализация логирования при старте приложения
@@ -25,33 +29,46 @@ setup_logging()
 logger = get_logger("app.main")
 diag_logger = get_diagnostic_logger()
 
-app = FastAPI(title="Resume Analyzer API")
+RANK_TIMEOUT = float(os.getenv("RANK_TIMEOUT_SECONDS", "840"))
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    stop = threading.Event()
+    mark_ready(False)
+    thread = threading.Thread(target=monitor, args=(stop,), daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+
+
+app = FastAPI(title="Resume Analyzer API", lifespan=lifespan)
 
 
 @app.get("/")
-async def health_check():
-    """Проверка, что API работает."""
-    return {"status": "ok", "message": "Resume Analyzer API is running"}
-
-
 @app.get("/health")
-async def health():
-    """Healthcheck для Docker."""
-    return {"status": "ok"}
+def health_check():
+    """Проверка, что API работает."""
+    return {"ok": True}
 
 @app.get("/ready")
-async def ready():
+def readiness():
     """Проверка готовности сервиса принимать задачи."""
-    return {"status": "ready"}
+    available = is_ready()
+    return JSONResponse(status_code=200 if available else 503,
+                        content={"available": available})
 
 @app.post("/rank", response_model=RankResponse)
-async def rank_resume(
+def rank_resume(
     file: UploadFile = File(...),
     requirements: str = Form(...),
 ):
     """
     Принимает файл резюме и требования, возвращает оценки по профилям.
     """
+    # Blocking extraction/model calls run in FastAPI's thread pool so status stays responsive.
     job_id = str(uuid.uuid4())
     job_started_at = time.time()
 
@@ -63,13 +80,17 @@ async def rank_resume(
     # ── Парсинг требований ──────────────────────────────────────────────
     try:
         requirements_data = json.loads(requirements)
-        requirements_obj = RequirementsRequest(**requirements_data)
-    except (json.JSONDecodeError, ValueError) as exc:
+        requirements_obj = RequirementsRequest.model_validate(requirements_data)
+    except (ValueError, TypeError) as exc:
         log_event(logger, logging.WARNING, "rank_job_invalid_requirements",
                   job_id=job_id, error=str(exc))
-        raise HTTPException(status_code=400, detail=f"Невалидные требования: {exc}")
+        raise HTTPException(status_code=422, detail=f"Невалидные требования: {exc}")
 
     total_profiles = sum(len(c.profiles) for c in requirements_obj.clusters)
+    if not total_profiles:
+        raise HTTPException(status_code=422, detail="Нет профилей для анализа.")
+    if not is_ready():
+        raise HTTPException(status_code=503, detail="Модель недоступна. Повторите анализ позже.")
 
     log_event(logger, logging.INFO, "requirements_parsed",
               job_id=job_id,
@@ -83,7 +104,7 @@ async def rank_resume(
 
     # ── Чтение файла ────────────────────────────────────────────────────
     try:
-        file_bytes = await file.read()
+        file_bytes = file.file.read()
     except Exception as exc:
         log_event(logger, logging.ERROR, "rank_job_file_read_failed",
                   job_id=job_id, error=str(exc))
@@ -104,7 +125,7 @@ async def rank_resume(
     except Exception as exc:
         log_event(logger, logging.ERROR, "text_extraction_failed",
                   job_id=job_id, error=str(exc))
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc))
 
     extract_duration = time.time() - extract_started_at
 
@@ -117,7 +138,7 @@ async def rank_resume(
         log_event(logger, logging.WARNING, "rank_job_insufficient_text",
                   job_id=job_id,
                   text_length_chars=len(resume_text))
-        raise HTTPException(status_code=400, detail="Не удалось извлечь достаточно текста")
+        raise HTTPException(status_code=422, detail="Не удалось извлечь достаточно текста")
 
     # Диагностический лог: извлечённый текст резюме
     log_event(diag_logger, logging.DEBUG, "resume_text_extracted",
@@ -127,52 +148,45 @@ async def rank_resume(
 
     # ── Оценка по профилям ──────────────────────────────────────────────
     result_clusters = []
-    failed_profiles = 0
+    if not model_lock.acquire(timeout=PROBE_TIMEOUT + 5):
+        raise HTTPException(status_code=503, detail="Модель занята. Повторите анализ позже.")
+    deadline = time.monotonic() + RANK_TIMEOUT
+    try:
+        if not is_ready():
+            raise ModelUnavailable("Модель недоступна. Повторите анализ позже.")
+        for cluster in requirements_obj.clusters:
+            cluster_profiles = []
 
-    for cluster in requirements_obj.clusters:
-        cluster_profiles = []
-
-        for profile in cluster.profiles:
-            try:
+            for profile in cluster.profiles:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ModelUnavailable("Истекло время анализа. Повторите позже.")
                 ranking_result = rank_profile(
                     resume_text,
                     profile,
                     cluster_requirements=cluster.comment or "",
+                    timeout=min(DEFAULT_TIMEOUT, remaining),
                     job_id=job_id,
                 )
-            except ModelUnavailable as exc:
-                failed_profiles += 1
-                log_event(logger, logging.ERROR, "profile_ranking_failed",
-                          job_id=job_id,
-                          profile_id=profile.id,
-                          position_name=profile.position_name,
-                          error=str(exc))
+                cluster_profiles.append(ProfileResponse(
+                    id=profile.id,
+                    position_name=profile.position_name,
+                    **ranking_result,
+                ))
 
-                # Возвращаем профиль с нулевой оценкой и описанием ошибки
-                ranking_result = {
-                    "score": 0.0,
-                    "matched_keywords": [],
-                    "triggered_stop_factors": [],
-                    "explanation": f"Ошибка оценки: {exc}",
-                    "details": {"error": str(exc)},
-                }
-
-            profile_response = ProfileResponse(
-                id=profile.id,
-                position_name=profile.position_name,
-                score=ranking_result.get("score", 0.0),
-                matched_keywords=ranking_result.get("matched_keywords"),
-                triggered_stop_factors=ranking_result.get("triggered_stop_factors"),
-                details=ranking_result.get("details"),
-                explanation=ranking_result.get("explanation"),
-            )
-            cluster_profiles.append(profile_response)
-
-        result_clusters.append(ClusterResponse(
-            id=cluster.id,
-            name=cluster.name,
-            profiles=cluster_profiles,
-        ))
+            result_clusters.append(ClusterResponse(
+                id=cluster.id,
+                name=cluster.name,
+                profiles=cluster_profiles,
+            ))
+        mark_ready(True)
+    except ModelUnavailable as exc:
+        mark_ready(False)
+        log_event(logger, logging.ERROR, "profile_ranking_failed",
+                  job_id=job_id, error=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc))
+    finally:
+        model_lock.release()
 
     # ── Завершение задания ──────────────────────────────────────────────
     total_duration = time.time() - job_started_at
@@ -181,6 +195,6 @@ async def rank_resume(
               job_id=job_id,
               total_duration_sec=round(total_duration, 2),
               profiles_total=total_profiles,
-              profiles_failed=failed_profiles)
+              profiles_failed=0)
 
     return RankResponse(clusters=result_clusters)

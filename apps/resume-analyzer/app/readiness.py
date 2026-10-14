@@ -31,7 +31,7 @@ def monitor(stop: threading.Event):
         if model_lock.acquire(blocking=False):
             try:
                 ask_ollama_chat("Ответь кратко.", "Ответь OK.", num_ctx=16384,
-                                max_tokens=8, timeout=PROBE_TIMEOUT, json_mode=False)
+                                max_tokens=8, timeout=PROBE_TIMEOUT)
                 mark_ready(True)
             except ModelUnavailable:
                 mark_ready(False)
