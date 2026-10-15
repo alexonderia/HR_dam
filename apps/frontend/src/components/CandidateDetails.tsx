@@ -57,6 +57,12 @@ export function CandidateDetails({
     dialog.scrollTop = Math.max(0, top);
   }, [focusClusterId, focusProfileId, candidateId, preview]);
   if (!candidate) return null;
+  const ratingsByProfile = new Map(
+    candidate.ratings.map((rating) => [rating.profile_id, rating]),
+  );
+  const sortedClusters = [...clusters].sort(
+    (a, b) => (clusterScore(candidate, b) ?? -1) - (clusterScore(candidate, a) ?? -1),
+  );
   const processed = candidate.ratings
     .map((r) => r.calculated_at)
     .sort()
@@ -154,10 +160,11 @@ export function CandidateDetails({
             профиль, чтобы увидеть обоснование.
           </p>
           <div className="rating-details" ref={ratingsRef}>
-            {clusters.map((cluster) => {
-              const rated = cluster.profiles.filter((p) =>
-                candidate.ratings.some((r) => r.profile_id === p.id),
-              );
+            {sortedClusters.map((cluster) => {
+              const rated = cluster.profiles
+                .filter((p) => ratingsByProfile.has(p.id))
+                .sort((a, b) => Number(ratingsByProfile.get(b.id)!.score)
+                  - Number(ratingsByProfile.get(a.id)!.score));
               return rated.length ? (
                 <section
                   key={cluster.id}
@@ -173,9 +180,7 @@ export function CandidateDetails({
                     <Score value={clusterScore(candidate, cluster)} />
                   </h4>
                   {rated.map((p) => {
-                    const r = candidate.ratings.find(
-                      (r) => r.profile_id === p.id,
-                    )!;
+                    const r = ratingsByProfile.get(p.id)!;
                     return (
                       <details
                         key={p.id}

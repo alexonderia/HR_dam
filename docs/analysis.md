@@ -99,7 +99,7 @@ docker compose up -d --build
 
 ## Контракт и ошибки
 
-Worker отправляет `POST /rank` с `multipart/form-data`: `file` (PDF/DOCX до 10 МБ) и `requirements` (JSON с `clusters[].profiles[]`). Ответ содержит полный набор `clusters[].profiles[]`, оценки 0–100, найденные навыки, стоп-факторы, объяснение и `details.method=ollama-agent-v1`. Общие требования кластера включаются в запрос модели. Используется [Ollama Chat API](https://docs.ollama.com/api/chat); формат ответа ограничен JSON Schema и дополнительно проверяется анализатором. Механизм описан в [документации структурированных ответов](https://docs.ollama.com/capabilities/structured-outputs).
+Worker отправляет `POST /rank` с `multipart/form-data`: `file` (PDF/DOCX до 50 МБ) и `requirements` (JSON с `clusters[].profiles[]`). Ответ содержит полный набор `clusters[].profiles[]`, оценки 0–100, найденные навыки, стоп-факторы, объяснение и `details.method=ollama-agent-v1`. Общие требования кластера включаются в запрос модели. Используется [Ollama Chat API](https://docs.ollama.com/api/chat); формат ответа ограничен JSON Schema и дополнительно проверяется анализатором. Механизм описан в [документации структурированных ответов](https://docs.ollama.com/capabilities/structured-outputs).
 
 Каждая попытка worker отправляет один и тот же файл со **всеми активными
 кластерами и их активными профилями**. Требования берутся один раз при начале

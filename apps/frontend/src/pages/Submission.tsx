@@ -41,10 +41,10 @@ export function Submission() {
     if (!selected) return;
     if (
       !/\.(pdf|docx|doc|rtf|txt)$/i.test(selected.name) ||
-      selected.size > 10 * 1024 * 1024 ||
+      selected.size > 50 * 1024 * 1024 ||
       !selected.size
     ) {
-      setError("Выберите PDF, DOCX, DOC, RTF или TXT размером до 10 МБ.");
+      setError("Выберите PDF, DOCX, DOC, RTF или TXT размером до 50 МБ.");
       return;
     }
     setFile(selected);
@@ -238,7 +238,7 @@ export function Submission() {
                 <span>02</span>
                 <div>
                   <h2 className="af-title">Файл резюме</h2>
-                  <p>PDF, DOCX, DOC, RTF или TXT. Максимальный размер — 10 МБ.</p>
+                  <p>PDF, DOCX, DOC, RTF или TXT. Максимальный размер — 50 МБ.</p>
                 </div>
               </div>
               <div

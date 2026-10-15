@@ -48,7 +48,7 @@ export async function scanFile(buffer: Buffer) {
 }
 export async function validateFile(buffer: Buffer, filename: string) {
   if (!buffer.length || buffer.length > config.maxFileSize)
-    throw new HttpError(422, "Размер файла должен быть от 1 байта до 10 МБ.");
+    throw new HttpError(422, "Размер файла должен быть от 1 байта до 50 МБ.");
   const ext = filename.toLowerCase().split(".").pop();
   const type = ["pdf", "docx"].includes(ext || "") ? await fileTypeFromBuffer(buffer) : undefined;
   if (type?.ext === "pdf" && ext === "pdf") {
