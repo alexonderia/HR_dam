@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 import requests
 
+from app.config import settings
 from app.logging_config import (
     get_logger, get_diagnostic_logger, log_event, EVENT_MESSAGES
 )
@@ -13,9 +14,9 @@ import json
 logger = get_logger("app.ollama")
 diag_logger = get_diagnostic_logger()
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:9b")
-DEFAULT_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
+OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL.rstrip("/")
+MODEL = settings.OLLAMA_MODEL
+DEFAULT_TIMEOUT = settings.OLLAMA_TIMEOUT_SECONDS
 
 
 class ModelUnavailable(Exception):
@@ -25,8 +26,8 @@ class ModelUnavailable(Exception):
 def ask_ollama_chat(
     system_prompt: str,
     user_prompt: str,
-    num_ctx: int = 16384,
-    max_tokens: int = 2048,
+    num_ctx: Optional[int] = None,
+    max_tokens: Optional[int] = None,
     temperature: float = 0.0,
     timeout: Optional[float] = None,
     json_schema: Optional[dict] = None,
@@ -35,7 +36,18 @@ def ask_ollama_chat(
     profile_id: str = "",
     attempt: int = 1,
 ) -> dict:
+
     """Отправляет запрос в Ollama через chat API."""
+
+    if num_ctx is None:
+        num_ctx = settings.OLLAMA_NUM_CTX
+
+    if max_tokens is None:
+        max_tokens = settings.OLLAMA_MAX_TOKENS
+
+    if timeout is None:
+        timeout = settings.OLLAMA_TIMEOUT_SECONDS
+
     request_started_at = time.time()
 
     payload: dict[str, Any] = {
@@ -46,6 +58,7 @@ def ask_ollama_chat(
         ],
         "stream": False,
         "think": False,
+        "keep_alive": settings.OLLAMA_KEEP_ALIVE,
         "options": {
             "num_ctx": num_ctx,
             "num_predict": max_tokens,

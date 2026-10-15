@@ -98,39 +98,60 @@ class AnalyzerTests(unittest.TestCase):
             self.assertEqual(json.loads(response.body), {"available": available})
             self.assertEqual(health_check(), {"ok": True})
 
-    def test_monitor_checks_real_chat_client_and_recovers(self):
+    
+    
+    def test_monitor_checks_model_tags_without_generation(self):
         stop = threading.Event()
-        responses = [ModelUnavailable("offline"), {"message": {"content": "OK"}}]
         observed = []
 
-        def chat_response(*args, **kwargs):
+        responses = [
+            requests.ConnectionError("offline"),
+            Mock(
+                status_code=200,
+                json=Mock(
+                    return_value={
+                        "models": [{"name": "qwen3.5:9b"}]
+                    }
+                ),
+            ),
+        ]
+
+        def get_response(*args, **kwargs):
             reply = responses.pop(0)
-            self.assertEqual(kwargs["json"]["options"]["num_predict"], 8)
             if isinstance(reply, Exception):
-                raise requests.ConnectionError("offline")
-            response = Mock(status_code=200)
-            response.json.return_value = reply
-            return response
+                raise reply
+            return reply
 
         def wait(_interval):
-            observed.append(json.loads(readiness().body)["available"])
+            observed.append(
+                json.loads(readiness().body)["available"]
+            )
             if not responses:
                 stop.set()
 
-        with patch("app.ollama_client.requests.post", side_effect=chat_response), \
-             patch.object(stop, "wait", side_effect=wait):
+        with patch(
+            "app.readiness.requests.get",
+            side_effect=get_response,
+        ) as get, patch(
+            "app.readiness.requests.post"
+        ) as post, patch.object(
+            stop, "wait", side_effect=wait
+        ):
             monitor(stop)
+
         self.assertEqual(observed, [False, True])
+        self.assertEqual(get.call_count, 2)
+        post.assert_not_called()
         self.assertFalse(model_lock.locked())
 
     def test_monitor_skips_probe_while_ranking(self):
         stop = threading.Event()
         model_lock.acquire()
         try:
-            with patch("app.readiness.ask_ollama_chat") as chat, \
+            with patch("app.readiness.requests.get") as get, \
                  patch.object(stop, "wait", side_effect=lambda _interval: stop.set()):
                 monitor(stop)
-            chat.assert_not_called()
+            get.assert_not_called()
             self.assertEqual(readiness().status_code, 200)
         finally:
             model_lock.release()

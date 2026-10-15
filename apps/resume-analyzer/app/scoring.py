@@ -295,10 +295,23 @@ def rank_profile(
 
         resume_text = truncate_resume_text(resume_text, resume_token_budget)
 
-        # Пересобираем промпт с обрезанным резюме
         system_prompt, user_prompt = build_ranking_prompt(
             resume_text, profile, cluster_requirements
         )
+
+        # Повторно проверяем размер после обрезки резюме
+        prompt_tokens_estimate = (
+            estimate_tokens(system_prompt) + estimate_tokens(user_prompt)
+        )
+
+        fits, available_budget = check_context_fits(
+            prompt_tokens_estimate, max_tokens, num_ctx
+        )
+
+        if not fits:
+            raise ValueError(
+                "Запрос не помещается в контекст модели даже после обрезки резюме"
+            )
 
     last_error: Optional[str] = None
 

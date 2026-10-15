@@ -17,5 +17,9 @@ class Settings:
     # Кэш
     TEXT_CACHE_MAX_ITEMS: int = int(os.getenv("TEXT_CACHE_MAX_ITEMS", "50"))
 
+    OLLAMA_KEEP_ALIVE: str = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
+    TEXT_CACHE_MAX_BYTES: int = int(
+        os.getenv("TEXT_CACHE_MAX_BYTES", str(20 * 1024 * 1024))
+    )
 
 settings = Settings()
