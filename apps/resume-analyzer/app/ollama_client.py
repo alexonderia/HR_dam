@@ -20,7 +20,15 @@ DEFAULT_TIMEOUT = settings.OLLAMA_TIMEOUT_SECONDS
 
 
 class ModelUnavailable(Exception):
-    """Модель недоступна или вернула некорректный ответ."""
+    """Модель или сервис Ollama недоступны."""
+
+
+class ModelTimeout(Exception):
+    """Истекло время ожидания ответа модели."""
+
+
+class ModelResponseError(Exception):
+    """Ollama или модель вернули некорректный ответ."""
 
 
 def ask_ollama_chat(
@@ -85,25 +93,41 @@ def ask_ollama_chat(
               timeout=timeout or DEFAULT_TIMEOUT,
               has_json_schema=json_schema is not None)
 
-    # Диагностический лог: полный запрос
-    log_event(diag_logger, logging.DEBUG, "ollama_request_full",
-              **log_context,
-              system_prompt=system_prompt,
-              user_prompt=user_prompt,
-              json_schema=json_schema,
-              options=payload["options"])
+    # Диагностический лог: только метаданные запроса.
+    log_event(
+        diag_logger,
+        logging.DEBUG,
+        "ollama_request_full",
+        **log_context,
+        system_prompt_length=len(system_prompt),
+        user_prompt_length=len(user_prompt),
+        has_json_schema=json_schema is not None,
+        options=payload["options"],
+    )
+
 
     try:
+        request_timeout = (
+            timeout if timeout is not None else DEFAULT_TIMEOUT
+        )
+
         response = requests.post(
             f"{OLLAMA_BASE_URL}/api/chat",
             json=payload,
-            timeout=timeout or DEFAULT_TIMEOUT,
+            timeout=request_timeout,
         )
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as exc:
         duration = time.time() - request_started_at
-        log_event(logger, logging.ERROR, "ollama_request_timeout",
-                  **log_context, duration_sec=round(duration, 2))
-        raise ModelUnavailable(f"Таймаут запроса к модели ({duration:.1f}s)")
+        log_event(
+            logger,
+            logging.ERROR,
+            "ollama_request_timeout",
+            **log_context,
+            duration_sec=round(duration, 2),
+        )
+        raise ModelTimeout(
+            f"Таймаут запроса к модели ({duration:.1f}s)"
+        ) from exc
 
     except requests.exceptions.RequestException as exc:
         duration = time.time() - request_started_at
@@ -114,26 +138,75 @@ def ask_ollama_chat(
     duration = time.time() - request_started_at
     http_status = response.status_code
 
-    if http_status != 200:
-        log_event(logger, logging.ERROR, "ollama_response_error",
-                  **log_context,
-                  http_status=http_status,
-                  duration_sec=round(duration, 2),
-                  response_preview=response.text[:500])
-        raise ModelUnavailable(f"Модель вернула HTTP {http_status}")
 
+    if http_status != 200:
+        log_event(
+            logger,
+            logging.ERROR,
+            "ollama_response_error",
+            **log_context,
+            http_status=http_status,
+            duration_sec=round(duration, 2),
+            response_length_chars=len(response.text),
+        )
+
+        if http_status == 404 or http_status >= 500:
+            raise ModelUnavailable(
+                f"Модель вернула HTTP {http_status}"
+            )
+
+        raise ModelResponseError(
+            f"Некорректный HTTP-ответ модели: {http_status}"
+        )
+    
     try:
         data = response.json()
-        content = data["message"]["content"]
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError("Пустой ответ модели")
-    except (ValueError, KeyError, TypeError) as exc:
-        raise ModelUnavailable("Модель вернула некорректный или пустой ответ") from exc
 
-    prompt_tokens = data.get("prompt_eval_count")
-    generated_tokens = data.get("eval_count")
-    prompt_eval_ns = data.get("prompt_eval_duration")
-    eval_ns = data.get("eval_duration")
+        if not isinstance(data, dict):
+            raise ValueError("Ответ должен быть JSON-объектом")
+
+        message = data.get("message")
+        if not isinstance(message, dict):
+            raise ValueError("Отсутствует объект message")
+
+        content = message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Пустой или некорректный ответ модели")
+
+    except (ValueError, KeyError, TypeError) as exc:
+        log_event(
+            logger,
+            logging.ERROR,
+            "ollama_invalid_response",
+            **log_context,
+            duration_sec=round(duration, 2),
+            error=str(exc),
+        )
+        raise ModelResponseError(
+            "Модель вернула некорректный или пустой ответ"
+        ) from exc
+
+    def safe_non_negative_number(value):
+        if isinstance(value, bool):
+            return None
+
+        if isinstance(value, (int, float)) and value >= 0:
+            return value
+
+        return None
+
+    prompt_tokens = safe_non_negative_number(
+        data.get("prompt_eval_count")
+    )
+    generated_tokens = safe_non_negative_number(
+        data.get("eval_count")
+    )
+    prompt_eval_ns = safe_non_negative_number(
+        data.get("prompt_eval_duration")
+    )
+    eval_ns = safe_non_negative_number(
+        data.get("eval_duration")
+    )
 
     # Ответ получен
     log_event(logger, logging.INFO, "ollama_response_received",
@@ -146,12 +219,18 @@ def ask_ollama_chat(
               prompt_eval_ms=round(prompt_eval_ns / 1_000_000, 1) if prompt_eval_ns else None,
               eval_ms=round(eval_ns / 1_000_000, 1) if eval_ns else None)
 
-    # Диагностический лог: полный ответ
-    log_event(diag_logger, logging.DEBUG, "ollama_response_full",
-              **log_context,
-              http_status=http_status,
-              raw_response=content,
-              raw_payload={k: v for k, v in data.items() if k != "message"})
+    # Диагностический лог: только метаданные ответа.
+    log_event(
+        diag_logger,
+        logging.DEBUG,
+        "ollama_response_full",
+        **log_context,
+        http_status=http_status,
+        response_length_chars=len(content),
+        prompt_tokens=prompt_tokens,
+        generated_tokens=generated_tokens,
+        duration_sec=round(duration, 2),
+    )
 
     return {
         "response": content,
