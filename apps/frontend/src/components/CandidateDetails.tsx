@@ -131,7 +131,6 @@ export function CandidateDetails({
               <Button
                 secondary
                 disabled={
-                  !analysis.available ||
                   busy ||
                   !["failed", "completed"].includes(candidate.scoring_status)
                 }

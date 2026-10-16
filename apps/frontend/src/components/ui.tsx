@@ -177,12 +177,12 @@ export function Person({ candidate }: { candidate: Candidate }) {
   return (
     <div className="person">
       <span className="avatar">
-        {candidate.last_name[0]}
-        {candidate.first_name[0]}
+        {candidate.last_name?.[0] || "?"}
+        {candidate.first_name?.[0] || ""}
       </span>
       <div>
-        <strong>{fullName(candidate)}</strong>
-        <small>{candidate.phone}</small>
+        <strong>{fullName(candidate) || "ФИО не указано"}</strong>
+        <small>{candidate.phone || "Телефон не указан"}</small>
       </div>
     </div>
   );

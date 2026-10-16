@@ -14,7 +14,8 @@ export function BlacklistAction({ candidate }: { candidate: Candidate }) {
   return (
     <>
       <Button
-        disabled={candidate.blacklisted}
+        disabled={candidate.blacklisted || !candidate.phone || !candidate.last_name || !candidate.first_name}
+        title={!candidate.phone || !candidate.last_name || !candidate.first_name ? "Для чёрного списка нужны ФИО и телефон. Добавьте известные данные в разделе «Чёрный список»." : undefined}
         onClick={() => setOpen(true)}
       >
         <ShieldAlert size={16} />

@@ -54,7 +54,7 @@ export function matrixRows(
   return [
     ["Кандидат", ...columns.map((c) => c.label), "Статус"],
     ...candidates.map((c) => [
-      fullName(c) + "\n" + c.phone + (c.blacklisted ? "\nЧёрный список" : ""),
+      (fullName(c) || "ФИО не указано") + "\n" + (c.phone || "Телефон не указан") + (c.blacklisted ? "\nЧёрный список" : ""),
       ...columns.map((column) =>
         column.profile
           ? (c.ratings.find((r) => r.profile_id === column.profile!.id)
@@ -87,7 +87,7 @@ export function ratingRows(
           return r
             ? [
                 [
-                  fullName(c),
+                  fullName(c) || "ФИО не указано",
                   cluster.name,
                   p.position_name,
                   Number(r.score),
@@ -211,8 +211,8 @@ export function createExport(
             .sort()
             .at(-1);
           return [
-            fullName(c),
-            c.phone,
+            fullName(c) || "ФИО не указано",
+            c.phone || "",
             statusLabels[c.status],
             c.file_name,
             processed

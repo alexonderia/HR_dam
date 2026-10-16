@@ -16,11 +16,14 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
+    "@aws-sdk/s3-request-presigner": "3.1152.0",
     "@hr/contracts": "1.0.0",
-    "pg": "^8.23.1",
-    "@aws-sdk/client-s3": "^3.1150.0"
+    "amqplib": "^2.2.0",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.8",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1"
   }

@@ -220,3 +220,14 @@ test("legacy text files preserve Cyrillic and reject binary TXT and active RTF",
     ),
   );
 });
+
+test("reports and matrix exports render candidates with missing identity", () => {
+  const unknown: Candidate = { ...candidate, phone: null, last_name: null, first_name: null, middle_name: null };
+  const report = reportHtml(unknown, [cluster], false, false, true);
+  assert.match(report, /ФИО не указано/);
+  assert.match(report, /Телефон не указан/);
+  assert.doesNotMatch(report, /\bnull\b|\?{3,}/);
+  const rows = matrixRows([unknown], [cluster], []);
+  assert.match(String(rows[1][0]), /ФИО не указано/);
+  assert.match(String(rows[1][0]), /Телефон не указан/);
+});

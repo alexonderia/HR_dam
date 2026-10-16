@@ -28,6 +28,7 @@ import {
 } from "../components/ui";
 import { CandidateDetails } from "../components/CandidateDetails";
 import { BlacklistAction, CandidateWorkflow } from "../components/CandidateActions";
+import { ResumeImports } from "../components/ResumeImports";
 
 export function Processing() {
   const { candidates, refresh, analysis } = useData(),
@@ -41,12 +42,13 @@ export function Processing() {
     [error, setError] = useState(""),
     [details, setDetails] = useState<string>(),
     [busy, setBusy] = useState(false);
-  const filtered = candidates.filter(c => `${fullName(c)} ${c.phone}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const filtered = candidates.filter(c => `${fullName(c)} ${c.phone ?? ""} ${c.file_name}`.toLowerCase().includes(search.trim().toLowerCase()));
   const current = filtered.find((c) => c.resume_id === selected) || filtered[0];
   const eventPageCount = Math.max(1, Math.ceil(events.length / 5));
   const currentEventPage = Math.min(eventPage, eventPageCount);
   const shownEvents = events.slice((currentEventPage - 1) * 5, currentEventPage * 5);
   const latestScoredEventId = events.find(event => event.event_type === "scored")?.id;
+  useEffect(() => { const resume = params.get("resume"); if (resume) setSelected(resume); }, [params]);
   useEffect(() => { setEventPage(1); }, [current?.resume_id]);
   useEffect(() => {
     if (!current) return;
@@ -138,6 +140,7 @@ export function Processing() {
         title="Обработка резюме"
         text="Состояние проверки и журнал событий обновляются автоматически."
       />
+      <ResumeImports />
       <div className="processing-layout">
         <section className="af-card panel queue">
           <div className="panel-heading">
@@ -177,7 +180,7 @@ export function Processing() {
             <>
               <div className="panel-heading">
                 <div>
-                  <h2 className="af-title">{fullName(current)}</h2>
+                  <h2 className="af-title">{fullName(current) || "ФИО не указано"}</h2>
                   <p>{current.file_name}</p>
                 </div>
                 <CandidateStatus candidate={current} />
@@ -246,8 +249,7 @@ export function Processing() {
                 {["failed", "completed"].includes(current.scoring_status) && (
                   <Button
                     secondary
-                    disabled={busy || !analysis.available}
-                    title={!analysis.available ? analysis.message : undefined}
+                    disabled={busy}
                     onClick={async () => {
                       setBusy(true);
                       try {

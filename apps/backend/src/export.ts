@@ -29,8 +29,8 @@ export function exportCsv(candidates: Candidate[], clusters: Cluster[]) {
       ...profiles.map((p) => p.clusterName + " / " + p.position_name),
     ],
     ...candidates.map((c) => [
-      fullName(c),
-      c.phone,
+      fullName(c) || "ФИО не указано",
+      c.phone || "",
       statusLabels[c.status],
       scoringLabels[c.scoring_status],
       c.blacklisted ? "Совпадение" : "",
@@ -125,9 +125,9 @@ export function reportContent(
       }),
     )
     .join("");
-  return `${tablesOnly ? "" : `<p>${escapeHtml(candidate.phone)} · ${escapeHtml(statusLabels[candidate.status])} · ${escapeHtml(scoringLabels[candidate.scoring_status])}</p>${candidate.blacklisted ? '<p class="af-alert af-alert--warning">Внимание: совпадение с чёрным списком. Требуется ручная проверка.</p>' : ""}<p class="af-caption">Файл: ${escapeHtml(candidate.file_name)}. Обработано: ${processed ? escapeHtml(new Date(processed).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })) + " МСК" : "оценка ещё не завершена"}</p>`}<div class="af-table-scroll"><table class="af-table af-table--wrap report-table"><thead><tr><th>Кластер</th><th>Профиль</th><th>Рейтинг</th>${tablesOnly ? "" : "<th>Обоснование</th>"}</tr></thead><tbody>${rows || `<tr><td colspan="${tablesOnly ? 3 : 4}">Оценки ещё не сформированы.</td></tr>`}</tbody></table></div>`;
+  return `${tablesOnly ? "" : `<p>${escapeHtml(candidate.phone || "Телефон не указан")} · ${escapeHtml(statusLabels[candidate.status])} · ${escapeHtml(scoringLabels[candidate.scoring_status])}</p>${candidate.blacklisted ? '<p class="af-alert af-alert--warning">Внимание: совпадение с чёрным списком. Требуется ручная проверка.</p>' : ""}<p class="af-caption">Файл: ${escapeHtml(candidate.file_name)}. Обработано: ${processed ? escapeHtml(new Date(processed).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })) + " МСК" : "оценка ещё не завершена"}</p>`}<div class="af-table-scroll"><table class="af-table af-table--wrap report-table"><thead><tr><th>Кластер</th><th>Профиль</th><th>Рейтинг</th>${tablesOnly ? "" : "<th>Обоснование</th>"}</tr></thead><tbody>${rows || `<tr><td colspan="${tablesOnly ? 3 : 4}">Оценки ещё не сформированы.</td></tr>`}</tbody></table></div>`;
 }
 export function reportHtml(candidate: Candidate, clusters: Cluster[], print: boolean, tablesOnly = false, controls = false) {
   const toolbar = controls ? `<form class="report-controls" action="/api/resumes/${escapeHtml(candidate.resume_id)}/report" method="get"><label>Содержание<select name="content"><option value="report"${!tablesOnly ? " selected" : ""}>Полный отчёт</option><option value="table"${tablesOnly ? " selected" : ""}>Только таблицы</option></select></label><label>Формат экспорта<select name="format"><option value="xlsx">Excel (.xlsx)</option><option value="csv">CSV (.csv)</option><option value="html">HTML (.html)</option></select></label><button type="submit" name="download" value="true">Скачать</button><button type="submit" name="print" value="true">Печать / PDF</button></form>` : "";
-  return htmlDocument(`Отчёт · ${fullName(candidate)}`, toolbar + reportContent(candidate, clusters, tablesOnly), print);
+  return htmlDocument(`Отчёт · ${fullName(candidate) || "ФИО не указано"}`, toolbar + reportContent(candidate, clusters, tablesOnly), print);
 }

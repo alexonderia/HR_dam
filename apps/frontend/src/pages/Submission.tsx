@@ -9,16 +9,20 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import {
-  personSchema,
+  extractedPersonSchema,
+  type ResumeImportDetail,
   normalizeName,
 } from "@hr/contracts";
 import { api } from "../lib/api";
 import { useData } from "../lib/store";
 import { Button, ErrorMessage, Field, PageHeading } from "../components/ui";
 import { phoneCountries, nationalPhone, formatNationalPhone } from "../lib/phone";
+import { BulkResumeUpload } from "../components/BulkResumeUpload";
+import { ResumeImports } from "../components/ResumeImports";
 
 export function Submission() {
   const { refresh, analysis } = useData();
+  const [mode, setMode] = useState<"single" | "bulk">("single");
   const [person, setPerson] = useState({
       last_name: "",
       first_name: "",
@@ -29,10 +33,7 @@ export function Submission() {
     [countryId, setCountryId] = useState("RU"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [result, setResult] = useState<{
-      resume_id: string;
-      warning: string | null;
-    }>();
+    [result, setResult] = useState<ResumeImportDetail>();
   const inputRef = useRef<HTMLInputElement>(null);
   const phoneId = useId();
   const country = phoneCountries.find(c => c.id === countryId)!;
@@ -52,11 +53,11 @@ export function Submission() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!country.lengths.includes(person.phone.length)) {
+    if (person.phone && !country.lengths.includes(person.phone.length)) {
       setError(`Телефон: введите ${country.lengths.join(" или ")} цифр${country.code ? " после +" + country.code : " международного номера"}.`);
       return;
     }
-    const parsed = personSchema.safeParse({ ...person, phone: "+" + country.code + person.phone });
+    const parsed = extractedPersonSchema.safeParse({ ...person, phone: person.phone ? "+" + country.code + person.phone : null });
     if (!parsed.success) {
       setError(
         parsed.error.issues
@@ -74,12 +75,12 @@ export function Submission() {
     }
     const form = new FormData();
     Object.entries(parsed.data).forEach(([key, value]) =>
-      form.append(key, value),
+      form.append(key, value || ""),
     );
     form.append("resume", file);
     setBusy(true);
     try {
-      const response = await api<{ resume_id: string; warning: string | null }>(
+      const response = await api<ResumeImportDetail>(
         "/candidates",
         { method: "POST", body: form },
       );
@@ -96,26 +97,27 @@ export function Submission() {
       <PageHeading
         eyebrow="Приём кандидатов"
         title="Новое резюме"
-        text="Заполните данные кандидата. Подходящие профили определятся после обработки."
+        text="Добавьте резюме кандидата или ZIP с несколькими резюме."
       />
       <div className="submission-layout">
         <section className="af-card panel form-panel">
-          {result ? (
+          <div className="submission-mode" role="group" aria-label="Способ загрузки">
+            <Button secondary={mode !== "single"} onClick={() => setMode("single")}>Одно резюме</Button>
+            <Button secondary={mode !== "bulk"} onClick={() => setMode("bulk")}>ZIP с резюме</Button>
+          </div>
+          {mode === "bulk" ? <BulkResumeUpload /> : result ? (
             <div className="success-state">
               <CheckCircle2 size={46} />
               <h2 className="af-title">Резюме принято</h2>
               <p>
-                Файл прошёл проверку, сохранён и отправлен в очередь обработки.
+                Файл проверен и принят в очередь обработки. Кандидат появится после анализа резюме.
               </p>
               {!analysis.available && (
-                <p>Анализ начнётся автоматически, когда сервис и модель будут доступны.</p>
-              )}
-              {result.warning && (
-                <div className="af-alert af-alert--warning notice">{result.warning}</div>
+                <p>{analysis.message}</p>
               )}
               <Link
                 className="af-btn"
-                to={`/processing?resume=${result.resume_id}`}
+                to={`/processing?batch=${result.id}`}
               >
                 Следить за обработкой
                 <ArrowRight size={16} />
@@ -143,7 +145,7 @@ export function Submission() {
                 <span>01</span>
                 <div>
                   <h2 className="af-title">Данные кандидата</h2>
-                  <p>Телефон и ФИО используются для проверки дублей.</p>
+                  <p>Можно оставить поля пустыми — данные будут получены из резюме. Указанные данные используются для проверки дублей.</p>
                 </div>
               </div>
               <div className="form-grid">
@@ -153,8 +155,8 @@ export function Submission() {
                       key={key}
                       label={
                         {
-                          last_name: "Фамилия *",
-                          first_name: "Имя *",
+                          last_name: "Фамилия",
+                          first_name: "Имя",
                           middle_name: "Отчество",
                         }[key]
                       }
@@ -168,7 +170,6 @@ export function Submission() {
                             middle_name: "additional-name",
                           }[key]
                         }
-                        required={key !== "middle_name"}
                         maxLength={100}
                         placeholder={
                           {
@@ -195,7 +196,7 @@ export function Submission() {
                   ),
                 )}
                 <div className="af-field field">
-                  <label className="af-label" htmlFor={phoneId}>Телефон <span className="af-required">*</span></label>
+                  <label className="af-label" htmlFor={phoneId}>Телефон</label>
                   <div className="phone-input">
                   <select
                     className="af-select phone-country"
@@ -215,7 +216,6 @@ export function Submission() {
                     inputMode="tel"
                     autoComplete="tel-national"
                     placeholder={country.code === "7" ? "(999) 123-45-67" : "Номер телефона"}
-                    required
                     value={formatNationalPhone(person.phone, country.code)}
                     onKeyDown={e => {
                       const input = e.currentTarget;
@@ -309,7 +309,7 @@ export function Submission() {
           <div className="process-guide">
             <h3 className="af-title">Что произойдёт дальше</h3>
             {[
-              ["Проверка данных", "Нормализация ФИО и телефона, поиск дублей."],
+              ["Приём резюме", "Одно резюме или ZIP без заполнения ФИО."],
               [
                 "Безопасное сохранение",
                 "Проверка файла и загрузка в хранилище.",
@@ -332,6 +332,7 @@ export function Submission() {
           </div>
         </aside>
       </div>
+      <ResumeImports />
     </>
   );
 }

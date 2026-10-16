@@ -97,10 +97,10 @@ function Navigation({ pending }: { pending: number }) {
   );
 }
 function Shell() {
-  const { candidates, clusters, analysis, error, loading, refresh, refreshedAt } =
+  const { candidates, clusters, analysis, error, loading, refresh, refreshedAt, resumeImports } =
       useData(),
     location = useLocation();
-  const pending = candidates.filter((c) =>
+  const pending = resumeImports.reduce((sum, batch) => sum + batch.pending_files, 0) || candidates.filter((c) =>
     ["pending", "processing"].includes(c.scoring_status),
   ).length;
   return (

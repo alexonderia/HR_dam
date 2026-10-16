@@ -36,6 +36,18 @@ services:
       RESUME_ANALYZER_READY_URL: ${RESUME_ANALYZER_READY_URL:-}
       RESUME_ANALYZER_TIMEOUT_MS: ${RESUME_ANALYZER_TIMEOUT_MS:-900000}
       WORKER_HEALTH_URL: http://worker:3003/health
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-false}
+      RANK_BRIDGE_ENABLED: ${RANK_BRIDGE_ENABLED:-true}
+      RABBITMQ_USER: ${RABBITMQ_USER:-hr_dam}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
+      RABBITMQ_VHOST: /
+      RABBITMQ_MANAGEMENT_URL: http://rabbitmq:15672
+      RESUME_ANALYZER_CALLBACK_TOKEN: ${RESUME_ANALYZER_CALLBACK_TOKEN:-}
+      RESUME_SPOOL_DIR: /var/lib/hr-dam/resume-spool
+      QUEUE_RETRY_DELAY_MS: ${QUEUE_RETRY_DELAY_MS:-10000}
+    volumes:
+      - resume_spool:/var/lib/hr-dam/resume-spool
     expose: ["3001"]
     networks: [infrastructure]
     depends_on: &application-dependencies
@@ -69,6 +81,8 @@ services:
       retries: 5
       start_period: 15s
     networks: [infrastructure]
+    volumes:
+      - resume_spool:/var/lib/hr-dam/resume-spool
     depends_on: *application-dependencies
     restart: unless-stopped
 
@@ -157,6 +171,28 @@ services:
       timeout: 10s
       retries: 30
       start_period: 60s
+    restart: unless-stopped
+
+  rabbitmq:
+    profiles: [broker]
+    container_name: hr_dam-rabbitmq
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-hr_dam}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${RABBITMQ_PORT:-5672}:5672"
+      - "${BIND_ADDRESS:-127.0.0.1}:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks: [infrastructure]
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
 
   postgres:
@@ -301,6 +337,8 @@ networks:
   infrastructure:
 
 volumes:
+  rabbitmq_data:
+  resume_spool:
   clamav_data:
   postgres_data:
   seaweedfs_data:
