@@ -6,9 +6,11 @@ import multer from "multer";
 import { router } from "./routes.js";
 import { HttpError } from "./errors.js";
 import { MissingImportError } from "@hr/data-access";
+import { moscowJsonReplacer, moscowTimestamp } from "@hr/contracts";
 
 export const app = express();
 app.disable("x-powered-by");
+app.set("json replacer", moscowJsonReplacer);
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -87,6 +89,7 @@ app.use(
       return;
     }
     console.error(
+      moscowTimestamp(),
       "Request failed",
       error instanceof Error ? error.name : "UnknownError",
     );

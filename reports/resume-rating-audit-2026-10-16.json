@@ -1,0 +1,428 @@
+{
+  "date": "2026-10-16",
+  "ratings": 210,
+  "resume_records": 7,
+  "distinct_resume_texts": 5,
+  "empty_stop_input_rows": 91,
+  "empty_stop_input_nonempty_output_rows": 91,
+  "unsupported_technology_rows": [
+    {
+      "resume_id": "39b29548-f678-4f63-a6c1-79674eea8778",
+      "profile_id": "007361e9-4f58-42e8-b6f0-15f9433a7b5c",
+      "position": "Frontend-разработчик",
+      "labels": [
+        "TypeScript",
+        "React",
+        "Vue",
+        "Redux",
+        "Webpack",
+        "Vite"
+      ]
+    },
+    {
+      "resume_id": "39b29548-f678-4f63-a6c1-79674eea8778",
+      "profile_id": "0e08e7b9-f4b9-4967-bfa8-3f6e6b013b26",
+      "position": "Технический писатель",
+      "labels": [
+        "Markdown"
+      ]
+    },
+    {
+      "resume_id": "39b29548-f678-4f63-a6c1-79674eea8778",
+      "profile_id": "0e75ae10-e03b-4c87-aa39-008e3b6d7a8d",
+      "position": "UX/UI-дизайнер",
+      "labels": [
+        "Figma"
+      ]
+    },
+    {
+      "resume_id": "39b29548-f678-4f63-a6c1-79674eea8778",
+      "profile_id": "2d13c5b9-7ddd-4b24-ace2-6888b81bf4d8",
+      "position": "Финансовый аналитик",
+      "labels": [
+        "Power BI"
+      ]
+    },
+    {
+      "resume_id": "45486bd1-660b-43b3-a609-f0d3b608b47a",
+      "profile_id": "007361e9-4f58-42e8-b6f0-15f9433a7b5c",
+      "position": "Frontend-разработчик",
+      "labels": [
+        "TypeScript",
+        "React",
+        "Vue",
+        "Redux",
+        "Webpack",
+        "Vite"
+      ]
+    },
+    {
+      "resume_id": "45486bd1-660b-43b3-a609-f0d3b608b47a",
+      "profile_id": "0e08e7b9-f4b9-4967-bfa8-3f6e6b013b26",
+      "position": "Технический писатель",
+      "labels": [
+        "Markdown",
+        "Swagger",
+        "Confluence"
+      ]
+    },
+    {
+      "resume_id": "45486bd1-660b-43b3-a609-f0d3b608b47a",
+      "profile_id": "2444b500-31c8-4e98-a9fa-f3cee3f6e503",
+      "position": "Backend-разработчик",
+      "labels": [
+        "Python",
+        "FastAPI",
+        "Django",
+        "PostgreSQL",
+        "Redis",
+        "Kafka"
+      ]
+    },
+    {
+      "resume_id": "45486bd1-660b-43b3-a609-f0d3b608b47a",
+      "profile_id": "41aab1a1-45b1-4730-aa2d-1832e848abde",
+      "position": "ML-инженер",
+      "labels": [
+        "Python"
+      ]
+    },
+    {
+      "resume_id": "45486bd1-660b-43b3-a609-f0d3b608b47a",
+      "profile_id": "5b46b627-e585-4e49-a8ab-dcdf6eb480b3",
+      "position": "Аналитик данных",
+      "labels": [
+        "Python"
+      ]
+    },
+    {
+      "resume_id": "77dc2957-7fd5-4d74-bf09-d4ac4709d15c",
+      "profile_id": "09d0a378-e0fd-401f-a292-ccb300bcafc4",
+      "position": "Специалист технической поддержки",
+      "labels": [
+        "Linux"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "007361e9-4f58-42e8-b6f0-15f9433a7b5c",
+      "position": "Frontend-разработчик",
+      "labels": [
+        "TypeScript",
+        "React",
+        "Vue",
+        "Redux",
+        "Webpack",
+        "Vite"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "09d0a378-e0fd-401f-a292-ccb300bcafc4",
+      "position": "Специалист технической поддержки",
+      "labels": [
+        "Linux"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "0e75ae10-e03b-4c87-aa39-008e3b6d7a8d",
+      "position": "UX/UI-дизайнер",
+      "labels": [
+        "Figma"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "14c3ab6b-d137-4377-8f59-96b7936ec39a",
+      "position": "DevOps-инженер",
+      "labels": [
+        "Linux"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "2444b500-31c8-4e98-a9fa-f3cee3f6e503",
+      "position": "Backend-разработчик",
+      "labels": [
+        "Python",
+        "PostgreSQL",
+        "Django",
+        "FastAPI"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "2d13c5b9-7ddd-4b24-ace2-6888b81bf4d8",
+      "position": "Финансовый аналитик",
+      "labels": [
+        "Power BI"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "41aab1a1-45b1-4730-aa2d-1832e848abde",
+      "position": "ML-инженер",
+      "labels": [
+        "Python"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "5b46b627-e585-4e49-a8ab-dcdf6eb480b3",
+      "position": "Аналитик данных",
+      "labels": [
+        "Python",
+        "Pandas",
+        "Tableau",
+        "Power BI"
+      ]
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "profile_id": "950604bd-9c3a-4b30-936c-14afba57bd38",
+      "position": "Дата-инженер",
+      "labels": [
+        "Python"
+      ]
+    },
+    {
+      "resume_id": "b0cd2221-0477-4fa8-9a07-376a3ec10288",
+      "profile_id": "0e08e7b9-f4b9-4967-bfa8-3f6e6b013b26",
+      "position": "Технический писатель",
+      "labels": [
+        "Markdown",
+        "Swagger",
+        "Confluence"
+      ]
+    },
+    {
+      "resume_id": "b0cd2221-0477-4fa8-9a07-376a3ec10288",
+      "profile_id": "0e75ae10-e03b-4c87-aa39-008e3b6d7a8d",
+      "position": "UX/UI-дизайнер",
+      "labels": [
+        "Figma"
+      ]
+    },
+    {
+      "resume_id": "b0cd2221-0477-4fa8-9a07-376a3ec10288",
+      "profile_id": "2d13c5b9-7ddd-4b24-ace2-6888b81bf4d8",
+      "position": "Финансовый аналитик",
+      "labels": [
+        "Power BI"
+      ]
+    },
+    {
+      "resume_id": "b6689042-be15-44f8-b382-fb3a75b85a4d",
+      "profile_id": "09d0a378-e0fd-401f-a292-ccb300bcafc4",
+      "position": "Специалист технической поддержки",
+      "labels": [
+        "Linux"
+      ]
+    },
+    {
+      "resume_id": "c0da5e5b-2b3b-473f-be5f-a4ca0f6e8f51",
+      "profile_id": "007361e9-4f58-42e8-b6f0-15f9433a7b5c",
+      "position": "Frontend-разработчик",
+      "labels": [
+        "TypeScript",
+        "React",
+        "Vue",
+        "Redux",
+        "Webpack",
+        "Vite"
+      ]
+    },
+    {
+      "resume_id": "c0da5e5b-2b3b-473f-be5f-a4ca0f6e8f51",
+      "profile_id": "14c3ab6b-d137-4377-8f59-96b7936ec39a",
+      "position": "DevOps-инженер",
+      "labels": [
+        "Linux"
+      ]
+    },
+    {
+      "resume_id": "c0da5e5b-2b3b-473f-be5f-a4ca0f6e8f51",
+      "profile_id": "2444b500-31c8-4e98-a9fa-f3cee3f6e503",
+      "position": "Backend-разработчик",
+      "labels": [
+        "Python",
+        "FastAPI",
+        "Django",
+        "PostgreSQL",
+        "Redis",
+        "Kafka"
+      ]
+    },
+    {
+      "resume_id": "c0da5e5b-2b3b-473f-be5f-a4ca0f6e8f51",
+      "profile_id": "5b6b9010-ecc6-4f34-b327-18c0ce0f422c",
+      "position": "SRE-инженер",
+      "labels": [
+        "Linux"
+      ]
+    }
+  ],
+  "technology_names_checked": [
+    "confluence",
+    "django",
+    "fastapi",
+    "figma",
+    "kafka",
+    "linux",
+    "markdown",
+    "pandas",
+    "postgresql",
+    "power bi",
+    "python",
+    "react",
+    "redis",
+    "redux",
+    "swagger",
+    "tableau",
+    "typescript",
+    "vite",
+    "vue",
+    "webpack"
+  ],
+  "score_counts": {
+    "15.0": 122,
+    "25.0": 30,
+    "45.0": 5,
+    "5.0": 13,
+    "10.0": 5,
+    "42.0": 18,
+    "35.0": 6,
+    "32.0": 6,
+    "78.0": 1,
+    "72.0": 2,
+    "62.0": 2
+  },
+  "worker_monotonic_sec": {
+    "n": 7,
+    "mean": 213.5877142857143,
+    "median": 241.374,
+    "min": 105.777,
+    "max": 267.779,
+    "sum": 1495.114
+  },
+  "analyzer_wall_sec": {
+    "n": 7,
+    "mean": 279.62428571428575,
+    "median": 248.26,
+    "min": 105.76,
+    "max": 683.7,
+    "sum": 1957.3700000000001
+  },
+  "total_elapsed_sec": {
+    "n": 7,
+    "mean": 957.1094285714286,
+    "median": 1035.656,
+    "min": 106.306,
+    "max": 1801.332,
+    "sum": 6699.766
+  },
+  "before_processing_sec": {
+    "n": 7,
+    "mean": 677.3771428571429,
+    "median": 787.262,
+    "min": 0.548,
+    "max": 1539.118,
+    "sum": 4741.639999999999
+  },
+  "timing_rows": [
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "worker_job_id": "47005455-66e4-4fba-9016-3fdd68f7f46a",
+      "before_processing_sec": 1539.118,
+      "processing_wall_sec": 262.214,
+      "total_sec": 1801.332
+    },
+    {
+      "resume_id": "c0da5e5b-2b3b-473f-be5f-a4ca0f6e8f51",
+      "worker_job_id": "e42cc5ca-e4df-4cd0-9d6d-384ddb84c3df",
+      "before_processing_sec": 1274.197,
+      "processing_wall_sec": 267.778,
+      "total_sec": 1541.975
+    },
+    {
+      "resume_id": "b6689042-be15-44f8-b382-fb3a75b85a4d",
+      "worker_job_id": "441e767e-0794-401b-ac29-2377ca94d903",
+      "before_processing_sec": 1034.559,
+      "processing_wall_sec": 241.368,
+      "total_sec": 1275.927
+    },
+    {
+      "resume_id": "b0cd2221-0477-4fa8-9a07-376a3ec10288",
+      "worker_job_id": "5d4f4377-ecf1-401d-b561-196641c0d09b",
+      "before_processing_sec": 787.262,
+      "processing_wall_sec": 248.394,
+      "total_sec": 1035.656
+    },
+    {
+      "resume_id": "77dc2957-7fd5-4d74-bf09-d4ac4709d15c",
+      "worker_job_id": "d2173814-cd88-48d1-871a-8e2b56a46cd8",
+      "before_processing_sec": 104.843,
+      "processing_wall_sec": 683.669,
+      "total_sec": 788.512
+    },
+    {
+      "resume_id": "39b29548-f678-4f63-a6c1-79674eea8778",
+      "worker_job_id": "b60274fc-5d71-4473-a67c-b0e2f00b2b63",
+      "before_processing_sec": 0.548,
+      "processing_wall_sec": 105.758,
+      "total_sec": 106.306
+    },
+    {
+      "resume_id": "45486bd1-660b-43b3-a609-f0d3b608b47a",
+      "worker_job_id": "9c04181d-ccf2-4fd9-9020-bf79a7dcf464",
+      "before_processing_sec": 1.113,
+      "processing_wall_sec": 148.945,
+      "total_sec": 150.058
+    }
+  ],
+  "jobs": [
+    {
+      "resume_id": "39b29548-f678-4f63-a6c1-79674eea8778",
+      "analyzer_job_id": "b993a08f-7ed7-4018-8df3-45a20ffe8434",
+      "analyzer_log_line": 1297,
+      "wall_duration_sec": 105.76
+    },
+    {
+      "resume_id": "45486bd1-660b-43b3-a609-f0d3b608b47a",
+      "analyzer_job_id": "a33aee97-bbf5-4010-be7d-4ad78b27b9cd",
+      "analyzer_log_line": 1170,
+      "wall_duration_sec": 148.63
+    },
+    {
+      "resume_id": "77dc2957-7fd5-4d74-bf09-d4ac4709d15c",
+      "analyzer_job_id": "25279250-c62f-4bae-9cd1-faaaa8e2a7c5",
+      "analyzer_log_line": 1424,
+      "wall_duration_sec": 683.7
+    },
+    {
+      "resume_id": "7b748f34-9b52-4e7b-b6db-35717f570613",
+      "analyzer_job_id": "73b71921-75fd-418a-9878-215e731ee1e6",
+      "analyzer_log_line": 1932,
+      "wall_duration_sec": 262.05
+    },
+    {
+      "resume_id": "b0cd2221-0477-4fa8-9a07-376a3ec10288",
+      "analyzer_job_id": "32bd56fe-199b-41e3-b8b7-587d62b9c0e9",
+      "analyzer_log_line": 1551,
+      "wall_duration_sec": 248.26
+    },
+    {
+      "resume_id": "b6689042-be15-44f8-b382-fb3a75b85a4d",
+      "analyzer_job_id": "59390e90-ee8b-4d5f-8cff-8da6815ba806",
+      "analyzer_log_line": 1678,
+      "wall_duration_sec": 241.34
+    },
+    {
+      "resume_id": "c0da5e5b-2b3b-473f-be5f-a4ca0f6e8f51",
+      "analyzer_job_id": "b100f7e5-45c2-4c71-ade3-76e510100bfb",
+      "analyzer_log_line": 1805,
+      "wall_duration_sec": 267.63
+    }
+  ]
+}

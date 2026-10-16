@@ -247,7 +247,7 @@ try {
   await page.getByRole("button", { name: "Экспорт", exact: true }).click();
   await page.getByLabel("Содержание").selectOption("table");
   const downloadEvent = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Скачать", exact: true }).click();
+  await page.getByRole("button", { name: "Скачать Excel", exact: true }).click();
   const download = await downloadEvent;
   await download.saveAs(".qa/matrix-ui.xlsx");
   const { readFile } = await import("node:fs/promises");

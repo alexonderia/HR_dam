@@ -124,7 +124,7 @@ export async function getBrokerStatus(): Promise<BrokerStatus> {
 }
 export function latestItemEvent(events: ImportEvent[], itemId: string): ImportEvent | undefined {
   const order = { uploading: 0, pending: 1, processing: 2, failed: 3, completed: 4 };
-  return events.filter(e => e.item_id === itemId).sort((a, b) => b.attempt - a.attempt || order[b.stage] - order[a.stage] || b.created_at.localeCompare(a.created_at))[0];
+  return events.filter(e => e.item_id === itemId).sort((a, b) => b.attempt - a.attempt || order[b.stage] - order[a.stage] || Date.parse(b.created_at) - Date.parse(a.created_at))[0];
 }
 type Exhausted = (body: unknown, error: Error) => Promise<void>;
 export function startQueueConsumer(name: string, handler: (body: unknown) => Promise<void>, exhausted: Exhausted) {

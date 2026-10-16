@@ -15,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning } from "@hr/contracts";
+import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning, formatMoscowDateTime } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { api, mutate } from "../lib/api";
 import {
@@ -297,9 +297,7 @@ export function Processing() {
                         <p className="event-warning">Сейчас кандидат найден в чёрном списке. Переход в «В процессе» недоступен.</p>
                       )}
                       <small>
-                        {new Date(event.created_at).toLocaleString("ru-RU", {
-                          timeZone: "Europe/Moscow",
-                        })}{" "}
+                        {formatMoscowDateTime(event.created_at)}{" "}
                         МСК
                       </small>
                     </div>

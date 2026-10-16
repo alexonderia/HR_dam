@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { zipSync, strToU8 } from "fflate";
-import { extractedPersonSchema, importResultSchema } from "@hr/contracts";
+import { extractedPersonSchema, importResultSchema, importEventSchema } from "@hr/contracts";
 import { extractResumeArchive } from "../apps/backend/src/archive.js";
 import { latestItemEvent } from "@hr/data-access";
 
@@ -43,4 +43,12 @@ test("late storage/progress events cannot undo terminal results or a newer attem
   const events = [{ ...base, stage: "completed" as const }, { ...base, stage: "pending" as const }];
   assert.equal(latestItemEvent(events, item)?.stage, "completed");
   assert.equal(latestItemEvent([...events, { ...base, job_id: randomUUID(), attempt: 2, stage: "uploading" }], item)?.attempt, 2);
+});
+
+test("import events accept Moscow offsets and compare mixed timezone timestamps by actual time", () => {
+  const base = { version: 1 as const, job_id: randomUUID(), item_id: randomUUID(), batch_id: randomUUID(),
+    attempt: 1, stage: "processing" as const };
+  const earlier = importEventSchema.parse({ ...base, created_at: "2026-10-16T13:00:00+03:00" });
+  const later = importEventSchema.parse({ ...base, created_at: "2026-10-16T10:30:00Z" });
+  assert.equal(latestItemEvent([earlier, later], base.item_id), later);
 });

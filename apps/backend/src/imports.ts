@@ -72,7 +72,7 @@ export async function listImports() {
   const ids = (await brokerQueues()).filter(q => /^hr\.resume\.batch\.[a-f0-9-]{36}$/.test(q.name)).map(q => q.name.slice("hr.resume.batch.".length));
   const all: ResumeImportDetail[] = [];
   for (let i = 0; i < ids.length; i += 8) all.push(...await Promise.all(ids.slice(i, i + 8).map(importDetail)));
-  return all.sort((a, b) => b.created_at.localeCompare(a.created_at)).map(({ items: _items, ...summary }) => summary);
+  return all.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(({ items: _items, ...summary }) => summary);
 }
 const retryLocks = new Map<string, Promise<unknown>>();
 export async function retryImport(id: string, itemId: string) {
@@ -120,11 +120,17 @@ export async function enqueueExistingResume(resumeId: string, recoverPending = f
 export async function reconcilePendingResumes() {
   const pending = await pool.query("SELECT id,updated_at::text AS lease FROM resumes WHERE scoring_status IN ('pending','processing')");
   if (!pending.rowCount) return;
-  const known = new Set<string>();
+  const known: { id: string; lease: string }[] = [];
   for (const queue of await brokerQueues()) {
     if (!/^hr\.resume\.batch\.[a-f0-9-]{36}$/.test(queue.name)) continue;
     const { manifest } = await readImportLedger(queue.name.slice("hr.resume.batch.".length));
-    for (const file of manifest.items) if (file.target_resume_id) known.add(`${file.target_resume_id}:${file.target_updated_at}`);
+    for (const file of manifest.items) if (file.target_resume_id && file.target_updated_at)
+      known.push({ id: file.target_resume_id, lease: file.target_updated_at });
   }
-  for (const row of pending.rows) if (!known.has(`${row.id}:${row.lease}`)) await enqueueExistingResume(row.id, true);
+  // Compare timestamp values in PostgreSQL, preserving microseconds across timezone changes.
+  const missing = await pool.query(`SELECT r.id FROM resumes r
+    WHERE r.scoring_status IN ('pending','processing') AND NOT EXISTS (
+      SELECT 1 FROM jsonb_to_recordset($1::jsonb) AS job(id uuid,lease timestamptz)
+      WHERE job.id=r.id AND job.lease=r.updated_at)`, [JSON.stringify(known)]);
+  for (const row of missing.rows) await enqueueExistingResume(row.id, true);
 }

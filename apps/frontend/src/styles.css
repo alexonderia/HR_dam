@@ -846,6 +846,162 @@ body {
   padding-top: var(--af-space-20);
   border-top: var(--af-border-width-thin) solid var(--af-border-subtle);
 }
+.export-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  width: min(660px, calc(100vw - 32px));
+  max-height: 90dvh;
+  overflow: hidden;
+}
+.export-dialog .dialog-header,
+.export-dialog > .dialog-footer {
+  flex-shrink: 0;
+  background: var(--af-bg-surface);
+}
+.export-dialog .dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.export-dialog > .dialog-footer {
+  margin: 0;
+  padding: var(--af-space-16) var(--af-space-24);
+}
+.export-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--af-space-24);
+}
+.export-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.export-section legend {
+  padding: 0;
+  margin-bottom: var(--af-space-12);
+  font-size: 14px;
+  font-weight: 500;
+}
+.export-scope,
+.export-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--af-space-12);
+}
+.export-fields {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+.export-fields--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.export-scope-option {
+  display: flex;
+  align-items: center;
+  gap: var(--af-space-12);
+  padding: var(--af-space-16);
+  border: var(--af-border-width-thin) solid var(--af-border-default);
+  border-radius: var(--af-radius-8);
+  cursor: pointer;
+}
+.export-scope-option:has(:checked) {
+  border-color: var(--af-border-focus);
+  background: var(--af-state-selected-bg);
+}
+.export-scope-option:has(:focus-visible) {
+  outline: var(--af-border-width-medium) solid var(--af-border-focus);
+  outline-offset: var(--af-space-2);
+}
+.export-scope-option strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.export-scope-option small,
+.export-check small {
+  display: block;
+  margin-top: var(--af-space-4);
+  color: var(--af-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.export-settings .export-hint {
+  color: var(--af-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.export-section > .export-hint {
+  margin-top: var(--af-space-12);
+}
+.export-check {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--af-space-8) 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.export-check .af-checkbox {
+  margin-top: 1px;
+}
+.export-attachment {
+  margin-top: var(--af-space-12);
+}
+.export-summary {
+  padding: var(--af-space-16);
+  border: var(--af-border-width-thin) solid var(--af-border-subtle);
+  border-radius: var(--af-radius-8);
+  background: var(--af-action-secondary-bg-hover);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.export-summary-title {
+  display: flex;
+  align-items: center;
+  gap: var(--af-space-8);
+  flex-wrap: wrap;
+  margin-bottom: var(--af-space-8);
+}
+.export-summary-title svg {
+  color: var(--af-text-link);
+  flex-shrink: 0;
+}
+.export-summary-title strong {
+  font-weight: 500;
+  font-size: 14px;
+}
+.export-summary-title span {
+  margin-left: auto;
+  color: var(--af-text-secondary);
+}
+.export-summary .export-hint {
+  margin-top: var(--af-space-8);
+}
+.export-section:disabled label {
+  cursor: wait;
+}
+@media (max-width: 560px) {
+  .export-scope,
+  .export-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .export-scope-option {
+    padding: var(--af-space-12);
+  }
+  .export-scope-option > span {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--af-space-8);
+  }
+  .export-scope-option small {
+    margin-top: 0;
+    text-align: right;
+  }
+  .export-dialog > .dialog-footer {
+    padding: var(--af-space-12) var(--af-space-20);
+  }
+}
 .document-frame {
   width: 100%;
   height: 62vh;

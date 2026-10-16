@@ -76,6 +76,12 @@ const detail = (id: string) => api<ResumeImportDetail>(`/resume-imports/${id}`);
 try {
   for (const migration of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql"])
     await data.pool.query(await readFile(`db/migrations/${migration}`, "utf8"));
+  assert.equal((await data.pool.query("SHOW timezone")).rows[0].TimeZone, "Europe/Moscow");
+  const lease = await data.pool.query(`SELECT
+    '2026-10-16 10:00:00.123456+00'::timestamptz = '2026-10-16 13:00:00.123456+03'::timestamptz AS same,
+    '2026-10-16 10:00:00.123456+00'::timestamptz = '2026-10-16 13:00:00.123457+03'::timestamptz AS different`);
+  assert.equal(lease.rows[0].same, true);
+  assert.equal(lease.rows[0].different, false);
   const clusterId = randomUUID();
   await data.pool.query("INSERT INTO clusters(id,name,track) VALUES($1,'Test','test')", [clusterId]);
   for (let i = 0; i < 2; i++) await data.pool.query("INSERT INTO profiles(id,cluster_id,position_name) VALUES($1,$2,$3)", [randomUUID(), clusterId, "Profile " + i]);
@@ -101,6 +107,11 @@ try {
   await waitFor(() => detail(single.id), d => d.processed_files === 1, "Single result not saved");
   const overview = await api<{ candidates: Candidate[] }>("/overview");
   assert.ok(overview.candidates.some(c => c.phone === "+79991234567" && c.last_name === "Иванов"));
+  const existing = overview.candidates.find(c => c.phone === "+79991234567")!;
+  assert.match(existing.created_at, /\+03:00$/);
+  const rescoring = await api<ResumeImportDetail>(`/resumes/${existing.resume_id}/retry`, { method: "POST" }, 202);
+  batches.push(rescoring.id);
+  await waitFor(() => detail(rescoring.id), d => d.processed_files === 1, "Moscow-time reanalysis lease rejected");
   assert.equal((await api<{ available: boolean }>("/analysis/status")).available, true);
 
   const slow = await upload("held.txt", strToU8("Python HOLD"));

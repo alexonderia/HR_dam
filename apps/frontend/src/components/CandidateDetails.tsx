@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   ChevronRight,
 } from "lucide-react";
-import { clusterScore } from "@hr/contracts";
+import { clusterScore, formatMoscowDateTime } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate, reportUrl, openWindow } from "../lib/api";
 import {
@@ -65,7 +65,7 @@ export function CandidateDetails({
   );
   const processed = candidate.ratings
     .map((r) => r.calculated_at)
-    .sort()
+    .sort((a, b) => Date.parse(a) - Date.parse(b))
     .at(-1);
   const anchor = focusProfileId
     ? `#profile-${focusProfileId}`
@@ -84,9 +84,7 @@ export function CandidateDetails({
           <p className="muted">
             Последняя обработка:{" "}
             {processed
-              ? new Date(processed).toLocaleString("ru-RU", {
-                  timeZone: "Europe/Moscow",
-                }) + " МСК"
+              ? formatMoscowDateTime(processed) + " МСК"
               : "оценка ещё не завершена"}
           </p>
             <div className="toolbar candidate-document-actions">

@@ -6,22 +6,42 @@ import {
   scoringLabels,
   matrixColumns,
   clusterScore,
+  formatMoscowDateTime,
   type Candidate,
   type Cluster,
 } from "@hr/contracts";
 import { escapeHtml as h, htmlDocument, reportContent } from "./export.js";
+import { safeFileName } from "./archive.js";
 
 export const exportOptionsSchema = z.object({
-  candidate_ids: z.array(z.uuid()).max(10000),
-  cluster_ids: z.array(z.uuid()).max(1000),
+  candidate_ids: z.array(z.uuid()).max(10000).default([]),
+  cluster_ids: z.array(z.uuid()).max(1000).default([]),
   expanded: z.array(z.uuid()).max(1000).default([]),
   content: z.enum(["report", "table"]).default("report"),
   format: z.enum(["html", "csv", "xlsx"]).default("html"),
   individual: z.boolean().default(false),
   print: z.boolean().default(false),
   candidateReport: z.boolean().default(false),
+  allData: z.boolean().default(false),
+  includeBlacklisted: z.boolean().default(true),
+  activeRequirementsOnly: z.boolean().default(false),
 });
 export type ExportOptions = z.infer<typeof exportOptionsSchema>;
+
+export function candidateExportNames(candidates: Candidate[]) {
+  const used = new Set<string>();
+  return new Map(candidates.map(candidate => {
+    let base = safeFileName((fullName(candidate).trim() || "ФИО не указано").normalize("NFC").slice(0, 160))
+      .replace(/[<>:"|?*\x7f]/g, "_").replace(/[. ]+$/, "") || "ФИО не указано";
+    if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(base)) base = `Кандидат ${base}`;
+    let name = base;
+    let suffix = 2;
+    const key = (value: string) => value.normalize("NFKC").toLocaleLowerCase("ru-RU");
+    while (used.has(key(name))) name = `${base} (${suffix++})`;
+    used.add(key(name));
+    return [candidate.id, name] as const;
+  }));
+}
 type Cell = string | number;
 type Sheet = { name: string; rows: Cell[][] };
 const csv = (rows: Cell[][]) =>
@@ -208,7 +228,7 @@ export function createExport(
         ...candidates.map((c) => {
           const processed = c.ratings
             .map((r) => r.calculated_at)
-            .sort()
+            .sort((a, b) => Date.parse(a) - Date.parse(b))
             .at(-1);
           return [
             fullName(c) || "ФИО не указано",
@@ -216,9 +236,7 @@ export function createExport(
             statusLabels[c.status],
             c.file_name,
             processed
-              ? new Date(processed).toLocaleString("ru-RU", {
-                  timeZone: "Europe/Moscow",
-                })
+              ? formatMoscowDateTime(processed)
               : "Не обработано",
             c.blacklisted ? "Да" : "Нет",
           ];
@@ -259,9 +277,10 @@ export function createExport(
   }
   if (options.individual && !options.print && !options.candidateReport) {
     const files: Record<string, Uint8Array> = {
-      [`distribution.${options.format}`]:
+      [`Распределение кандидатов.${options.format}`]:
         typeof body === "string" ? strToU8(body) : body,
     };
+    const names = candidateExportNames(candidates);
     for (const candidate of candidates) {
       const report = createExport([candidate], clusters, {
         ...options,
@@ -269,7 +288,7 @@ export function createExport(
         individual: false,
         content: "report",
       });
-      files[`reports/${candidate.resume_id}.${report.extension}`] =
+      files[`Отчёты/${names.get(candidate.id)}.${report.extension}`] =
         typeof report.body === "string" ? strToU8(report.body) : report.body;
     }
     return {
@@ -279,4 +298,84 @@ export function createExport(
     };
   }
   return { body, mime, extension: options.format };
+}
+
+export async function createCompleteExport(
+  candidates: Candidate[],
+  clusters: Cluster[],
+  options: ExportOptions,
+  readResume: (candidate: Candidate) => Promise<Buffer>,
+) {
+  if (!options.includeBlacklisted) candidates = candidates.filter(candidate => !candidate.blacklisted);
+  if (options.activeRequirementsOnly) {
+    clusters = clusters.filter(cluster => cluster.is_active).map(cluster => ({
+      ...cluster, profiles: cluster.profiles.filter(profile => profile.is_active),
+    }));
+  }
+  const fullOptions: ExportOptions = {
+    ...options,
+    expanded: clusters.map((cluster) => cluster.id),
+    content: "report",
+    individual: false,
+    print: false,
+    candidateReport: false,
+    allData: false,
+  };
+  const files: Record<string, Uint8Array> = {};
+  const put = (path: string, body: Buffer | string) => {
+    files[path] = typeof body === "string" ? strToU8(body) : body;
+  };
+  const putJson = (path: string, value: unknown) =>
+    put(path, JSON.stringify(value, null, 2));
+  const distribution = createExport(candidates, clusters, fullOptions);
+  put(`Распределение кандидатов.${distribution.extension}`, distribution.body);
+
+  putJson("Требования.json", clusters);
+  put("Требования.xlsx", xlsx([
+    { name: "Кластеры", rows: [
+      ["ID кластера", "Кластер", "Направление", "Общие требования", "Активен"],
+      ...clusters.map((cluster) => [cluster.id, cluster.name, cluster.track, cluster.comment,
+        cluster.is_active ? "Да" : "Нет"]),
+    ] },
+    { name: "Профили", rows: [
+      ["ID профиля", "ID кластера", "Кластер", "Профиль", "Образование", "Опыт",
+        "Ключевые слова", "Стоп-факторы", "Дополнительные требования", "Активен"],
+      ...clusters.flatMap((cluster) => cluster.profiles.map((profile) => [profile.id, cluster.id,
+        cluster.name, profile.position_name, profile.education, profile.experience,
+        profile.keywords.join("\n"), profile.stop_factors.join("\n"), profile.comment,
+        profile.is_active ? "Да" : "Нет"])),
+    ] },
+  ]));
+
+  const names = candidateExportNames(candidates);
+  // Read originals sequentially to avoid concurrent downloads of the entire collection.
+  for (const candidate of candidates) {
+    const name = names.get(candidate.id)!;
+    const extension = candidate.file_name.match(/\.[a-z0-9]{1,10}$/i)?.[0] || "";
+    const resumePath = `Резюме/${name}${extension}`;
+    const reportPath = `Отчёты/${name}.html`;
+    const report = createExport([candidate], clusters, {
+      ...fullOptions, candidateReport: true, format: "html",
+    });
+    put(reportPath, report.body);
+    if (options.format !== "html") {
+      const formattedReport = createExport([candidate], clusters, {
+        ...fullOptions, candidateReport: true,
+      });
+      put(`Отчёты/${name}.${formattedReport.extension}`, formattedReport.body);
+    }
+    put(resumePath, await readResume(candidate));
+  }
+  put("Описание.txt", "Полный экспорт HR DAM\n\n" +
+    "Распределение кандидатов — сводный отчёт в выбранном формате.\n" +
+    "Резюме/ — исходные резюме с ФИО кандидатов в именах файлов.\n" +
+    "Отчёты/ — отчёты с рейтингами и обоснованиями, подписанные ФИО кандидатов.\n" +
+    "Для одинаковых ФИО используются суффиксы (2), (3) и далее.\n" +
+    "Требования.xlsx / Требования.json — кластеры и профили с требованиями.\n\n" +
+    "Даты и время в отчётах указаны по Москве (МСК, UTC+3).\n" +
+    `Кандидаты из чёрного списка: ${options.includeBlacklisted ? "включены" : "исключены"}.\n` +
+    `Требования: ${options.activeRequirementsOnly ? "только активные профили активных кластеров" : "все, включая неактивные"}.\n` +
+    "Текущие фильтры не применяются. Требования актуальны на момент экспорта; " +
+    "сохранённые рейтинги могли быть рассчитаны по более ранним требованиям.\n");
+  return { body: Buffer.from(zipSync(files)), mime: "application/zip", extension: "zip" };
 }

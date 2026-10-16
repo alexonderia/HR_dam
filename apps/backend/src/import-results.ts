@@ -31,9 +31,9 @@ async function persistResult(manifest: ImportManifest, file: ImportFile, result:
     for (const key of lockKeys) await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [key]);
     let candidateId: string, resumeId: string, replacing = false;
     if (file.target_resume_id) {
-      const current = await client.query("SELECT *,updated_at::text AS lease FROM resumes WHERE id=$1 FOR UPDATE", [file.target_resume_id]);
+      const current = await client.query("SELECT *,updated_at=$2::timestamptz AS lease_matches FROM resumes WHERE id=$1 FOR UPDATE", [file.target_resume_id, file.target_updated_at]);
       const row = current.rows[0];
-      if (!row || row.file_id !== file.file_id || row.lease !== file.target_updated_at)
+      if (!row || row.file_id !== file.file_id || !row.lease_matches)
         throw new PermanentQueueError("Резюме изменилось после отправки на оценку. Запустите новую обработку.");
       candidateId = row.candidate_id; resumeId = row.id;
     } else {

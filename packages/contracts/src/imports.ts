@@ -23,7 +23,7 @@ export const importFileSchema = z.object({
 export type ImportFile = z.infer<typeof importFileSchema>;
 export const importManifestSchema = z.object({
   version: z.literal(1), id: z.uuid(), archive_name: z.string().min(1).max(180),
-  created_at: z.iso.datetime(), ignored_files: z.array(z.string()),
+  created_at: z.iso.datetime({ offset: true }), ignored_files: z.array(z.string()),
   requirements: z.array(requirementSchema).min(1), items: z.array(importFileSchema).min(1).max(200),
 });
 export type ImportManifest = z.infer<typeof importManifestSchema>;
@@ -34,7 +34,7 @@ export const storageJobSchema = z.object({
 });
 export type StorageJob = z.infer<typeof storageJobSchema>;
 export const analysisJobSchema = storageJobSchema.extend({
-  file: importFileSchema.extend({ download_url: z.url(), download_url_expires_at: z.iso.datetime() }),
+  file: importFileSchema.extend({ download_url: z.url(), download_url_expires_at: z.iso.datetime({ offset: true }) }),
 });
 export type AnalysisJob = z.infer<typeof analysisJobSchema>;
 const resultEnvelope = { version: z.literal(1), job_id: z.uuid(), batch_id: z.uuid(), item_id: z.uuid(), attempt: z.number().int().min(1).max(100) };
@@ -45,7 +45,7 @@ export const importResultSchema = z.discriminatedUnion("status", [
 export type ImportResult = z.infer<typeof importResultSchema>;
 export const importEventSchema = z.object({
   ...resultEnvelope, stage: z.enum(["uploading", "pending", "processing", "completed", "failed"]),
-  created_at: z.iso.datetime(), error: z.string().max(2000).optional(), warning: z.string().optional(),
+  created_at: z.iso.datetime({ offset: true }), error: z.string().max(2000).optional(), warning: z.string().optional(),
   candidate_id: z.uuid().optional(), resume_id: z.uuid().optional(),
 });
 export type ImportEvent = z.infer<typeof importEventSchema>;

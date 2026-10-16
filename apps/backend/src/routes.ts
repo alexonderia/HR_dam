@@ -24,7 +24,7 @@ import { getCandidates, getClusters } from "@hr/data-access";
 import { getFile } from "@hr/data-access";
 import { exportCsv, reportHtml, escapeHtml, htmlDocument } from "./export.js";
 import { extractDocumentText } from "@hr/documents";
-import { createExport, exportOptionsSchema } from "./export-options.js";
+import { candidateExportNames, createCompleteExport, createExport, exportOptionsSchema } from "./export-options.js";
 import { presentResumeEvent, queueStatus } from "./processing.js";
 import { acceptResumes, listImports, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
 import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists } from "@hr/data-access";
@@ -250,24 +250,42 @@ router.get("/resumes/:id/report", async (req, res) => {
   if (req.query.download === "true" && req.query.format && req.query.format !== "html") {
     const options = exportOptionsSchema.parse({ candidate_ids: [candidate.id], cluster_ids: clusters.map(c => c.id), candidateReport: true, format: req.query.format, content: req.query.content || "report" });
     const result = createExport([candidate], clusters, options);
-    res.attachment(`report-${id}.${result.extension}`).type(result.mime).send(result.body);
+    res.attachment(`${candidateExportNames([candidate]).get(candidate.id)}.${result.extension}`).type(result.mime).send(result.body);
     return;
   }
-  if (req.query.download === "true") res.attachment(`report-${id}.html`);
+  if (req.query.download === "true") res.attachment(`${candidateExportNames([candidate]).get(candidate.id)}.html`);
   res
     .type("html")
     .send(reportHtml(candidate, clusters, req.query.print === "true", req.query.content === "table", req.query.print !== "true" && req.query.download !== "true"));
 });
 router.post("/export", async (req, res) => {
   const options = exportOptionsSchema.parse(req.body);
+  if (options.allData && options.print) throw new HttpError(422, "Полный архив доступен только для скачивания.");
   if (options.print && options.format !== "html") throw new HttpError(422, "Для печати выберите HTML.");
   const [allCandidates, allClusters] = await Promise.all([getCandidates(), getClusters()]);
-  const candidates = options.candidate_ids.flatMap(id => allCandidates.filter(c => c.id === id));
-  const clusters = options.cluster_ids.flatMap(id => allClusters.filter(c => c.id === id));
-  const result = createExport(candidates, clusters, options);
+  const candidates = options.allData ? allCandidates : options.candidate_ids.flatMap(id => allCandidates.filter(c => c.id === id));
+  const clusters = options.allData ? allClusters : options.cluster_ids.flatMap(id => allClusters.filter(c => c.id === id));
+  let result;
+  if (options.allData) {
+    const storedFiles = await pool.query<{ id: string; bucket: string; object_key: string }>(
+      "SELECT id,bucket,object_key FROM files WHERE id=ANY($1::uuid[])",
+      [candidates.map(candidate => candidate.file_id)],
+    );
+    const filesById = new Map(storedFiles.rows.map(file => [file.id, file]));
+    result = await createCompleteExport(candidates, clusters, options, async candidate => {
+      const file = filesById.get(candidate.file_id);
+      if (!file) throw new HttpError(409, "Состав резюме изменился. Повторите экспорт.");
+      try { return await getFile(file.bucket, file.object_key); }
+      catch { throw new HttpError(503, "Не удалось прочитать одно из резюме. Повторите экспорт после восстановления доступа к файлам."); }
+    });
+  } else {
+    result = createExport(candidates, clusters, options);
+  }
   res.set("Cache-Control", "no-store");
   res.set("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src data:; script-src 'unsafe-inline'");
-  if (!options.print) res.attachment(`candidate-${options.candidateReport ? "report" : "distribution"}.${result.extension}`);
+  if (!options.print) res.attachment(options.candidateReport && !options.allData && candidates.length === 1
+    ? `${candidateExportNames(candidates).get(candidates[0].id)}.${result.extension}`
+    : `${options.allData ? "Все данные кандидатов" : options.candidateReport ? "Отчёты кандидатов" : "Распределение кандидатов"}.${result.extension}`);
   res.type(result.mime).send(result.body);
 });
 router.get("/export", async (_req, res) => {
@@ -276,7 +294,7 @@ router.get("/export", async (_req, res) => {
     getClusters(),
   ]);
   res
-    .attachment("candidate-distribution.csv")
+    .attachment("Распределение кандидатов.csv")
     .type("text/csv")
     .send(exportCsv(candidates, clusters));
 });

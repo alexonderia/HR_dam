@@ -1,3 +1,6 @@
+x-moscow-environment: &moscow-environment
+  TZ: Europe/Moscow
+
 services:
   frontend:
     container_name: hr_dam-frontend
@@ -5,6 +8,7 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+    environment: *moscow-environment
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:8080"
     networks: [infrastructure]
@@ -20,6 +24,7 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     environment: &application-environment
+      <<: *moscow-environment
       PORT: 3001
       PGHOST: postgres
       POSTGRES_PORT: 5432
@@ -92,6 +97,7 @@ services:
     build:
       context: ./apps/resume-analyzer
     environment:
+      <<: *moscow-environment
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-180}
@@ -118,8 +124,12 @@ services:
   # Model download/readiness is independent of API and frontend startup.
   ollama:
     container_name: hr_dam-ollama
-    image: &ollama-image ollama/ollama:0.40.3
+    image: &ollama-image hr-dam-ollama:local
+    build:
+      context: .
+      dockerfile: infra/ollama/Dockerfile
     environment:
+      <<: *moscow-environment
       OLLAMA_HOST: 0.0.0.0:11434
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_MAX_LOADED_MODELS: "1"
@@ -147,7 +157,9 @@ services:
   ollama-init:
     container_name: hr_dam-ollama-init
     image: *ollama-image
+    pull_policy: never
     environment:
+      <<: *moscow-environment
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
     entrypoint: [/bin/sh, /init/model.sh]
@@ -162,6 +174,7 @@ services:
   clamav:
     container_name: hr_dam-clamav
     image: clamav/clamav:stable
+    environment: *moscow-environment
     volumes:
       - clamav_data:/var/lib/clamav
     networks: [infrastructure]
@@ -178,6 +191,7 @@ services:
     container_name: hr_dam-rabbitmq
     image: rabbitmq:4-management-alpine
     environment:
+      <<: *moscow-environment
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-hr_dam}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-}
       RABBITMQ_DEFAULT_VHOST: /
@@ -198,7 +212,10 @@ services:
   postgres:
     container_name: hr_dam-postgres
     image: postgres:16.13-alpine3.23
+    command: [postgres, -c, timezone=Europe/Moscow, -c, log_timezone=Europe/Moscow]
     environment:
+      <<: *moscow-environment
+      PGTZ: Europe/Moscow
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -220,6 +237,7 @@ services:
     image: dpage/pgadmin4:9.18
     entrypoint: [/bin/sh, /config/start.sh]
     environment:
+      <<: *moscow-environment
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:?Set PGADMIN_EMAIL in .env}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Set PGADMIN_PASSWORD in .env}
       PGADMIN_DISABLE_POSTFIX: "true"
@@ -256,6 +274,7 @@ services:
     image: flyway/flyway:12.1.0
     command: migrate
     environment:
+      <<: *moscow-environment
       FLYWAY_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
       FLYWAY_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -274,7 +293,10 @@ services:
 
   seaweedfs:
     container_name: hr_dam-seaweedfs
-    image: chrislusf/seaweedfs:4.29
+    image: hr-dam-seaweedfs:local
+    build:
+      context: .
+      dockerfile: infra/seaweedfs/Dockerfile
     command:
       - server
       - -dir=/data
@@ -290,6 +312,7 @@ services:
       - -s3.port.iceberg=0
       - -s3.allowDeleteBucketNotEmpty=false
     environment:
+      <<: *moscow-environment
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
     ports:
@@ -316,6 +339,7 @@ services:
     image: amazon/aws-cli:2.27.49
     entrypoint: [/bin/sh, /init/bucket.sh]
     environment:
+      <<: *moscow-environment
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
       AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { ResumeImportDetail, ResumeImportItem, ResumeImportSummary, BrokerStatus } from "@hr/contracts";
+import { formatMoscowDateTime } from "@hr/contracts";
 import { api, mutate } from "../lib/api";
 import { useData } from "../lib/store";
 import { Button, ErrorMessage } from "./ui";
@@ -55,7 +56,7 @@ export function ResumeImports() {
       {!broker.analysis_consumers && " · Обработка начнётся после подключения обработчика резюме."}</p>}
     <label className="af-label" htmlFor="resume-import-batch">Загрузка</label>
     <select id="resume-import-batch" className="af-select" value={currentId} onChange={event => setSelected(event.target.value)}>
-      {resumeImports.map(batch => <option key={batch.id} value={batch.id}>{batch.archive_name} · {new Date(batch.created_at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })} МСК · {batch.processed_files}/{batch.total_files}</option>)}
+      {resumeImports.map(batch => <option key={batch.id} value={batch.id}>{batch.archive_name} · {formatMoscowDateTime(batch.created_at)} МСК · {batch.processed_files}/{batch.total_files}</option>)}
     </select>
     <ErrorMessage message={error} />
     <ErrorMessage message={resumeImportsError ?? ""} />

@@ -3,9 +3,10 @@ import { config } from "./config.js";
 import { pool, flushImportOutbox, closeBroker } from "@hr/data-access";
 import { startResultConsumers } from "./import-results.js";
 import { reconcilePendingResumes } from "./imports.js";
+import { moscowTimestamp } from "@hr/contracts";
 
 const server = app.listen(config.port, "0.0.0.0", () =>
-  console.log(`HR DAM http://localhost:${config.port}`),
+  console.log(`${moscowTimestamp()} HR DAM http://localhost:${config.port}`),
 );
 const stopConsumers = startResultConsumers();
 let flushing = false;
@@ -16,7 +17,7 @@ const flush = async () => {
   try {
     await flushImportOutbox();
     if (!reconciled) { await reconcilePendingResumes(); reconciled = true; }
-  } catch { console.error("Resume outbox unavailable; retrying"); }
+  } catch { console.error(moscowTimestamp(), "Resume outbox unavailable; retrying"); }
   finally { flushing = false; }
 };
 void flush();

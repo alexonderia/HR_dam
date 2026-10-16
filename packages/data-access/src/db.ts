@@ -1,7 +1,9 @@
 import pg from "pg";
 import { config } from "./config.js";
+import { MOSCOW_TIME_ZONE } from "@hr/contracts";
 export const pool = new pg.Pool({
   ...config.db,
+  options: `-c timezone=${MOSCOW_TIME_ZONE}`,
   max: 10,
   connectionTimeoutMillis: 5000,
 });

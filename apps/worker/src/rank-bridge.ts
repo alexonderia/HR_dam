@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { analysisJobSchema, type AnalysisJob } from "@hr/contracts";
+import { analysisJobSchema, type AnalysisJob, moscowTimestamp } from "@hr/contracts";
 import { getFile, getAnalysisStatus, publishQueue, queues, readImportLedger, latestItemEvent,
   PermanentQueueError, QueuePausedError, rankBridgeEnabled, startQueueConsumer } from "@hr/data-access";
 import { extractDocumentText } from "@hr/documents";
@@ -26,7 +26,7 @@ export async function rankQueuedResume(input: unknown) {
     const content = legacy ? Buffer.from(await extractDocumentText(buffer, job.file.mime_type), "utf8") : buffer;
     const file = new Blob([new Uint8Array(content)], { type: legacy ? "text/plain" : job.file.mime_type });
     const analysis = await analyzeResume(job.requirements, file, legacy ? "resume.txt" : job.file.file_name, config,
-      event => console.info(JSON.stringify({ event: `rank_bridge_${event.type}`, job_id: job.job_id, ...event })));
+      event => console.info(JSON.stringify({ timestamp: moscowTimestamp(), event: `rank_bridge_${event.type}`, job_id: job.job_id, ...event })));
     // /rank currently returns ratings only. Unknown identity remains null.
     await publishQueue(queues.results, { ...envelope(job), status: "completed", candidate: job.file.candidate_hint, analysis }, job.job_id);
   } catch (error) {
