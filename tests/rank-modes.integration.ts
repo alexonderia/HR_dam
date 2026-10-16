@@ -74,7 +74,7 @@ async function upload(name: string, content: Uint8Array, archive = false, hint: 
 }
 const detail = (id: string) => api<ResumeImportDetail>(`/resume-imports/${id}`);
 try {
-  for (const migration of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql"])
+  for (const migration of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql"])
     await data.pool.query(await readFile(`db/migrations/${migration}`, "utf8"));
   assert.equal((await data.pool.query("SHOW timezone")).rows[0].TimeZone, "Europe/Moscow");
   const lease = await data.pool.query(`SELECT
@@ -104,24 +104,43 @@ try {
 
   const single = await upload("single.txt", strToU8("Python manual identity"), false,
     { last_name: "Иванов", first_name: "Иван", phone: "+79991234567" });
+  assert.equal(single.items[0].candidate_hint?.phone, "+79991234567");
+  assert.match(single.items[0].file_sha256!, /^[a-f0-9]{64}$/);
   await waitFor(() => detail(single.id), d => d.processed_files === 1, "Single result not saved");
   const overview = await api<{ candidates: Candidate[] }>("/overview");
   assert.ok(overview.candidates.some(c => c.phone === "+79991234567" && c.last_name === "Иванов"));
   const existing = overview.candidates.find(c => c.phone === "+79991234567")!;
   assert.match(existing.created_at, /\+03:00$/);
   const rescoring = await api<ResumeImportDetail>(`/resumes/${existing.resume_id}/retry`, { method: "POST" }, 202);
+  assert.equal(rescoring.items[0].target_resume_id, existing.resume_id);
   batches.push(rescoring.id);
   await waitFor(() => detail(rescoring.id), d => d.processed_files === 1, "Moscow-time reanalysis lease rejected");
   assert.equal((await api<{ available: boolean }>("/analysis/status")).available, true);
 
   const slow = await upload("held.txt", strToU8("Python HOLD"));
   await waitFor(() => detail(slow.id), d => d.processing_files === 1, "Processing signal not received");
-  assert.ok(held); held(); held = undefined;
-  await waitFor(() => detail(slow.id), d => d.processed_files === 1, "Held request not completed");
+  assert.ok(held);
+  assert.equal((await detail(slow.id)).items[0].analysis_duration_ms, null);
+  await delay(250);
+  held(); held = undefined;
+  const timed = await waitFor(() => detail(slow.id), d => d.processed_files === 1, "Held request not completed");
+  const duration = timed.items[0].analysis_duration_ms!;
+  assert.ok(duration >= 250 && duration < 5000, `Unexpected analysis duration: ${duration}`);
+  const timedCandidate = (await api<{ candidates: Candidate[] }>("/overview")).candidates.find(c => c.resume_id === timed.items[0].resume_id)!;
+  assert.equal(timedCandidate.analysis_duration_ms, duration);
+  const timedEvents = await api<{ analysis_duration_ms?: number }[]>(`/resumes/${timedCandidate.resume_id}/events`);
+  assert.ok(timedEvents.some(event => event.analysis_duration_ms === duration));
+  const repeated = await data.pool.query("SELECT id FROM resume_events WHERE resume_id=$1 AND event_type='scored'", [timedCandidate.resume_id]);
+  const result = { version: 1, job_id: repeated.rows[0].id, item_id: timed.items[0].id, batch_id: slow.id, attempt: 1,
+    status: "completed", candidate: {}, analysis: { clusters: [] }, analysis_duration_ms: duration + 5000 };
+  const { processImportResult } = await import("../apps/backend/src/import-results.js");
+  await processImportResult(result);
+  assert.equal((await detail(slow.id)).items[0].analysis_duration_ms, duration, "Duplicate result changed recorded duration");
 
   rejectNext = true;
   const failed = await upload("failed.txt", strToU8("Python failure"));
   const error = await waitFor(() => detail(failed.id), d => d.failed_files === 1, "HTTP error not recorded");
+  assert.ok(error.items[0].analysis_duration_ms != null && error.items[0].analysis_duration_ms >= 0);
   await api(`/resume-imports/${failed.id}/items/${error.items[0].id}/retry`, { method: "POST" }, 202);
   await waitFor(() => detail(failed.id), d => d.processed_files === 1, "Retry through /rank failed");
 

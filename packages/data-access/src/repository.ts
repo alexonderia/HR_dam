@@ -36,6 +36,8 @@ export async function getCandidates(): Promise<Candidate[]> {
   const result =
     await pool.query(`SELECT c.*, r.id AS resume_id, r.file_id, r.status, r.scoring_status, r.updated_at,
     f.file_name, f.mime_type,
+    (SELECT e.analysis_duration_ms FROM resume_events e WHERE e.resume_id=r.id AND e.event_type='scored'
+      ORDER BY e.created_at DESC,e.id DESC LIMIT 1) AS analysis_duration_ms,
     (SELECT count(*)::int FROM resume_events e WHERE e.resume_id=r.id AND e.event_type='replaced') AS other_resumes_count,
     EXISTS(SELECT 1 FROM candidate_blacklist b WHERE b.is_active AND ${blacklistMatchSql}) AS blacklisted,
     ${otherInProcessResumeSql} AS has_other_resume_in_process,

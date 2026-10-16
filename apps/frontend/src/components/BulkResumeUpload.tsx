@@ -50,7 +50,7 @@ export function BulkResumeUpload() {
       <strong>Архив «{result.archive_name}» принят: {result.total_files} резюме.</strong>
       <p>Обработано: {result.processed_files}. В обработке: {result.pending_files}. Ошибок: {result.failed_files}.</p>
       {!!result.ignored_files.length && <p>Пропущено файлов: {result.ignored_files.length}.</p>}
-      <Link className="af-link" to={`/processing?batch=${result.id}`}>Следить за массовой обработкой</Link>
+      <Link className="af-link" to="/processing">Следить за массовой обработкой</Link>
     </div>}
     <div className="form-footer"><span>{busy ? "Проверяем файлы и отправляем в обработку…" : "ФИО и телефон могут отсутствовать в резюме"}</span>
       <Button type="submit" disabled={busy || !file}>{busy && <LoaderCircle size={16} className="spin" />}{busy ? "Загружаем…" : "Загрузить архив"}</Button>

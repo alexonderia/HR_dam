@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
+import { createRequire } from "node:module";
 import type { ServerResponse } from "node:http";
 import type { Cluster } from "@hr/contracts";
 import { analyzeResume, AnalysisError } from "../apps/worker/src/analysis.js";
@@ -23,6 +24,8 @@ const file = new Blob([bytes], { type: "application/pdf" });
 const options = { timeoutMs: 3000, maxRetries: 2, retryDelayMs: 1 };
 const success = { clusters: clusters.map(c => ({ id: c.id,
   profiles: c.profiles.map(p => ({ id: p.id, score: 80, explanation: "OK" })) })) };
+const { Agent, getGlobalDispatcher, setGlobalDispatcher } = createRequire(
+  new URL("../apps/worker/package.json", import.meta.url))("undici");
 
 function json(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "Content-Type": "application/json" });
@@ -138,6 +141,41 @@ test("worker's total timeout covers retry delays and slow response bodies", asyn
     });
     assert.equal(calls, 1);
     assert.ok(performance.now() - start < 1500);
+  }
+});
+
+test("worker waits for its own analysis budget despite shorter default HTTP header/body timeouts", async () => {
+  const previous = getGlobalDispatcher();
+  // Scale down the five-minute default to reproduce the failure without a long-running test.
+  const shortTimeouts = new Agent({ headersTimeout: 100, bodyTimeout: 100 });
+  setGlobalDispatcher(shortTimeouts);
+  try {
+    for (const slowBody of [false, true]) {
+      await withAnalyzer((_form, response) => {
+        if (slowBody) {
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.write(" ");
+        }
+        const timer = setTimeout(() => {
+          if (slowBody) response.end(JSON.stringify(success));
+          else json(response, 200, success);
+        }, 1800);
+        response.once("close", () => clearTimeout(timer));
+      }, async rankUrl => {
+        const form = new FormData();
+        form.append("file", file, "resume.pdf");
+        form.append("requirements", JSON.stringify({ clusters }));
+        await assert.rejects(async () => {
+          const response = await fetch(rankUrl, { method: "POST", body: form });
+          await response.json();
+        }, (error: unknown) => (error as { cause?: { code?: string } }).cause?.code ===
+          (slowBody ? "UND_ERR_BODY_TIMEOUT" : "UND_ERR_HEADERS_TIMEOUT"));
+        assert.deepEqual(await analyzeResume(clusters, file, "resume.pdf", { ...options, rankUrl }), success);
+      });
+    }
+  } finally {
+    setGlobalDispatcher(previous);
+    await shortTimeouts.destroy();
   }
 });
 

@@ -240,6 +240,20 @@ test("complete export fails instead of silently omitting an unavailable resume",
     ...options, allData: true,
   }, async () => { throw new Error("Resume unavailable"); }), /Resume unavailable/);
 });
+test("results, history and full exports retain analysis duration", () => {
+  const timed = { ...candidate, analysis_duration_ms: 329000 };
+  assert.match(reportHtml(timed, [cluster], false), /Время анализа: 5 мин 29 с/);
+  const result = createExport([timed], [cluster], { ...options, content: "report" });
+  const files = unzipSync(result.body as Buffer);
+  const metadata = Object.entries(files).filter(([path]) => /^xl\/worksheets\/sheet\d+\.xml$/.test(path))
+    .map(([, body]) => strFromU8(body)).join("\n");
+  assert.match(metadata, /Время анализа/);
+  assert.match(metadata, /5 мин 29 с/);
+  const event = presentResumeEvent({ id: "scored", event_type: "scored", message: "OK",
+    created_at: candidate.updated_at, analysis_duration_ms: 329000 });
+  assert.equal(event.analysis_duration_ms, 329000);
+});
+
 test("report provides export settings, unique cluster anchors and one processing date", () => {
   const html = reportHtml(candidate, [cluster], false, false, true);
   assert.match(html, /name="format"/);

@@ -61,6 +61,7 @@ const candidate: Candidate = {
   phone: "+79991234567",
   status: "in_work",
   scoring_status: "completed",
+  analysis_duration_ms: 329000,
   file_id: "f4ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
   file_name: "resume.txt",
   mime_type: "text/plain",
@@ -129,6 +130,7 @@ try {
           {
             id: "new",
             event_type: "scored",
+            analysis_duration_ms: 329000,
             message: "Новое событие",
             created_at: "2026-10-14T08:00:00Z",
           },
@@ -165,6 +167,16 @@ try {
   });
   await mkdir(".qa", { recursive: true });
   await page.goto(base);
+  const rowStatus = page.locator(".matrix tbody tr").filter({ hasText: "Иванов Иван" }).locator(".matrix-status");
+  await expect(rowStatus.locator(".badge")).toHaveText(["Оценён", "В работе"]);
+  for (const [state, label] of [["pending", "В очереди"], ["processing", "Оценивается"], ["failed", "Ошибка оценки"], ["completed", "Оценён"]] as const) {
+    candidate.scoring_status = state;
+    await page.getByRole("button", { name: "Обновить данные", exact: true }).click();
+    await expect(rowStatus.locator(".badge").first()).toHaveText(label);
+    await expect(rowStatus.locator(".badge")).toHaveCount(state === "completed" ? 2 : 1);
+    if (state === "processing") await expect(rowStatus.locator(".spin")).toBeVisible();
+  }
+  await expect(rowStatus.locator(".badge")).toHaveText(["Оценён", "В работе"]);
   const matrixWidth = await page.locator(".matrix-scroll").evaluate(element => ({
     viewport: element.clientWidth,
     table: element.querySelector("table")!.getBoundingClientRect().width,
@@ -227,6 +239,7 @@ try {
   await expect(
     page.getByText("Последняя обработка:", { exact: false }),
   ).toHaveCount(1);
+  await expect(page.getByRole("dialog").getByText("Время анализа: 5 мин 29 с", { exact: true })).toBeVisible();
   await page.screenshot({
     path: ".qa/candidate-rating-focus.png",
     fullPage: true,

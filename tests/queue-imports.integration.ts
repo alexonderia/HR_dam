@@ -47,7 +47,7 @@ async function upload(name: string, content: Uint8Array, archive = true) {
 }
 const accepted: AnalysisJob[] = [];
 try {
-  for (const name of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql"])
+  for (const name of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql"])
     await pool.query(await readFile(`db/migrations/${name}`, "utf8"));
   const cluster = randomUUID(), profile = randomUUID();
   await pool.query("INSERT INTO clusters(id,name,track) VALUES($1,'Integration','test')", [cluster]);

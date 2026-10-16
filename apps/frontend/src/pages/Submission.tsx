@@ -117,7 +117,7 @@ export function Submission() {
               )}
               <Link
                 className="af-btn"
-                to={`/processing?batch=${result.id}`}
+                to="/processing"
               >
                 Следить за обработкой
                 <ArrowRight size={16} />

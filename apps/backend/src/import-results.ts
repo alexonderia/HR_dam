@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { importResultSchema, importEventSchema, identityKey, fullName, validateRankResponse,
-  assessmentCompletedMessage, type ImportResult, type ImportFile, type ImportManifest, type ImportEvent } from "@hr/contracts";
+  assessmentCompletedMessage, importAnalysisTiming, type ImportResult, type ImportFile, type ImportManifest, type ImportEvent } from "@hr/contracts";
 import { transaction, pool, readImportLedger, latestItemEvent, publishImportEvent, startQueueConsumer,
   queues, PermanentQueueError, MissingImportError, blacklistMatchSql } from "@hr/data-access";
 
@@ -13,9 +13,9 @@ async function trustedJob(result: Pick<ImportResult, "batch_id" | "item_id" | "j
   if (!file) throw new PermanentQueueError("Файл не принадлежит загрузке.");
   const latest = latestItemEvent(events, result.item_id);
   if (!latest || latest.attempt !== result.attempt || latest.job_id !== result.job_id) return null;
-  return { manifest, file, latest };
+  return { manifest, file, latest, events };
 }
-async function persistResult(manifest: ImportManifest, file: ImportFile, result: Extract<ImportResult, { status: "completed" }>) {
+async function persistResult(manifest: ImportManifest, file: ImportFile, result: Extract<ImportResult, { status: "completed" }>, analysisDurationMs: number | null) {
   const rank = validateRankResponse(result.analysis, manifest.requirements);
   const person = { ...result.candidate };
   for (const key of ["last_name", "first_name", "middle_name", "phone"] as const)
@@ -73,9 +73,9 @@ async function persistResult(manifest: ImportManifest, file: ImportFile, result:
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,now())`, [randomUUID(), resumeId, rating.id, rating.score,
         JSON.stringify(rating.matched_keywords ?? null), JSON.stringify(rating.triggered_stop_factors ?? null), JSON.stringify(rating.details ?? null), rating.explanation ?? null]);
     await client.query("UPDATE resumes SET scoring_status='completed',updated_at=now() WHERE id=$1", [resumeId]);
-    // Existing event UUID is the idempotency receipt; no new DB fields or tables.
-    await client.query("INSERT INTO resume_events(id,resume_id,event_type,message,created_at) VALUES($1,$2,'scored',$3,now())",
-      [result.job_id, resumeId, assessmentCompletedMessage(Boolean(warning))]);
+    // The event UUID remains the idempotency receipt for this analysis attempt.
+    await client.query("INSERT INTO resume_events(id,resume_id,event_type,message,created_at,analysis_duration_ms) VALUES($1,$2,'scored',$3,now(),$4)",
+      [result.job_id, resumeId, assessmentCompletedMessage(Boolean(warning)), analysisDurationMs]);
     return { candidate_id: candidateId, resume_id: resumeId, warning };
   });
 }
@@ -86,39 +86,42 @@ export async function processImportResult(input: unknown) {
   if (!job) return; // A newer manual retry superseded this attempt.
   const common = { version: 1 as const, job_id: result.job_id, batch_id: result.batch_id, item_id: result.item_id,
     attempt: result.attempt, created_at: new Date().toISOString() };
-  const stored = await pool.query(`SELECT r.id AS resume_id,r.candidate_id,
+  const stored = await pool.query(`SELECT r.id AS resume_id,r.candidate_id,e.analysis_duration_ms,
     EXISTS(SELECT 1 FROM candidate_blacklist b WHERE b.is_active AND ${blacklistMatchSql}) AS blacklisted
     FROM resume_events e JOIN resumes r ON r.id=e.resume_id JOIN candidates c ON c.id=r.candidate_id
     WHERE e.id=$1 AND e.event_type='scored'`, [result.job_id]);
+  const timing = importAnalysisTiming(job.events, { ...common, stage: result.status,
+    analysis_duration_ms: stored.rows[0]?.analysis_duration_ms ?? result.analysis_duration_ms });
+  const timedCommon = { ...common, analysis_duration_ms: timing.analysis_duration_ms ?? undefined };
   if (stored.rows[0]) {
-    if (job.latest.stage !== "completed") await publishImportEvent({ ...common, stage: "completed",
+    if (job.latest.stage !== "completed") await publishImportEvent({ ...timedCommon, stage: "completed",
       candidate_id: stored.rows[0].candidate_id, resume_id: stored.rows[0].resume_id,
       warning: stored.rows[0].blacklisted ? "Кандидат найден в чёрном списке. Требуется ручная проверка." : undefined });
     return;
   }
   if (job.latest.stage === "completed" || job.latest.stage === "failed") return;
   if (result.status === "failed") {
-    await markTargetFailure(job.file, result.job_id, result.error.message);
-    await publishImportEvent({ ...common, stage: "failed", error: result.error.message });
+    await markTargetFailure(job.file, result.job_id, result.error.message, timing.analysis_duration_ms);
+    await publishImportEvent({ ...timedCommon, stage: "failed", error: result.error.message });
     return;
   }
   let receipt: { candidate_id: string; resume_id: string; warning?: string };
-  try { receipt = await persistResult(job.manifest, job.file, result); }
+  try { receipt = await persistResult(job.manifest, job.file, result, timing.analysis_duration_ms); }
   catch (error) {
     if (error instanceof PermanentQueueError) throw error;
     if (error instanceof Error && /неполный|некорректный набор|профилей/.test(error.message)) throw new PermanentQueueError(error.message);
     throw error;
   }
-  await publishImportEvent({ ...common, stage: "completed", ...receipt });
+  await publishImportEvent({ ...timedCommon, stage: "completed", ...receipt });
 }
-async function markTargetFailure(file: ImportFile, jobId: string, message: string) {
+async function markTargetFailure(file: ImportFile, jobId: string, message: string, analysisDurationMs: number | null) {
   if (!file.target_resume_id) return;
   await transaction(async client => {
     const updated = await client.query(`UPDATE resumes SET scoring_status='failed' WHERE id=$1 AND file_id=$2
       AND updated_at=$3::timestamptz AND scoring_status IN ('pending','processing') RETURNING id`,
       [file.target_resume_id, file.file_id, file.target_updated_at]);
-    if (updated.rowCount) await client.query(`INSERT INTO resume_events(id,resume_id,event_type,message,created_at)
-      VALUES($1,$2,'scoring_failed',$3,now()) ON CONFLICT(id) DO NOTHING`, [jobId, file.target_resume_id, message.slice(0, 2000)]);
+    if (updated.rowCount) await client.query(`INSERT INTO resume_events(id,resume_id,event_type,message,created_at,analysis_duration_ms)
+      VALUES($1,$2,'scoring_failed',$3,now(),$4) ON CONFLICT(id) DO NOTHING`, [jobId, file.target_resume_id, message.slice(0, 2000), analysisDurationMs]);
   });
 }
 export async function failImportResult(input: unknown, error: Error) {
@@ -129,8 +132,12 @@ export async function failImportResult(input: unknown, error: Error) {
   // A DB commit followed by lost RabbitMQ confirm is success, even after retries.
   const receipt = await pool.query("SELECT 1 FROM resume_events WHERE id=$1 AND event_type='scored'", [envelope.data.job_id]);
   if (receipt.rowCount) { await processImportResult(input); return; }
-  await markTargetFailure(job.file, envelope.data.job_id, error.message);
-  await publishImportEvent({ ...envelope.data, stage: "failed", created_at: new Date().toISOString(),
+  const createdAt = new Date().toISOString();
+  const failedResult = importResultSchema.safeParse(input);
+  const timing = importAnalysisTiming(job.events, { ...job.latest,
+    analysis_duration_ms: failedResult.success ? failedResult.data.analysis_duration_ms : undefined }, createdAt);
+  await markTargetFailure(job.file, envelope.data.job_id, error.message, timing.analysis_duration_ms);
+  await publishImportEvent({ ...envelope.data, stage: "failed", created_at: createdAt, analysis_duration_ms: timing.analysis_duration_ms ?? undefined,
     error: error instanceof PermanentQueueError ? error.message : "Не удалось сохранить результат. Повторите обработку." });
 }
 export async function processImportProgress(input: unknown) {
@@ -140,7 +147,7 @@ export async function processImportProgress(input: unknown) {
   if (!job || ["failed", "completed"].includes(job.latest.stage)) return;
   if (job.file.target_resume_id) await pool.query(`UPDATE resumes SET scoring_status='processing' WHERE id=$1 AND file_id=$2
     AND updated_at=$3::timestamptz AND scoring_status='pending'`, [job.file.target_resume_id, job.file.file_id, job.file.target_updated_at]);
-  await publishImportEvent({ ...event, created_at: new Date().toISOString() });
+  await publishImportEvent(event);
 }
 export function startResultConsumers() {
   const results = startQueueConsumer(queues.results, processImportResult, failImportResult);

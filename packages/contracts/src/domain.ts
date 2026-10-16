@@ -116,6 +116,7 @@ export interface Candidate {
   mime_type: string;
   status: "in_work" | "in_process" | "historical";
   scoring_status: "pending" | "processing" | "completed" | "failed";
+  analysis_duration_ms?: number | null;
   created_at: string;
   updated_at: string;
   blacklisted: boolean;
@@ -128,6 +129,7 @@ export interface ResumeEvent {
   event_type: string;
   message: string;
   created_at: string;
+  analysis_duration_ms?: number | null;
 }
 export const fullName = (p: {
   last_name: string | null;

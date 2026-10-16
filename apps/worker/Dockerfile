@@ -32,6 +32,7 @@ FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=dependencies --chown=node:node /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY --from=dependencies --chown=node:node /app/packages/contracts/node_modules ./packages/contracts/node_modules
 COPY --from=dependencies --chown=node:node /app/packages/data-access/node_modules ./packages/data-access/node_modules
 COPY --from=dependencies --chown=node:node /app/packages/documents/node_modules ./packages/documents/node_modules

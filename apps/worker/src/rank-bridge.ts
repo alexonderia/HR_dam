@@ -21,17 +21,21 @@ export async function rankQueuedResume(input: unknown) {
   if (buffer.length !== job.file.size_bytes || createHash("sha256").update(buffer).digest("hex") !== job.file.sha256)
     throw new PermanentQueueError("Контрольная сумма резюме не совпадает.");
   await publishQueue(queues.progress, { ...envelope(job), stage: "processing", created_at: new Date().toISOString() }, `${job.job_id}:processing`);
+  let analysisStarted: number | undefined;
   try {
     const legacy = ["application/msword", "application/rtf", "text/plain"].includes(job.file.mime_type);
     const content = legacy ? Buffer.from(await extractDocumentText(buffer, job.file.mime_type), "utf8") : buffer;
     const file = new Blob([new Uint8Array(content)], { type: legacy ? "text/plain" : job.file.mime_type });
+    analysisStarted = performance.now();
     const analysis = await analyzeResume(job.requirements, file, legacy ? "resume.txt" : job.file.file_name, config,
       event => console.info(JSON.stringify({ timestamp: moscowTimestamp(), event: `rank_bridge_${event.type}`, job_id: job.job_id, ...event })));
     // /rank currently returns ratings only. Unknown identity remains null.
-    await publishQueue(queues.results, { ...envelope(job), status: "completed", candidate: job.file.candidate_hint, analysis }, job.job_id);
+    await publishQueue(queues.results, { ...envelope(job), status: "completed", candidate: job.file.candidate_hint, analysis,
+      analysis_duration_ms: Math.round(performance.now() - analysisStarted) }, job.job_id);
   } catch (error) {
     if (!(error instanceof AnalysisError)) throw error;
     await publishQueue(queues.results, { ...envelope(job), status: "failed",
+      analysis_duration_ms: analysisStarted == null ? undefined : Math.round(performance.now() - analysisStarted),
       error: { code: `RANK_${error.kind.toUpperCase()}`, message: error.message.slice(0, 2000) } }, job.job_id);
   }
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { extractedPersonSchema, importManifestSchema, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
+import { extractedPersonSchema, importManifestSchema, importAnalysisTiming, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
 import { getClusters, enqueueImport, ensureProcessingTransport, brokerQueues, readImportLedger, latestItemEvent, pool, transaction } from "@hr/data-access";
 import { extractResumeArchive, multipartFileName } from "./archive.js";
 import { validateFile, scanFile, hashFile } from "./files.js";
@@ -46,20 +46,24 @@ export function initialImportDetail(manifest: ImportManifest): ResumeImportDetai
     total_files: manifest.items.length, processed_files: 0, pending_files: manifest.items.length, failed_files: 0,
     uploading_files: manifest.items.length, processing_files: 0, ignored_files: manifest.ignored_files,
     items: manifest.items.map(file => ({ id: file.id, source_path: file.source_path, file_name: file.file_name,
-      status: "uploading", attempt: 1, error: null, warning: null, candidate_id: null, resume_id: null, updated_at: manifest.created_at })) };
+      status: "uploading", attempt: 1, error: null, warning: null, candidate_id: null, resume_id: null, updated_at: manifest.created_at,
+      file_sha256: file.sha256, candidate_hint: file.candidate_hint, target_resume_id: file.target_resume_id,
+      analysis_started_at: null, analysis_duration_ms: null })) };
 }
 export async function importDetail(id: string): Promise<ResumeImportDetail> {
   const { manifest, events } = await readImportLedger(id);
   const latest = manifest.items.map(file => latestItemEvent(events, file.id));
-  const receipts = await pool.query(`SELECT e.id,r.id AS resume_id,r.candidate_id FROM resume_events e
+  const receipts = await pool.query(`SELECT e.id,e.created_at,e.analysis_duration_ms,r.id AS resume_id,r.candidate_id FROM resume_events e
     JOIN resumes r ON r.id=e.resume_id WHERE e.id=ANY($1::uuid[]) AND e.event_type='scored'`,
     [manifest.items.map((file, i) => latest[i]?.job_id || file.id)]);
   const detail = initialImportDetail(manifest);
   detail.items = detail.items.map((item, i) => {
     const event = latest[i], receipt = receipts.rows.find(row => row.id === (event?.job_id || item.id));
+    const timing = importAnalysisTiming(events, event, receipt?.created_at?.toISOString());
     return { ...item, status: receipt ? "completed" : event?.stage === "completed" ? "pending" : event?.stage || "uploading",
       attempt: event?.attempt || 1, error: receipt ? null : event?.error || null, warning: event?.warning || null,
-      candidate_id: receipt?.candidate_id || null, resume_id: receipt?.resume_id || null, updated_at: event?.created_at || item.updated_at };
+      candidate_id: receipt?.candidate_id || null, resume_id: receipt?.resume_id || null, updated_at: event?.created_at || item.updated_at,
+      ...timing, analysis_duration_ms: receipt?.analysis_duration_ms ?? timing.analysis_duration_ms };
   });
   detail.processed_files = detail.items.filter(i => i.status === "completed").length;
   detail.failed_files = detail.items.filter(i => i.status === "failed").length;
@@ -68,11 +72,14 @@ export async function importDetail(id: string): Promise<ResumeImportDetail> {
   detail.processing_files = detail.items.filter(i => i.status === "processing").length;
   return detail;
 }
-export async function listImports() {
+export async function listImportDetails() {
   const ids = (await brokerQueues()).filter(q => /^hr\.resume\.batch\.[a-f0-9-]{36}$/.test(q.name)).map(q => q.name.slice("hr.resume.batch.".length));
   const all: ResumeImportDetail[] = [];
   for (let i = 0; i < ids.length; i += 8) all.push(...await Promise.all(ids.slice(i, i + 8).map(importDetail)));
-  return all.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(({ items: _items, ...summary }) => summary);
+  return all.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+}
+export async function listImports() {
+  return (await listImportDetails()).map(({ items: _items, ...summary }) => summary);
 }
 const retryLocks = new Map<string, Promise<unknown>>();
 export async function retryImport(id: string, itemId: string) {

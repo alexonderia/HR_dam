@@ -26,7 +26,7 @@ import { exportCsv, reportHtml, escapeHtml, htmlDocument } from "./export.js";
 import { extractDocumentText } from "@hr/documents";
 import { candidateExportNames, createCompleteExport, createExport, exportOptionsSchema } from "./export-options.js";
 import { presentResumeEvent, queueStatus } from "./processing.js";
-import { acceptResumes, listImports, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
+import { acceptResumes, listImports, listImportDetails, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
 import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists } from "@hr/data-access";
 import { brokerEnabled, rankBridgeEnabled, processingMode, getAnalysisStatus } from "@hr/data-access";
 
@@ -59,6 +59,7 @@ router.get("/processing/queue", async (_req, res) => res.json(await getBrokerSta
 const archiveUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxArchiveSize, files: 1, fields: 0 } });
 router.post("/resume-imports", archiveUpload.single("archive"), async (req, res) => res.status(202).json(await acceptResumes(req.file, true)));
 router.get("/resume-imports", async (_req, res) => res.json(await listImports()));
+router.get("/resume-imports/status", async (_req, res) => res.json(await listImportDetails()));
 router.get("/resume-imports/:id", async (req, res) => res.json(await importDetail(z.uuid().parse(req.params.id))));
 router.post("/resume-imports/:id/items/:item/retry", async (req, res) =>
   res.status(202).json(await retryImport(z.uuid().parse(req.params.id), z.uuid().parse(req.params.item))));

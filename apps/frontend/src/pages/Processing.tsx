@@ -15,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning, formatMoscowDateTime } from "@hr/contracts";
+import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning, formatMoscowDateTime, formatAnalysisDuration } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { api, mutate } from "../lib/api";
 import {
@@ -140,7 +140,7 @@ export function Processing() {
         title="Обработка резюме"
         text="Состояние проверки и журнал событий обновляются автоматически."
       />
-      <ResumeImports />
+      <ResumeImports lastHourOnly />
       <div className="processing-layout">
         <section className="af-card panel queue">
           <div className="panel-heading">
@@ -186,6 +186,7 @@ export function Processing() {
                 <CandidateStatus candidate={current} />
               </div>
               <div className="processing-actions"><CandidateWorkflow key={current.id} candidate={current} /><BlacklistAction candidate={current} /></div>
+              {completed && <p className="muted">Время анализа: {formatAnalysisDuration(current.analysis_duration_ms)}</p>}
               <div className="candidate-checks" aria-label="Результат проверки кандидата">
                 <div className={`candidate-check${current.has_other_resume_in_process ? " warning" : ""}`}>
                   <Files size={20} />
@@ -299,6 +300,7 @@ export function Processing() {
                       <small>
                         {formatMoscowDateTime(event.created_at)}{" "}
                         МСК
+                        {["scored", "scoring_failed"].includes(event.event_type) && <> · Время анализа: {formatAnalysisDuration(event.analysis_duration_ms)}</>}
                       </small>
                     </div>
                   </div>

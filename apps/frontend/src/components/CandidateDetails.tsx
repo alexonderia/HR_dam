@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   ChevronRight,
 } from "lucide-react";
-import { clusterScore, formatMoscowDateTime } from "@hr/contracts";
+import { clusterScore, formatMoscowDateTime, formatAnalysisDuration } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate, reportUrl, openWindow } from "../lib/api";
 import {
@@ -22,6 +22,7 @@ import {
 import { ResumePreview } from "./ResumePreview";
 import { ExportDialog } from "./ExportDialog";
 import { BlacklistAction, CandidateWorkflow } from "./CandidateActions";
+import { StopFactorTag } from "./StopFactorTag";
 
 export function CandidateDetails({
   candidateId,
@@ -81,12 +82,15 @@ export function CandidateDetails({
             <CandidateStatus candidate={candidate} />
           </div>
           <div className="candidate-processing">
+          <div>
           <p className="muted">
             Последняя обработка:{" "}
             {processed
               ? formatMoscowDateTime(processed) + " МСК"
               : "оценка ещё не завершена"}
           </p>
+          {(processed || candidate.scoring_status === "completed") && <p className="muted">Время анализа: {formatAnalysisDuration(candidate.analysis_duration_ms)}</p>}
+          </div>
             <div className="toolbar candidate-document-actions">
               <Button aria-label="Открыть резюме" title="Открыть резюме" onClick={() => setPreview(true)}>
                 <FileText size={16} />
@@ -220,12 +224,7 @@ export function CandidateDetails({
                               <div className="tags">
                                 {r.triggered_stop_factors?.length ? (
                                   r.triggered_stop_factors.map((word, i) => (
-                                    <span
-                                      key={i}
-                                      className="af-badge tag"
-                                    >
-                                      {word}
-                                    </span>
+                                    <StopFactorTag key={i} text={word} />
                                   ))
                                 ) : (
                                   <p>Не найдены</p>

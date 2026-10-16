@@ -32,6 +32,7 @@ export function Distribution() {
   const { candidates, clusters, loading } = useData();
   const [search, setSearch] = useState(""),
     [status, setStatus] = useState("all"),
+    [excludeBlacklisted, setExcludeBlacklisted] = useState(false),
     [activeOnly, setActiveOnly] = useState(true),
     [expanded, setExpanded] = useState<string[]>([]),
     [selected, setSelected] = useState<string>(),
@@ -49,6 +50,7 @@ export function Distribution() {
       candidates
         .filter(
           (c) =>
+            (!excludeBlacklisted || !c.blacklisted) &&
             ((fullName(c) || c.file_name) + (c.phone || ""))
               .toLowerCase()
               .includes(search.toLowerCase()) &&
@@ -77,8 +79,9 @@ export function Distribution() {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
         }),
-    [candidates, search, status, sort, clusters],
+    [candidates, search, status, excludeBlacklisted, sort, clusters],
   );
+  const hasCandidateFilters = Boolean(search || status !== "all" || excludeBlacklisted);
   const pageCount = Math.max(1, Math.ceil(filtered.length / 15)),
     currentPage = Math.min(page, pageCount),
     rows = filtered.slice((currentPage - 1) * 15, currentPage * 15);
@@ -191,6 +194,18 @@ export function Distribution() {
             <input
               className="af-checkbox"
               type="checkbox"
+              checked={excludeBlacklisted}
+              onChange={(e) => {
+                setExcludeBlacklisted(e.target.checked);
+                setPage(1);
+              }}
+            />
+            Исключить чёрный список
+          </label>
+          <label className="af-check checkbox">
+            <input
+              className="af-checkbox"
+              type="checkbox"
               checked={activeOnly}
               onChange={(e) => setActiveOnly(e.target.checked)}
             />
@@ -278,7 +293,10 @@ export function Distribution() {
                     </td>
                   ))}
                   <td>
-                    <CandidateStatus candidate={candidate} />
+                    <div className="matrix-status">
+                      <CandidateStatus candidate={candidate} showScoring />
+                      {candidate.scoring_status === "completed" && <CandidateStatus candidate={candidate} />}
+                    </div>
                   </td>
                   <td className="no-print">
                     <button
@@ -299,17 +317,17 @@ export function Distribution() {
             title={
               loading
                 ? "Загрузка кандидатов…"
-                : search || status !== "all"
+                : hasCandidateFilters
                   ? "Ничего не найдено"
                   : "Первое резюме — первый шаг"
             }
             text={
-              search || status !== "all"
+              hasCandidateFilters
                 ? "Измените запрос или сбросьте фильтры."
                 : "Добавьте требования к профилям и загрузите резюме. После обработки оценки появятся в таблице."
             }
             action={
-              !search && status === "all" ? (
+              !hasCandidateFilters ? (
                 <Link
                   className="af-link text-link"
                   to={clusters.length ? "/submit" : "/requirements"}
@@ -325,6 +343,8 @@ export function Distribution() {
                   onClick={() => {
                     setSearch("");
                     setStatus("all");
+                    setExcludeBlacklisted(false);
+                    setPage(1);
                   }}
                 >
                   Сбросить фильтры

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { zipSync, strToU8 } from "fflate";
-import { extractedPersonSchema, importResultSchema, importEventSchema } from "@hr/contracts";
+import { extractedPersonSchema, importResultSchema, importEventSchema, importAnalysisTiming, formatAnalysisDuration } from "@hr/contracts";
 import { extractResumeArchive } from "../apps/backend/src/archive.js";
 import { latestItemEvent } from "@hr/data-access";
 
@@ -51,4 +51,35 @@ test("import events accept Moscow offsets and compare mixed timezone timestamps 
   const earlier = importEventSchema.parse({ ...base, created_at: "2026-10-16T13:00:00+03:00" });
   const later = importEventSchema.parse({ ...base, created_at: "2026-10-16T10:30:00Z" });
   assert.equal(latestItemEvent([earlier, later], base.item_id), later);
+});
+
+test("analysis timing excludes queue wait and prior attempts, preserves measured duration and handles old events", () => {
+  const base = { version: 1 as const, job_id: randomUUID(), item_id: randomUUID(), batch_id: randomUUID(), attempt: 2 };
+  const start = { ...base, stage: "processing" as const, created_at: "2026-10-16T13:10:00+03:00" };
+  const completed = { ...base, stage: "completed" as const, created_at: "2026-10-16T10:15:29Z" };
+  const events = [
+    { ...start, attempt: 1, job_id: randomUUID(), created_at: "2026-10-16T10:00:00Z" },
+    { ...start, stage: "pending" as const, created_at: "2026-10-16T10:05:00Z" },
+    start, { ...start, created_at: "2026-10-16T10:10:05Z" }, completed,
+  ];
+  assert.deepEqual(importAnalysisTiming(events, completed), { analysis_started_at: start.created_at, analysis_duration_ms: 329000 });
+  assert.equal(importAnalysisTiming(events, { ...completed, stage: "failed" }).analysis_duration_ms, 329000);
+  assert.equal(importAnalysisTiming(events, { ...completed, analysis_duration_ms: 328123 }).analysis_duration_ms, 328123);
+  assert.equal(importAnalysisTiming(events, start).analysis_duration_ms, null);
+  assert.equal(importAnalysisTiming(events, start, completed.created_at).analysis_duration_ms, 329000);
+  assert.equal(importAnalysisTiming([], completed).analysis_duration_ms, null);
+  assert.equal(importAnalysisTiming([start], { ...completed, created_at: "2026-10-16T10:00:00Z" }).analysis_duration_ms, null);
+  assert.equal(importAnalysisTiming(events, { ...completed, attempt: 3 }).analysis_duration_ms, null);
+  for (const invalid of [-1, 1.5, Infinity, NaN, 2147483648])
+    assert.equal(importResultSchema.safeParse({ ...base, status: "failed", analysis_duration_ms: invalid,
+      error: { code: "bad", message: "bad" } }).success, false);
+  assert.equal(importEventSchema.parse({ ...completed, analysis_duration_ms: 0 }).analysis_duration_ms, 0);
+});
+
+test("analysis durations use readable units without fabricating missing measurements", () => {
+  assert.equal(formatAnalysisDuration(329000), "5 мин 29 с");
+  assert.equal(formatAnalysisDuration(900000), "15 мин 0 с");
+  assert.equal(formatAnalysisDuration(3723000), "1 ч 2 мин 3 с");
+  assert.equal(formatAnalysisDuration(523), "менее 1 с");
+  for (const value of [null, undefined, NaN, -1]) assert.equal(formatAnalysisDuration(value), "нет данных");
 });
