@@ -6,13 +6,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Candidate, Cluster, BlacklistEntry, AnalysisStatus } from "@hr/contracts";
+import type { Candidate, Cluster, BlacklistEntry, AnalysisStatus, ResumeImportSummary } from "@hr/contracts";
 import { api } from "./api";
 
 interface Overview {
   candidates: Candidate[];
   clusters: Cluster[];
   blacklist: BlacklistEntry[];
+  resumeImports: ResumeImportSummary[];
+  resumeImportsError?: string;
 }
 interface Store extends Overview {
   analysis: AnalysisStatus;
@@ -30,13 +32,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     candidates: [],
     clusters: [],
     blacklist: [],
+    resumeImports: [],
   });
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
   const refresh = useCallback(async () => {
     try {
-      setData(await api<Overview>("/overview"));
+      const overview = await api<Overview>("/overview");
+      setData(previous => ({ ...overview, resumeImports: overview.resumeImportsError ? previous.resumeImports : overview.resumeImports ?? [] }));
       setError("");
       setRefreshedAt(new Date());
     } catch (e) {

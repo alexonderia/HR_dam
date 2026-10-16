@@ -1,11 +1,13 @@
 """Create a consistent data-only PostgreSQL + S3 snapshot."""
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
 import uuid
 
 from backup_common import ROOT, Project, add_project_arguments, sha256, validate_archive, validate_references, write_json
+
+MOSCOW_TIME_ZONE = timezone(timedelta(hours=3))
 
 
 def create_backup(project, directory):
@@ -23,7 +25,7 @@ def create_backup(project, directory):
         dump = directory / "database.dump"
         write_json(directory / "manifest.json", {
             "format_version": 1,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(MOSCOW_TIME_ZONE).isoformat(),
             "source": source,
             "dump": {"file": "database.dump", "size": dump.stat().st_size, "sha256": sha256(dump)},
             "s3_manifest_sha256": sha256(directory / "s3.json"),
@@ -43,7 +45,7 @@ def main():
     parser.add_argument("destination", nargs="?", help="New snapshot directory (must not already exist)")
     add_project_arguments(parser)
     args = parser.parse_args()
-    destination = args.destination or ROOT / "backups" / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
+    destination = args.destination or ROOT / "backups" / (datetime.now(MOSCOW_TIME_ZONE).strftime("%Y%m%d_%H%M%S_МСК") + "-" + uuid.uuid4().hex[:8])
     create_backup(Project(args.compose_file, args.project), destination)
 
 

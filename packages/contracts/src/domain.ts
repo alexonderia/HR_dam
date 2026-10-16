@@ -106,10 +106,10 @@ export interface Rating {
 }
 export interface Candidate {
   id: string;
-  phone: string;
-  last_name: string;
-  first_name: string;
-  middle_name: string;
+  phone: string | null;
+  last_name: string | null;
+  first_name: string | null;
+  middle_name: string | null;
   resume_id: string;
   file_id: string;
   file_name: string;
@@ -130,9 +130,9 @@ export interface ResumeEvent {
   created_at: string;
 }
 export const fullName = (p: {
-  last_name: string;
-  first_name: string;
-  middle_name?: string;
+  last_name: string | null;
+  first_name: string | null;
+  middle_name?: string | null;
 }) => [p.last_name, p.first_name, p.middle_name].filter(Boolean).join(" ");
 export const statusLabels = {
   in_work: "В работе",

@@ -13,10 +13,12 @@ import logging
 import logging.handlers
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any, Optional
 
 LOG_DIR = Path(os.getenv("LOG_DIR", "logs"))
+MOSCOW_TIME_ZONE = ZoneInfo("Europe/Moscow")
 DIAGNOSTIC_DIR = LOG_DIR / "diagnostic"
 
 DIAGNOSTIC_ENABLED = os.getenv("DIAGNOSTIC_LOGS_ENABLED", "false").lower() == "true"
@@ -86,7 +88,7 @@ class HumanFormatter(logging.Formatter):
     }
 
     def format(self, record: logging.LogRecord) -> str:
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.fromtimestamp(record.created, MOSCOW_TIME_ZONE).strftime("%H:%M:%S МСК")
         icon = self.LEVEL_ICONS.get(record.levelno, "ℹ️ ")
 
         # Пытаемся разобрать JSON-сообщение для красивого вывода
@@ -126,13 +128,13 @@ class JsonFormatter(logging.Formatter):
             event = data.get("event", "")
             data["message_ru"] = EVENT_MESSAGES.get(event, event)
             data["level"] = record.levelname
-            data["timestamp"] = datetime.now().isoformat()
+            data["timestamp"] = datetime.fromtimestamp(record.created, MOSCOW_TIME_ZONE).isoformat()
             return json.dumps(data, ensure_ascii=False)
         except (json.JSONDecodeError, AttributeError):
             return json.dumps({
                 "message": message,
                 "level": record.levelname,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.fromtimestamp(record.created, MOSCOW_TIME_ZONE).isoformat(),
             }, ensure_ascii=False)
 
 

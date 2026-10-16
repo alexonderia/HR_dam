@@ -12,14 +12,19 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.logging_config import setup_logging, get_logger, get_diagnostic_logger, log_event
-from app.ollama_client import ModelUnavailable, DEFAULT_TIMEOUT
+from app.ollama_client import (
+    ModelUnavailable,
+    ModelTimeout,
+    ModelResponseError,
+    DEFAULT_TIMEOUT,
+)
 from app.rank_models import (
     RequirementsRequest,
     RankResponse,
     ClusterResponse,
     ProfileResponse,
 )
-from app.scoring import rank_profile
+from app.scoring import rank_profile, ContextFitError
 from app.readiness import is_ready, mark_ready, model_lock, monitor, PROBE_TIMEOUT
 from app.text_extractor import extract_text_from_file
 
@@ -160,7 +165,9 @@ def rank_resume(
             for profile in cluster.profiles:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise ModelUnavailable("Истекло время анализа. Повторите позже.")
+                    raise ModelTimeout(
+                        "Истекло общее время обработки резюме"
+                    )
                 ranking_result = rank_profile(
                     resume_text,
                     profile,
@@ -179,12 +186,69 @@ def rank_resume(
                 name=cluster.name,
                 profiles=cluster_profiles,
             ))
+        # Проверяем общий таймаут даже после последнего профиля.
+        if time.monotonic() >= deadline:
+            raise ModelTimeout(
+                "Истекло общее время обработки резюме"
+            )
         mark_ready(True)
+
     except ModelUnavailable as exc:
         mark_ready(False)
-        log_event(logger, logging.ERROR, "profile_ranking_failed",
-                  job_id=job_id, error=str(exc))
-        raise HTTPException(status_code=503, detail=str(exc))
+        log_event(
+            logger,
+            logging.ERROR,
+            "profile_ranking_failed",
+            job_id=job_id,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Сервис модели временно недоступен",
+        ) from exc
+
+    except ModelTimeout as exc:
+        log_event(
+            logger,
+            logging.ERROR,
+            "profile_ranking_timeout",
+            job_id=job_id,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=504,
+            detail="Превышено время ожидания ответа модели",
+        ) from exc
+
+    except ModelResponseError as exc:
+        log_event(
+            logger,
+            logging.ERROR,
+            "profile_ranking_invalid_response",
+            job_id=job_id,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Модель вернула некорректный ответ",
+        ) from exc
+
+    except ContextFitError as exc:
+        log_event(
+            logger,
+            logging.WARNING,
+            "profile_ranking_context_error",
+            job_id=job_id,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
     finally:
         model_lock.release()
 

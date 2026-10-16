@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { randomUUID } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import {
   clusterSchema,
@@ -11,8 +12,10 @@ import {
   inProcessRestriction,
   identityKey,
   fullName,
+  importResultSchema,
+  importEventSchema,
 } from "@hr/contracts";
-import { pool, transaction, getAnalysisStatus } from "@hr/data-access";
+import { pool, transaction } from "@hr/data-access";
 import { blacklistMatchSql, otherInProcessResumeSql } from "@hr/data-access";
 import { config } from "./config.js";
 import { HttpError } from "./errors.js";
@@ -21,8 +24,11 @@ import { getCandidates, getClusters } from "@hr/data-access";
 import { getFile } from "@hr/data-access";
 import { exportCsv, reportHtml, escapeHtml, htmlDocument } from "./export.js";
 import { extractDocumentText } from "@hr/documents";
-import { createExport, exportOptionsSchema } from "./export-options.js";
-import { presentResumeEvent, probeWorker, queueStatus } from "./processing.js";
+import { candidateExportNames, createCompleteExport, createExport, exportOptionsSchema } from "./export-options.js";
+import { presentResumeEvent, queueStatus } from "./processing.js";
+import { acceptResumes, listImports, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
+import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists } from "@hr/data-access";
+import { brokerEnabled, rankBridgeEnabled, processingMode, getAnalysisStatus } from "@hr/data-access";
 
 export const router = Router();
 const upload = multer({
@@ -39,15 +45,47 @@ router.get("/health", async (_req, res) => {
   res.json({ ok: true });
 });
 router.get("/analysis/status", async (_req, res) => {
-  res.json(await getAnalysisStatus());
+  if (!brokerEnabled) { res.json(await getAnalysisStatus()); return; }
+  try {
+    const broker = await getBrokerStatus();
+    if (rankBridgeEnabled && broker.analysis_consumers > 0) { res.json(await getAnalysisStatus()); return; }
+    res.json({ available: broker.analysis_consumers > 0, message: broker.analysis_consumers > 0
+      ? "Обработчик резюме подключён."
+      : "Обработчик резюме пока не подключён. Загруженные файлы будут ожидать обработки в очереди." });
+  } catch { res.json({ available: false, message: "Очередь временно недоступна. Принятые задания сохраняются." }); }
 });
-async function requireAnalysis() {
-  const status = await getAnalysisStatus(true);
-  if (!status.available) throw new HttpError(503, status.message);
-  const clusters = await getClusters();
-  if (!clusters.some(c => c.is_active && c.profiles.some(p => p.is_active)))
-    throw new HttpError(409, "Добавьте активный кластер с активным профилем перед анализом.");
-}
+router.get("/processing/mode", (_req, res) => res.json({ mode: processingMode, broker_enabled: brokerEnabled, rank_bridge_enabled: rankBridgeEnabled }));
+router.get("/processing/queue", async (_req, res) => res.json(await getBrokerStatus()));
+const archiveUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxArchiveSize, files: 1, fields: 0 } });
+router.post("/resume-imports", archiveUpload.single("archive"), async (req, res) => res.status(202).json(await acceptResumes(req.file, true)));
+router.get("/resume-imports", async (_req, res) => res.json(await listImports()));
+router.get("/resume-imports/:id", async (req, res) => res.json(await importDetail(z.uuid().parse(req.params.id))));
+router.post("/resume-imports/:id/items/:item/retry", async (req, res) =>
+  res.status(202).json(await retryImport(z.uuid().parse(req.params.id), z.uuid().parse(req.params.item))));
+router.use("/internal", (req, _res, next) => {
+  const expected = Buffer.from(`Bearer ${config.analyzerToken}`), actual = Buffer.from(req.header("authorization") || "");
+  if (!config.analyzerToken || expected.length !== actual.length || !timingSafeEqual(expected, actual))
+    throw new HttpError(401, "Требуется авторизация обработчика.");
+  next();
+});
+router.post("/internal/resume-imports/:id/items/:item/download-url", async (req, res) => {
+  const { manifest } = await readImportLedger(z.uuid().parse(req.params.id));
+  const file = manifest.items.find(i => i.id === z.uuid().parse(req.params.item));
+  if (!file) throw new HttpError(404, "Файл не найден.");
+  if (!await storedFileExists(file.bucket, file.object_key)) throw new HttpError(409, "Файл ещё сохраняется.");
+  res.json(await fileDownloadUrl(file.bucket, file.object_key));
+});
+router.post("/internal/resume-results", async (req, res) => {
+  const result = importResultSchema.parse(req.body);
+  await publishQueue(queues.results, result, result.job_id);
+  res.status(202).json({ accepted: true });
+});
+router.post("/internal/resume-progress", async (req, res) => {
+  const event = importEventSchema.parse(req.body);
+  if (event.stage !== "processing") throw new HttpError(422, "Допустим только статус processing.");
+  await publishQueue(queues.progress, event, `${event.job_id}:processing`);
+  res.status(202).json({ accepted: true });
+});
 router.get("/overview", async (_req, res) => {
   const [clusters, candidates, blacklist] = await Promise.all([
     getClusters(),
@@ -56,13 +94,14 @@ router.get("/overview", async (_req, res) => {
       "SELECT * FROM candidate_blacklist ORDER BY last_name,first_name",
     ),
   ]);
-  res.json({ clusters, candidates, blacklist: blacklist.rows });
+  let resumeImports, resumeImportsError;
+  try { resumeImports = await listImports(); }
+  catch { resumeImportsError = "Не удалось получить состояние очереди. Принятые задания сохраняются; информация обновится автоматически."; }
+  res.json({ clusters, candidates, blacklist: blacklist.rows, resumeImports: resumeImports || [], resumeImportsError });
 });
 router.post("/candidates", upload.single("resume"), async (req, res) => {
   const result = await submitCandidate(req.body, req.file);
-  if (result.rejected)
-    throw new HttpError(409, "Кандидат уже в процессе отбора. Замена резюме запрещена.");
-  res.status(201).json(result);
+  res.status(202).json(result);
 });
 router.get("/resumes/:id/events", async (req, res) => {
   const id = z.uuid().parse(req.params.id);
@@ -76,32 +115,22 @@ router.get("/resumes/:id/processing", async (req, res) => {
   const id = z.uuid().parse(req.params.id);
   const result = await pool.query(
     `SELECT r.scoring_status,r.updated_at,
-      (SELECT count(*)::int FROM profiles p JOIN clusters c ON c.id=p.cluster_id WHERE p.is_active AND c.is_active) AS active_profiles,
-      (SELECT count(*)::int FROM resumes q WHERE q.scoring_status='pending' AND (q.updated_at,q.id)<(r.updated_at,r.id)) AS ahead,
-      (SELECT count(*)::int FROM resumes q WHERE q.scoring_status='processing') AS processing
+      (SELECT count(*)::int FROM profiles p JOIN clusters c ON c.id=p.cluster_id WHERE p.is_active AND c.is_active) AS active_profiles
      FROM resumes r WHERE r.id=$1`, [id],
   );
   const row = result.rows[0];
   if (!row) throw new HttpError(404, "Резюме не найдено.");
   if (row.scoring_status !== "pending") { res.json({ queue: null }); return; }
-  const analysis = await getAnalysisStatus();
-  const worker = analysis.available && row.active_profiles ? await probeWorker(config.workerHealthUrl) : null;
+  const broker = await getBrokerStatus();
+  const analysis = rankBridgeEnabled ? await getAnalysisStatus() : { available: broker.analysis_consumers > 0 };
+  const analysisQueue = broker.queues[queues.analysis];
+  const worker = analysis.available ? { state: "idle" as const, current_resume_id: null } : null;
   res.json({ queue: queueStatus({ queuedAt: new Date(row.updated_at).toISOString(), activeProfiles: row.active_profiles,
-    analysisAvailable: analysis.available, worker, ahead: row.ahead, processing: row.processing }) });
+    analysisAvailable: analysis.available, worker, ahead: Math.max(0, (analysisQueue?.ready || 0) - 1), processing: analysisQueue?.processing || 0 }) });
 });
 router.post("/resumes/:id/retry", async (req, res) => {
   const id = z.uuid().parse(req.params.id);
-  await requireAnalysis();
-  const result = await pool.query(
-    `UPDATE resumes SET scoring_status='pending',updated_at=now() WHERE id=$1 AND scoring_status IN ('failed','completed') RETURNING id`,
-    [id],
-  );
-  if (!result.rowCount)
-    throw new HttpError(
-      409,
-      "Повторная оценка доступна после завершения или ошибки.",
-    );
-  res.json({ ok: true });
+  res.status(202).json(await enqueueExistingResume(id));
 });
 router.patch("/resumes/:id/status", async (req, res) => {
   const id = z.uuid().parse(req.params.id),
@@ -221,24 +250,42 @@ router.get("/resumes/:id/report", async (req, res) => {
   if (req.query.download === "true" && req.query.format && req.query.format !== "html") {
     const options = exportOptionsSchema.parse({ candidate_ids: [candidate.id], cluster_ids: clusters.map(c => c.id), candidateReport: true, format: req.query.format, content: req.query.content || "report" });
     const result = createExport([candidate], clusters, options);
-    res.attachment(`report-${id}.${result.extension}`).type(result.mime).send(result.body);
+    res.attachment(`${candidateExportNames([candidate]).get(candidate.id)}.${result.extension}`).type(result.mime).send(result.body);
     return;
   }
-  if (req.query.download === "true") res.attachment(`report-${id}.html`);
+  if (req.query.download === "true") res.attachment(`${candidateExportNames([candidate]).get(candidate.id)}.html`);
   res
     .type("html")
     .send(reportHtml(candidate, clusters, req.query.print === "true", req.query.content === "table", req.query.print !== "true" && req.query.download !== "true"));
 });
 router.post("/export", async (req, res) => {
   const options = exportOptionsSchema.parse(req.body);
+  if (options.allData && options.print) throw new HttpError(422, "Полный архив доступен только для скачивания.");
   if (options.print && options.format !== "html") throw new HttpError(422, "Для печати выберите HTML.");
   const [allCandidates, allClusters] = await Promise.all([getCandidates(), getClusters()]);
-  const candidates = options.candidate_ids.flatMap(id => allCandidates.filter(c => c.id === id));
-  const clusters = options.cluster_ids.flatMap(id => allClusters.filter(c => c.id === id));
-  const result = createExport(candidates, clusters, options);
+  const candidates = options.allData ? allCandidates : options.candidate_ids.flatMap(id => allCandidates.filter(c => c.id === id));
+  const clusters = options.allData ? allClusters : options.cluster_ids.flatMap(id => allClusters.filter(c => c.id === id));
+  let result;
+  if (options.allData) {
+    const storedFiles = await pool.query<{ id: string; bucket: string; object_key: string }>(
+      "SELECT id,bucket,object_key FROM files WHERE id=ANY($1::uuid[])",
+      [candidates.map(candidate => candidate.file_id)],
+    );
+    const filesById = new Map(storedFiles.rows.map(file => [file.id, file]));
+    result = await createCompleteExport(candidates, clusters, options, async candidate => {
+      const file = filesById.get(candidate.file_id);
+      if (!file) throw new HttpError(409, "Состав резюме изменился. Повторите экспорт.");
+      try { return await getFile(file.bucket, file.object_key); }
+      catch { throw new HttpError(503, "Не удалось прочитать одно из резюме. Повторите экспорт после восстановления доступа к файлам."); }
+    });
+  } else {
+    result = createExport(candidates, clusters, options);
+  }
   res.set("Cache-Control", "no-store");
   res.set("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src data:; script-src 'unsafe-inline'");
-  if (!options.print) res.attachment(`candidate-${options.candidateReport ? "report" : "distribution"}.${result.extension}`);
+  if (!options.print) res.attachment(options.candidateReport && !options.allData && candidates.length === 1
+    ? `${candidateExportNames(candidates).get(candidates[0].id)}.${result.extension}`
+    : `${options.allData ? "Все данные кандидатов" : options.candidateReport ? "Отчёты кандидатов" : "Распределение кандидатов"}.${result.extension}`);
   res.type(result.mime).send(result.body);
 });
 router.get("/export", async (_req, res) => {
@@ -247,7 +294,7 @@ router.get("/export", async (_req, res) => {
     getClusters(),
   ]);
   res
-    .attachment("candidate-distribution.csv")
+    .attachment("Распределение кандидатов.csv")
     .type("text/csv")
     .send(exportCsv(candidates, clusters));
 });

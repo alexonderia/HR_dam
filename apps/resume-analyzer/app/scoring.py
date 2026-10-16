@@ -8,8 +8,18 @@ from typing import Optional
 
 from app.config import settings
 from app.logging_config import get_logger, get_diagnostic_logger, log_event
-from app.ollama_client import ask_ollama_chat, ModelUnavailable, MODEL
+from app.ollama_client import (
+    ask_ollama_chat,
+    ModelUnavailable,
+    ModelTimeout,
+    ModelResponseError,
+    DEFAULT_TIMEOUT,
+    MODEL,
+)
 from app.rank_models import ProfileRequest, ModelRating
+
+class ContextFitError(ValueError):
+    """Запрос не помещается в контекст модели."""
 
 logger = get_logger("app.scoring")
 diag_logger = get_diagnostic_logger()
@@ -105,16 +115,36 @@ def build_ranking_prompt(
 ШКАЛА ОЦЕНКИ (0–100)
 ═══════════════════════════════════════════
 
-- 100 — полное совпадение со всеми требованиями, стоп-факторы не сработали
-- 0 — полное несовпадение с требованиями
-- Частичное соответствие всегда получает промежуточную оценку между 0 и 100
+Оценивай соответствие кандидата требованиям по шкале от 0 до 100.
+
+ВАЖНО: используй всю шкалу, включая любые целые значения от 0 до 100.
+Не округляй оценку до десятков или пятёрок.
+Не отдавай предпочтение значениям, кратным 5 или 10.
+Оценка должна отражать реальную степень соответствия кандидата требованиям.
 
 Ориентиры:
-- 90–100: практически идеальное соответствие требованиям
-- 70–89: хорошее соответствие, есть незначительные расхождения
-- 50–69: заметное частичное соответствие, есть существенные пробелы
-- 30–49: слабое соответствие, большинство требований не закрыто
-- 1–29: минимальное соответствие или серьёзные несоответствия
+- 95–100: практически идеальное соответствие требованиям
+- 85–94: очень высокое соответствие, есть небольшие пробелы
+- 75–84: хорошее соответствие, большинство требований закрыто
+- 65–74: выше среднего, но есть заметные недостатки
+- 50–64: среднее соответствие, есть существенные пробелы
+- 35–49: слабое соответствие, закрыта только часть требований
+- 20–34: низкое соответствие, большинство важных требований не закрыто
+- 1–19: минимальное соответствие
+- 0: полное несовпадение с требованиями
+
+Перед выставлением оценки проанализируй:
+1. Какие требования подтверждены фактами из резюме.
+2. Какие требования выполнены частично.
+3. Какие требования не выполнены или требуют уточнения.
+4. Насколько существенны выявленные пробелы для конкретной должности.
+
+После анализа выбери конкретную оценку, соответствующую результатам.
+Например, если соответствие соответствует уровню около 77 баллов,
+можно поставить 76, 77 или 78 — в зависимости от фактов резюме.
+Не используй 75 или 80 только потому, что это круглые значения.
+Не добавляй и не вычитай баллы искусственно ради получения
+некруглого результата.
 
 ═══════════════════════════════════════════
 ЧТО СРАВНИВАТЬ
@@ -295,73 +325,130 @@ def rank_profile(
 
         resume_text = truncate_resume_text(resume_text, resume_token_budget)
 
-        # Пересобираем промпт с обрезанным резюме
         system_prompt, user_prompt = build_ranking_prompt(
             resume_text, profile, cluster_requirements
         )
 
+        # Повторно проверяем размер после обрезки резюме
+        prompt_tokens_estimate = (
+            estimate_tokens(system_prompt) + estimate_tokens(user_prompt)
+        )
+
+        fits, available_budget = check_context_fits(
+            prompt_tokens_estimate, max_tokens, num_ctx
+        )
+
+        if not fits:
+            raise ContextFitError(
+                "Запрос не помещается в контекст модели даже после обрезки резюме"
+            )
+
+  
     last_error: Optional[str] = None
+    last_exception: Exception | None = None
+
+    # Общий лимит времени на все попытки обработки одного профиля.
+    total_timeout = timeout if timeout is not None else DEFAULT_TIMEOUT
+    deadline = time.monotonic() + total_timeout
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        remaining = deadline - time.monotonic()
+
+        if remaining <= 0:
+            raise ModelTimeout(
+                "Истекло общее время обработки профиля"
+            ) from last_exception
+
         try:
             ollama_response = ask_ollama_chat(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 num_ctx=num_ctx,
                 max_tokens=max_tokens,
-                temperature=0.0,
-                timeout=timeout,
+                temperature=0.1,
+                timeout=min(DEFAULT_TIMEOUT, remaining),
                 json_schema=RATING_SCHEMA,
                 job_id=job_id,
                 profile_id=profile.id,
                 attempt=attempt,
             )
-        except ModelUnavailable as exc:
+        except (ModelUnavailable, ModelTimeout, ModelResponseError) as exc:
+            last_exception = exc
             last_error = str(exc)
-            log_event(logger, logging.WARNING, "profile_attempt_failed",
-                      job_id=job_id,
-                      profile_id=profile.id,
-                      position_name=profile.position_name,
-                      attempt=attempt,
-                      max_attempts=MAX_ATTEMPTS,
-                      reason=last_error)
+
+            log_event(
+                logger,
+                logging.WARNING,
+                "profile_attempt_failed",
+                job_id=job_id,
+                profile_id=profile.id,
+                position_name=profile.position_name,
+                attempt=attempt,
+                max_attempts=MAX_ATTEMPTS,
+                reason=last_error,
+                remaining_sec=round(max(0, deadline - time.monotonic()), 2),
+            )
+
+            if time.monotonic() >= deadline:
+                raise ModelTimeout(
+                    "Истекло общее время обработки профиля"
+                ) from exc
 
             if attempt < MAX_ATTEMPTS:
                 continue
+
             raise
 
-        # ── Проверка и парсинг ответа ───────────────────────────────────
+        # Проверяем и разбираем ответ модели.
         parsed = parse_ranking_response(ollama_response["response"])
 
         if parsed is None:
             last_error = "Модель вернула некорректный формат оценки"
-            log_event(logger, logging.WARNING, "profile_parse_failed",
-                      job_id=job_id,
-                      profile_id=profile.id,
-                      position_name=profile.position_name,
-                      attempt=attempt,
-                      max_attempts=MAX_ATTEMPTS,
-                      reason=last_error,
-                      response_preview=ollama_response["response"][:300])
+            last_exception = ModelResponseError(last_error)
+
+            log_event(
+                logger,
+                logging.WARNING,
+                "profile_parse_failed",
+                job_id=job_id,
+                profile_id=profile.id,
+                position_name=profile.position_name,
+                attempt=attempt,
+                max_attempts=MAX_ATTEMPTS,
+                reason=last_error,
+                response_length_chars=len(ollama_response["response"]),
+            )
+
+            if time.monotonic() >= deadline:
+                raise ModelTimeout(
+                    "Истекло общее время обработки профиля"
+                ) from last_exception
 
             if attempt < MAX_ATTEMPTS:
                 continue
-            raise ModelUnavailable("Модель вернула некорректную оценку. Повторите анализ позже.")
 
-        # ── Оценка до корректировок ─────────────────────────────────────
+            raise last_exception
+
+        # Оценка до корректировок.
         raw_score = float(parsed["score"])
 
-        log_event(logger, logging.INFO, "profile_raw_score",
-                  job_id=job_id,
-                  profile_id=profile.id,
-                  position_name=profile.position_name,
-                  attempt=attempt,
-                  max_attempts=MAX_ATTEMPTS,
-                  raw_score=raw_score,
-                  matched_keywords_count=len(parsed.get("matched_keywords") or []),
-                  triggered_stop_factors_count=len(parsed.get("triggered_stop_factors") or []))
+        log_event(
+            logger,
+            logging.INFO,
+            "profile_raw_score",
+            job_id=job_id,
+            profile_id=profile.id,
+            position_name=profile.position_name,
+            attempt=attempt,
+            max_attempts=MAX_ATTEMPTS,
+            raw_score=raw_score,
+            matched_keywords_count=len(parsed.get("matched_keywords") or []),
+            triggered_stop_factors_count=len(
+                parsed.get("triggered_stop_factors") or []
+            ),
+        )
 
-        # ── Применяем корректировки (нормализация диапазона) ───────────
+        # Применяем корректировки.
         final_score = _normalize_score(raw_score)
         adjustments = []
 
@@ -375,19 +462,28 @@ def rank_profile(
         parsed["score"] = final_score
         parsed["details"] = {"method": "ollama-agent-v2", "model": MODEL}
 
-        # ── Итоговая оценка ─────────────────────────────────────────────
-        log_event(logger, logging.INFO, "profile_ranked",
-                  job_id=job_id,
-                  profile_id=profile.id,
-                  position_name=profile.position_name,
-                  attempt=attempt,
-                  max_attempts=MAX_ATTEMPTS,
-                  raw_score=raw_score,
-                  final_score=final_score,
-                  adjustments=adjustments,
-                  triggered_stop_factors=parsed.get("triggered_stop_factors") or [])
+        log_event(
+            logger,
+            logging.INFO,
+            "profile_ranked",
+            job_id=job_id,
+            profile_id=profile.id,
+            position_name=profile.position_name,
+            attempt=attempt,
+            max_attempts=MAX_ATTEMPTS,
+            raw_score=raw_score,
+            final_score=final_score,
+            adjustments=adjustments,
+            triggered_stop_factors=parsed.get("triggered_stop_factors") or [],
+        )
+
+        if time.monotonic() >= deadline:
+            raise ModelTimeout(
+                "Истекло общее время обработки профиля"
+            )
 
         return parsed
 
-    # Сюда не должны дойти, но на всякий случай
-    raise ModelUnavailable(last_error or "Не удалось получить оценку")
+    raise ModelResponseError(
+        last_error or "Не удалось получить корректную оценку"
+    )

@@ -22,7 +22,8 @@
 ## Запуск
 
 В новом окружении скопируйте `.env.example` в `.env` и заполните
-`POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `PGADMIN_PASSWORD`
+`POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `PGADMIN_PASSWORD`,
+`RABBITMQ_PASSWORD` (для режима с брокером)
 уникальными значениями; задайте `PGADMIN_EMAIL` для входа в админку.
 В текущем рабочем каталоге `.env` уже создан со случайными учётными данными;
 он исключён из Git. Значения в `.env.example` не содержат секретов.
@@ -144,3 +145,20 @@ CHECK. После уточнения значения следует закре�
 [учётных данных SeaweedFS](https://github.com/seaweedfs/seaweedfs/wiki/S3-Credentials),
 [встроенного filer](https://github.com/seaweedfs/seaweedfs/wiki/Filer-Stores) и
 [запрета Flyway clean](https://documentation.red-gate.com/fd/flyway-clean-disabled-setting-277578981.html).
+
+## ZIP и очередь обработки резюме
+
+В «Приёме резюме» доступны одиночный файл и ZIP без заполнения кандидата.
+Оба варианта проходят через worker → S3 → `/rank` → backend → БД; транспорт заданий выбирается настройкой.
+Временный адаптер вызывает текущий `/rank`. `RABBITMQ_ENABLED=false` включает обработку без RabbitMQ;
+`true` — через брокер (запуск с `--profile broker`). `RANK_BRIDGE_ENABLED=true` включает адаптер в режиме брокера.
+[Контракт сообщений и новые API для resume-analyzer](docs/resume-analyzer-rabbitmq-api.md).
+
+RabbitMQ: AMQP `127.0.0.1:5672`, панель `http://127.0.0.1:15672`; учётные данные из `.env`.
+Постоянные тома `rabbitmq_data` и `resume_spool` хранят очередь и ещё не сохранённые в S3 файлы.
+Миграция `V3__optional_candidate_identity.sql` снимает только NOT NULL с телефона, фамилии и имени;
+новые таблицы и поля не добавляются. Отчество уже nullable.
+
+Проверка нового потока: `npm run test:queue` (отдельные тестовая БД и vhost, без изменения основной БД).
+Существующий backup БД/S3 сохраняет завершённые результаты; для восстановления ожидающих заданий
+также сохраняйте тома RabbitMQ и spool при остановленных обработчиках.

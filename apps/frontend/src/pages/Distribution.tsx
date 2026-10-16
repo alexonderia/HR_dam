@@ -49,7 +49,7 @@ export function Distribution() {
       candidates
         .filter(
           (c) =>
-            (fullName(c) + c.phone)
+            ((fullName(c) || c.file_name) + (c.phone || ""))
               .toLowerCase()
               .includes(search.toLowerCase()) &&
             (status === "all" ||

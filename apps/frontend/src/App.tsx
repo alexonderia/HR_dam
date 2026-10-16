@@ -19,6 +19,7 @@ import { Processing } from "./pages/Processing";
 import { Requirements } from "./pages/Requirements";
 import { Blacklist } from "./pages/Blacklist";
 import { Help } from "./pages/Help";
+import { formatMoscowTime } from "@hr/contracts";
 
 const navigation = [
   { path: "/", label: "Кандидаты", title: "Распределение кандидатов", mobileLabel: "Подбор", icon: UsersRound, secondary: false },
@@ -97,10 +98,10 @@ function Navigation({ pending }: { pending: number }) {
   );
 }
 function Shell() {
-  const { candidates, clusters, analysis, error, loading, refresh, refreshedAt } =
+  const { candidates, clusters, analysis, error, loading, refresh, refreshedAt, resumeImports } =
       useData(),
     location = useLocation();
-  const pending = candidates.filter((c) =>
+  const pending = resumeImports.reduce((sum, batch) => sum + batch.pending_files, 0) || candidates.filter((c) =>
     ["pending", "processing"].includes(c.scoring_status),
   ).length;
   return (
@@ -180,7 +181,7 @@ function Shell() {
           <span>Алабуга · Центр подбора кандидатов</span>
           <span>
             {refreshedAt
-              ? `Обновлено ${refreshedAt.toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow" })}`
+              ? `Обновлено ${formatMoscowTime(refreshedAt)}`
               : "Ожидание подключения"}{" "}
             · время МСК
           </span>

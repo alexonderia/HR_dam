@@ -16,6 +16,8 @@
     "test": "npm run build:packages && tsx --test tests/*.test.ts",
     "test:integration": "npm run build:packages && tsx --env-file=.env tests/integration.ts",
     "test:workflow": "npm run build:packages && tsx --env-file=.env tests/workflow.integration.ts",
+    "test:queue": "npm run build:packages && python tests/run_queue_integration.py",
+    "test:rank-modes": "npm run build:packages && python tests/run_rank_modes.py",
     "test:architecture": "node tests/architecture.mjs",
     "test:service-outage": "tsx --env-file=.env tests/service-outage.ts"
   },

@@ -104,11 +104,17 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  className = "",
+  footer,
+  closeDisabled = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  className?: string;
+  footer?: ReactNode;
+  closeDisabled?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -124,20 +130,24 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={`af-dialog app-dialog ${wide ? "wide" : ""}`}
+      className={`af-dialog app-dialog ${wide ? "wide" : ""} ${className}`}
       aria-labelledby={titleId}
-      onCancel={onClose}
+      onCancel={(e) => {
+        e.preventDefault();
+        if (!closeDisabled) onClose();
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !closeDisabled) onClose();
       }}
     >
       <div className="dialog-header">
         <h2 className="af-title" id={titleId}>{title}</h2>
-        <button type="button" className="af-btn af-btn--clear icon-button" onClick={onClose} aria-label="Закрыть">
+        <button type="button" className="af-btn af-btn--clear icon-button" onClick={onClose} disabled={closeDisabled} aria-label="Закрыть">
           <X size={20} />
         </button>
       </div>
       <div className="dialog-body">{children}</div>
+      {footer}
     </dialog>
   );
 }
@@ -177,12 +187,12 @@ export function Person({ candidate }: { candidate: Candidate }) {
   return (
     <div className="person">
       <span className="avatar">
-        {candidate.last_name[0]}
-        {candidate.first_name[0]}
+        {candidate.last_name?.[0] || "?"}
+        {candidate.first_name?.[0] || ""}
       </span>
       <div>
-        <strong>{fullName(candidate)}</strong>
-        <small>{candidate.phone}</small>
+        <strong>{fullName(candidate) || "ФИО не указано"}</strong>
+        <small>{candidate.phone || "Телефон не указан"}</small>
       </div>
     </div>
   );

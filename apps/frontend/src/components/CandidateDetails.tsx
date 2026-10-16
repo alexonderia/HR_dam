@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   ChevronRight,
 } from "lucide-react";
-import { clusterScore } from "@hr/contracts";
+import { clusterScore, formatMoscowDateTime } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate, reportUrl, openWindow } from "../lib/api";
 import {
@@ -57,9 +57,15 @@ export function CandidateDetails({
     dialog.scrollTop = Math.max(0, top);
   }, [focusClusterId, focusProfileId, candidateId, preview]);
   if (!candidate) return null;
+  const ratingsByProfile = new Map(
+    candidate.ratings.map((rating) => [rating.profile_id, rating]),
+  );
+  const sortedClusters = [...clusters].sort(
+    (a, b) => (clusterScore(candidate, b) ?? -1) - (clusterScore(candidate, a) ?? -1),
+  );
   const processed = candidate.ratings
     .map((r) => r.calculated_at)
-    .sort()
+    .sort((a, b) => Date.parse(a) - Date.parse(b))
     .at(-1);
   const anchor = focusProfileId
     ? `#profile-${focusProfileId}`
@@ -78,9 +84,7 @@ export function CandidateDetails({
           <p className="muted">
             Последняя обработка:{" "}
             {processed
-              ? new Date(processed).toLocaleString("ru-RU", {
-                  timeZone: "Europe/Moscow",
-                }) + " МСК"
+              ? formatMoscowDateTime(processed) + " МСК"
               : "оценка ещё не завершена"}
           </p>
             <div className="toolbar candidate-document-actions">
@@ -125,7 +129,6 @@ export function CandidateDetails({
               <Button
                 secondary
                 disabled={
-                  !analysis.available ||
                   busy ||
                   !["failed", "completed"].includes(candidate.scoring_status)
                 }
@@ -154,10 +157,11 @@ export function CandidateDetails({
             профиль, чтобы увидеть обоснование.
           </p>
           <div className="rating-details" ref={ratingsRef}>
-            {clusters.map((cluster) => {
-              const rated = cluster.profiles.filter((p) =>
-                candidate.ratings.some((r) => r.profile_id === p.id),
-              );
+            {sortedClusters.map((cluster) => {
+              const rated = cluster.profiles
+                .filter((p) => ratingsByProfile.has(p.id))
+                .sort((a, b) => Number(ratingsByProfile.get(b.id)!.score)
+                  - Number(ratingsByProfile.get(a.id)!.score));
               return rated.length ? (
                 <section
                   key={cluster.id}
@@ -173,9 +177,7 @@ export function CandidateDetails({
                     <Score value={clusterScore(candidate, cluster)} />
                   </h4>
                   {rated.map((p) => {
-                    const r = candidate.ratings.find(
-                      (r) => r.profile_id === p.id,
-                    )!;
+                    const r = ratingsByProfile.get(p.id)!;
                     return (
                       <details
                         key={p.id}

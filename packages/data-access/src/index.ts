@@ -3,3 +3,7 @@ export * from "./db.js";
 export * from "./repository.js";
 export * from "./storage.js";
 export * from "./analysis.js";
+export * from "./queue.js";
+export * from "./import-outbox.js";
+export * from "./spool.js";
+export * from "./processing-mode.js";

@@ -43,5 +43,6 @@ COPY --from=build --chown=node:node /app/packages/contracts/dist ./packages/cont
 COPY --from=build --chown=node:node /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=build --chown=node:node /app/packages/data-access/dist ./packages/data-access/dist
 COPY --from=build --chown=node:node /app/packages/data-access/package.json ./packages/data-access/
+RUN mkdir -p /var/lib/hr-dam/resume-spool && chown node:node /var/lib/hr-dam/resume-spool
 USER node
 CMD ["node", "apps/worker/dist/index.js"]
