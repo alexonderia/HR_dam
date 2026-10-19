@@ -26,9 +26,11 @@ import { exportCsv, reportHtml, escapeHtml, htmlDocument } from "./export.js";
 import { extractDocumentText } from "@hr/documents";
 import { candidateExportNames, createCompleteExport, createExport, exportOptionsSchema } from "./export-options.js";
 import { presentResumeEvent, queueStatus } from "./processing.js";
-import { acceptResumes, listImports, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
+import { acceptResumes, listImports, listImportDetails, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
 import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists } from "@hr/data-access";
 import { brokerEnabled, rankBridgeEnabled, processingMode, getAnalysisStatus } from "@hr/data-access";
+import { requirementUpdatePlan, initializeAssessmentHistory } from "./requirement-updates.js";
+import type { RequirementReassessmentResult } from "@hr/contracts";
 
 export const router = Router();
 const upload = multer({
@@ -59,6 +61,7 @@ router.get("/processing/queue", async (_req, res) => res.json(await getBrokerSta
 const archiveUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxArchiveSize, files: 1, fields: 0 } });
 router.post("/resume-imports", archiveUpload.single("archive"), async (req, res) => res.status(202).json(await acceptResumes(req.file, true)));
 router.get("/resume-imports", async (_req, res) => res.json(await listImports()));
+router.get("/resume-imports/status", async (_req, res) => res.json(await listImportDetails()));
 router.get("/resume-imports/:id", async (req, res) => res.json(await importDetail(z.uuid().parse(req.params.id))));
 router.post("/resume-imports/:id/items/:item/retry", async (req, res) =>
   res.status(202).json(await retryImport(z.uuid().parse(req.params.id), z.uuid().parse(req.params.item))));
@@ -97,7 +100,27 @@ router.get("/overview", async (_req, res) => {
   let resumeImports, resumeImportsError;
   try { resumeImports = await listImports(); }
   catch { resumeImportsError = "Не удалось получить состояние очереди. Принятые задания сохраняются; информация обновится автоматически."; }
-  res.json({ clusters, candidates, blacklist: blacklist.rows, resumeImports: resumeImports || [], resumeImportsError });
+  const { summary: requirementUpdates } = await requirementUpdatePlan(clusters);
+  res.json({ clusters, candidates, blacklist: blacklist.rows, resumeImports: resumeImports || [], resumeImportsError, requirementUpdates });
+});
+router.post("/requirements/reassessment", async (req, res) => {
+  const { cluster_ids } = z.object({ cluster_ids: z.array(z.uuid()).min(1).max(200) }).parse(req.body);
+  const { resumes } = await requirementUpdatePlan(await getClusters());
+  const result: RequirementReassessmentResult = { queued_resumes: 0, skipped_resumes: 0, errors: [] };
+  for (const resume of resumes) {
+    const selected = resume.cluster_ids.filter(id => cluster_ids.includes(id));
+    if (!selected.length) continue;
+    if (!resume.ready) { result.skipped_resumes++; continue; }
+    try {
+      const queued = await enqueueExistingResume(resume.resume_id, { clusterIds: selected, onlyOutdated: true });
+      if (queued) result.queued_resumes++;
+      else result.skipped_resumes++;
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 409) result.skipped_resumes++;
+      else result.errors.push({ resume_id: resume.resume_id, message: error instanceof HttpError ? error.message : "Не удалось поставить резюме в очередь." });
+    }
+  }
+  res.status(202).json(result);
 });
 router.post("/candidates", upload.single("resume"), async (req, res) => {
   const result = await submitCandidate(req.body, req.file);
@@ -185,6 +208,7 @@ for (const [resource, schema, table] of [
     const values = schema.parse(req.body),
       keys = Object.keys(values),
       id = randomUUID();
+    if (resource !== "blacklist") await initializeAssessmentHistory();
     const result = await pool.query(
       `INSERT INTO ${table} (id,${keys.join(",")}) VALUES ($1,${keys.map((_, i) => "$" + (i + 2)).join(",")}) RETURNING *`,
       [id, ...Object.values(values)],
@@ -195,6 +219,7 @@ for (const [resource, schema, table] of [
     const id = z.uuid().parse(req.params.id),
       values = schema.parse(req.body),
       keys = Object.keys(values);
+    if (resource !== "blacklist") await initializeAssessmentHistory();
     const result = await pool.query(
       `UPDATE ${table} SET ${keys.map((key, i) => `${key}=$${i + 2}`).join(",")} WHERE id=$1 RETURNING *`,
       [id, ...Object.values(values)],

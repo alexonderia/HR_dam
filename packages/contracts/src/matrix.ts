@@ -26,6 +26,16 @@ export function matrixColumns(clusters: Cluster[], expanded: string[]) {
   ]);
 }
 
+export function assessmentRetryRestriction(
+  candidate: Pick<Candidate, "status" | "scoring_status">,
+): string | null {
+  if (candidate.status !== "in_work")
+    return "Повторная оценка доступна только для резюме в статусе «В работе».";
+  if (!["completed", "failed"].includes(candidate.scoring_status))
+    return "Дождитесь окончания текущей обработки.";
+  return null;
+}
+
 export function canChangeStatus(
   candidate: Pick<Candidate, "status" | "scoring_status" | "blacklisted" | "has_other_resume_in_process">,
   next: Candidate["status"],

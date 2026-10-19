@@ -7,6 +7,7 @@ import {
   matrixColumns,
   clusterScore,
   formatMoscowDateTime,
+  formatAnalysisDuration,
   type Candidate,
   type Cluster,
 } from "@hr/contracts";
@@ -223,6 +224,7 @@ export function createExport(
           "Статус",
           "Файл резюме",
           "Обработано (МСК)",
+            "Время анализа",
           "Чёрный список",
         ],
         ...candidates.map((c) => {
@@ -238,6 +240,7 @@ export function createExport(
             processed
               ? formatMoscowDateTime(processed)
               : "Не обработано",
+              formatAnalysisDuration(c.analysis_duration_ms),
             c.blacklisted ? "Да" : "Нет",
           ];
         }),

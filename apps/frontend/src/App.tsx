@@ -19,6 +19,7 @@ import { Processing } from "./pages/Processing";
 import { Requirements } from "./pages/Requirements";
 import { Blacklist } from "./pages/Blacklist";
 import { Help } from "./pages/Help";
+import { RequirementUpdatesNotice } from "./components/RequirementUpdatesNotice";
 import { formatMoscowTime } from "@hr/contracts";
 
 const navigation = [
@@ -159,6 +160,7 @@ function Shell() {
               <Button secondary onClick={() => void refresh()}>Повторить</Button>
             </div>
           )}
+          <RequirementUpdatesNotice />
           <Routes>
             <Route path="/" element={<Distribution />} />
             <Route path="/submit" element={<Submission />} />

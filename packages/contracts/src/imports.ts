@@ -19,6 +19,7 @@ export const importFileSchema = z.object({
   sha256: z.string().regex(/^[a-f0-9]{64}$/), bucket: z.string().min(1).max(255), object_key: z.string().min(1).max(2048),
   candidate_hint: extractedPersonSchema,
   target_resume_id: z.uuid().optional(), target_updated_at: z.string().optional(),
+  assessment_cluster_ids: z.array(z.uuid()).min(1).optional(),
 });
 export type ImportFile = z.infer<typeof importFileSchema>;
 export const importManifestSchema = z.object({
@@ -37,7 +38,8 @@ export const analysisJobSchema = storageJobSchema.extend({
   file: importFileSchema.extend({ download_url: z.url(), download_url_expires_at: z.iso.datetime({ offset: true }) }),
 });
 export type AnalysisJob = z.infer<typeof analysisJobSchema>;
-const resultEnvelope = { version: z.literal(1), job_id: z.uuid(), batch_id: z.uuid(), item_id: z.uuid(), attempt: z.number().int().min(1).max(100) };
+const resultEnvelope = { version: z.literal(1), job_id: z.uuid(), batch_id: z.uuid(), item_id: z.uuid(), attempt: z.number().int().min(1).max(100),
+  analysis_duration_ms: z.number().int().min(0).max(2147483647).optional() };
 export const importResultSchema = z.discriminatedUnion("status", [
   z.object({ ...resultEnvelope, status: z.literal("completed"), candidate: extractedPersonSchema, analysis: rankResponseSchema }).strict(),
   z.object({ ...resultEnvelope, status: z.literal("failed"), error: z.object({ code: z.string().min(1).max(100), message: z.string().min(1).max(2000) }).strict() }).strict(),
@@ -49,6 +51,15 @@ export const importEventSchema = z.object({
   candidate_id: z.uuid().optional(), resume_id: z.uuid().optional(),
 });
 export type ImportEvent = z.infer<typeof importEventSchema>;
+export function importAnalysisTiming(events: ImportEvent[], event: ImportEvent | undefined, finishedAt?: string) {
+  const started = event && events.filter(e => e.item_id === event.item_id && e.job_id === event.job_id &&
+    e.attempt === event.attempt && e.stage === "processing" && Number.isFinite(Date.parse(e.created_at)))
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))[0];
+  const end = finishedAt || (event && ["completed", "failed"].includes(event.stage) ? event.created_at : undefined);
+  const elapsed = started && end ? Date.parse(end) - Date.parse(started.created_at) : NaN;
+  return { analysis_started_at: started?.created_at ?? null,
+    analysis_duration_ms: event?.analysis_duration_ms ?? (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 2147483647 ? elapsed : null) };
+}
 export type ImportItemStatus = ImportEvent["stage"];
 export interface ResumeImportSummary {
   id: string; archive_name: string; created_at: string; total_files: number;
@@ -58,6 +69,8 @@ export interface ResumeImportSummary {
 export interface ResumeImportItem {
   id: string; source_path: string; file_name: string; status: ImportItemStatus; attempt: number;
   error: string | null; warning: string | null; candidate_id: string | null; resume_id: string | null; updated_at: string;
+  analysis_started_at?: string | null; analysis_duration_ms?: number | null;
+  file_sha256?: string; candidate_hint?: ExtractedPerson; target_resume_id?: string;
 }
 export interface ResumeImportDetail extends ResumeImportSummary { items: ResumeImportItem[] }
 export interface BrokerStatus {

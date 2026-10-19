@@ -17,6 +17,14 @@ const iso = new Intl.DateTimeFormat("en-GB", {
 export const formatMoscowDateTime = (value: DateValue) => dateTime.format(new Date(value));
 export const formatMoscowTime = (value: DateValue) => time.format(new Date(value));
 
+export function formatAnalysisDuration(milliseconds: number | null | undefined) {
+  if (milliseconds == null || !Number.isFinite(milliseconds) || milliseconds < 0) return "нет данных";
+  if (milliseconds < 1000) return "менее 1 с";
+  const seconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds / 60) % 60;
+  return [hours ? `${hours} ч` : "", minutes ? `${minutes} мин` : "", `${seconds % 60} с`].filter(Boolean).join(" ");
+}
+
 export function moscowTimestamp(value: DateValue = new Date()) {
   const parts = Object.fromEntries(iso.formatToParts(new Date(value)).map(part => [part.type, part.value]));
   // PostgreSQL JSON may carry microseconds; changing the zone must preserve them.

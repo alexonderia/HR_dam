@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Candidate, Cluster, BlacklistEntry, AnalysisStatus, ResumeImportSummary } from "@hr/contracts";
+import type { Candidate, Cluster, BlacklistEntry, AnalysisStatus, ResumeImportSummary, RequirementUpdates } from "@hr/contracts";
 import { api } from "./api";
 
 interface Overview {
@@ -15,6 +15,7 @@ interface Overview {
   blacklist: BlacklistEntry[];
   resumeImports: ResumeImportSummary[];
   resumeImportsError?: string;
+  requirementUpdates?: RequirementUpdates;
 }
 interface Store extends Overview {
   analysis: AnalysisStatus;
