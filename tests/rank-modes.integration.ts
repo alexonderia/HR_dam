@@ -74,7 +74,7 @@ async function upload(name: string, content: Uint8Array, archive = false, hint: 
 }
 const detail = (id: string) => api<ResumeImportDetail>(`/resume-imports/${id}`);
 try {
-  for (const migration of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql"])
+  for (const migration of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql", "V5__cluster_assessment_requirements.sql"])
     await data.pool.query(await readFile(`db/migrations/${migration}`, "utf8"));
   assert.equal((await data.pool.query("SHOW timezone")).rows[0].TimeZone, "Europe/Moscow");
   const lease = await data.pool.query(`SELECT

@@ -6,7 +6,7 @@ import {
   ShieldAlert, UploadCloud, UserRound,
 } from "lucide-react";
 import type { ResumeImportDetail, ResumeImportSummary, BrokerStatus, ImportItemStatus } from "@hr/contracts";
-import { formatMoscowDateTime, formatMoscowTime, formatAnalysisDuration } from "@hr/contracts";
+import { formatMoscowDateTime, formatMoscowTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
 import { api, mutate } from "../lib/api";
 import { useData } from "../lib/store";
 import { Button, ErrorMessage } from "./ui";
@@ -258,6 +258,8 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
                 <ul className="import-file-list" aria-label={`История загрузок: ${group.name}`}>{group.items.map(item => {
               const stage = stages[item.status], Icon = stage.icon;
               const folder = item.source_path !== item.file_name ? item.source_path : "";
+              const retryCandidate = item.target_resume_id ? candidates.find(c => c.resume_id === item.target_resume_id) : undefined;
+              const retryRestriction = retryCandidate ? assessmentRetryRestriction(retryCandidate) : null;
               return <li className={`import-file import-file--${item.status}`} key={`${item.batchId}-${item.id}`}>
                 <div className="import-file-name"><span className="import-file-icon"><FileText size={20} /></span><div>
                   <strong>{item.file_name}</strong>{folder && <small>{folder}</small>}
@@ -273,7 +275,7 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
                 <div className="import-file-actions">
                   {item.resume_id && <Link className="af-link" to={`/processing?resume=${item.resume_id}`}>Кандидат<ArrowUpRight size={14} /></Link>}
                   {item.status === "failed" && (item.attempt < 100
-                    ? <Button secondary disabled={!!busy} onClick={() => void retry(item)}>{busy === item.id ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{busy === item.id ? "Отправляем…" : "Повторить"}</Button>
+                    ? <Button secondary disabled={!!busy || !!retryRestriction} title={retryRestriction || undefined} onClick={() => void retry(item)}>{busy === item.id ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{busy === item.id ? "Отправляем…" : "Повторить"}</Button>
                     : <small>Лимит попыток исчерпан. Загрузите файл заново.</small>)}
                 </div>
               </li>;

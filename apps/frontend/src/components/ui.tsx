@@ -169,12 +169,12 @@ export function Score({ value }: { value?: number }) {
     </span>
   );
 }
-export function CandidateStatus({ candidate, showScoring = false }: { candidate: Candidate; showScoring?: boolean }) {
-  const showWorkflow = !showScoring && candidate.scoring_status === "completed";
+export function CandidateStatus({ candidate }: { candidate: Candidate }) {
+  const showWorkflow = candidate.scoring_status === "completed";
   return (
     <span
       className={`af-badge badge ${candidate.scoring_status === "failed" ? "badge--danger" : candidate.scoring_status === "completed" ? (showWorkflow && candidate.status === "in_process" ? "" : "af-badge--success") : "badge--neutral"}`}
-      title={showScoring ? "Состояние обработки резюме" : showWorkflow ? "Статус отбора" : undefined}
+      title={showWorkflow ? "Статус отбора" : "Состояние обработки резюме"}
     >
       {candidate.scoring_status === "processing" && (
         <LoaderCircle size={12} className="spin" />

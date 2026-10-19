@@ -7,3 +7,4 @@ export * from "./queue.js";
 export * from "./import-outbox.js";
 export * from "./spool.js";
 export * from "./processing-mode.js";
+export * from "./assessment-history.js";

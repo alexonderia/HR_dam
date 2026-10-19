@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { extractedPersonSchema, importManifestSchema, importAnalysisTiming, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
+import { extractedPersonSchema, importManifestSchema, importAnalysisTiming, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
 import { getClusters, enqueueImport, ensureProcessingTransport, brokerQueues, readImportLedger, latestItemEvent, pool, transaction } from "@hr/data-access";
 import { extractResumeArchive, multipartFileName } from "./archive.js";
 import { validateFile, scanFile, hashFile } from "./files.js";
@@ -95,29 +95,52 @@ export async function retryImport(id: string, itemId: string) {
     const file = manifest.items.find(i => i.id === itemId)!;
     const job: StorageJob = { version: 1, job_id: randomUUID(), batch_id: id, item_id: itemId,
       attempt: item.attempt + 1, file, requirements: manifest.requirements };
-    if (file.target_resume_id) await pool.query(`UPDATE resumes SET scoring_status='pending' WHERE id=$1
-      AND updated_at=$2::timestamptz AND scoring_status='failed'`, [file.target_resume_id, file.target_updated_at]);
-    await enqueueImport(manifest, new Map(), [job]);
+    await transaction(async client => {
+      if (file.target_resume_id) {
+        const result = await client.query(`SELECT status,scoring_status,updated_at=$2::timestamptz AS lease_matches
+          FROM resumes WHERE id=$1 FOR UPDATE`, [file.target_resume_id, file.target_updated_at]);
+        const row = result.rows[0];
+        if (!row) throw new HttpError(404, "Резюме не найдено.");
+        const restriction = assessmentRetryRestriction(row);
+        if (restriction) throw new HttpError(409, restriction);
+        if (!row.lease_matches || row.scoring_status !== "failed")
+          throw new HttpError(409, "Резюме изменилось после отправки на оценку. Запустите новую обработку.");
+        await client.query("UPDATE resumes SET scoring_status='pending' WHERE id=$1", [file.target_resume_id]);
+      }
+      await enqueueImport(manifest, new Map(), [job]);
+    });
     return importDetail(id);
   });
   retryLocks.set(key, task);
   try { return await task; } finally { if (retryLocks.get(key) === task) retryLocks.delete(key); }
 }
-export async function enqueueExistingResume(resumeId: string, recoverPending = false) {
-  const requirements = await activeRequirements();
+export async function enqueueExistingResume(resumeId: string, options: { recoverPending?: boolean; clusterIds?: string[]; onlyOutdated?: boolean } = {}) {
+  let requirements = await activeRequirements();
+  if (options.clusterIds) {
+    requirements = requirements.filter(cluster => options.clusterIds!.includes(cluster.id));
+    if (!requirements.length) throw new HttpError(409, "В выбранных кластерах нет активных требований.");
+  }
   return transaction(async client => {
     const result = await client.query(`SELECT r.*,c.phone,c.last_name,c.first_name,c.middle_name,f.bucket,f.object_key,
       f.file_name,f.mime_type,f.size_bytes,f.file_sha256 FROM resumes r JOIN candidates c ON c.id=r.candidate_id
       JOIN files f ON f.id=r.file_id WHERE r.id=$1 FOR UPDATE OF r`, [resumeId]);
     const row = result.rows[0];
     if (!row) throw new HttpError(404, "Резюме не найдено.");
-    if (!recoverPending && !["completed", "failed"].includes(row.scoring_status)) throw new HttpError(409, "Дождитесь окончания текущей обработки.");
+    const restriction = assessmentRetryRestriction(row);
+    if (!options.recoverPending && restriction) throw new HttpError(409, restriction);
+    if (options.onlyOutdated) {
+      const assessed = await client.query("SELECT cluster_id,requirements FROM resume_cluster_assessments WHERE resume_id=$1", [resumeId]);
+      const keys = new Map(assessed.rows.map((saved: { cluster_id: string; requirements: Cluster }) => [saved.cluster_id, clusterRequirementsKey(saved.requirements)]));
+      requirements = requirements.filter(cluster => keys.get(cluster.id) !== clusterRequirementsKey(cluster));
+      if (!requirements.length) return null;
+    }
     const update = await client.query("UPDATE resumes SET scoring_status='pending',updated_at=now() WHERE id=$1 RETURNING updated_at::text AS lease", [resumeId]);
     const id = randomUUID();
     const manifest: ImportManifest = { version: 1, id, archive_name: row.file_name, created_at: new Date().toISOString(), requirements, ignored_files: [], items: [{
       id: randomUUID(), file_id: row.file_id, source_path: row.file_name, file_name: row.file_name, mime_type: row.mime_type,
       size_bytes: Number(row.size_bytes), sha256: row.file_sha256, bucket: row.bucket, object_key: row.object_key,
       candidate_hint: extractedPersonSchema.parse(row), target_resume_id: resumeId, target_updated_at: update.rows[0].lease,
+      ...(options.clusterIds ? { assessment_cluster_ids: requirements.map(cluster => cluster.id) } : {}),
     }] };
     importManifestSchema.parse(manifest);
     await enqueueImport(manifest, new Map());
@@ -139,5 +162,5 @@ export async function reconcilePendingResumes() {
     WHERE r.scoring_status IN ('pending','processing') AND NOT EXISTS (
       SELECT 1 FROM jsonb_to_recordset($1::jsonb) AS job(id uuid,lease timestamptz)
       WHERE job.id=r.id AND job.lease=r.updated_at)`, [JSON.stringify(known)]);
-  for (const row of missing.rows) await enqueueExistingResume(row.id, true);
+  for (const row of missing.rows) await enqueueExistingResume(row.id, { recoverPending: true });
 }

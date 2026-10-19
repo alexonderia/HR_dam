@@ -15,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning, formatMoscowDateTime, formatAnalysisDuration } from "@hr/contracts";
+import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning, formatMoscowDateTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { api, mutate } from "../lib/api";
 import {
@@ -44,6 +44,7 @@ export function Processing() {
     [busy, setBusy] = useState(false);
   const filtered = candidates.filter(c => `${fullName(c)} ${c.phone ?? ""} ${c.file_name}`.toLowerCase().includes(search.trim().toLowerCase()));
   const current = filtered.find((c) => c.resume_id === selected) || filtered[0];
+  const retryRestriction = current ? assessmentRetryRestriction(current) : null;
   const eventPageCount = Math.max(1, Math.ceil(events.length / 5));
   const currentEventPage = Math.min(eventPage, eventPageCount);
   const shownEvents = events.slice((currentEventPage - 1) * 5, currentEventPage * 5);
@@ -250,7 +251,8 @@ export function Processing() {
                 {["failed", "completed"].includes(current.scoring_status) && (
                   <Button
                     secondary
-                    disabled={busy}
+                    disabled={busy || !!retryRestriction}
+                    title={retryRestriction || undefined}
                     onClick={async () => {
                       setBusy(true);
                       try {

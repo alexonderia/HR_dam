@@ -19,6 +19,7 @@ export const importFileSchema = z.object({
   sha256: z.string().regex(/^[a-f0-9]{64}$/), bucket: z.string().min(1).max(255), object_key: z.string().min(1).max(2048),
   candidate_hint: extractedPersonSchema,
   target_resume_id: z.uuid().optional(), target_updated_at: z.string().optional(),
+  assessment_cluster_ids: z.array(z.uuid()).min(1).optional(),
 });
 export type ImportFile = z.infer<typeof importFileSchema>;
 export const importManifestSchema = z.object({

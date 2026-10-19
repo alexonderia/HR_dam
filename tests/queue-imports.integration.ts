@@ -4,9 +4,9 @@ import { createServer } from "node:net";
 import { readFile, rm } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { zipSync, strToU8 } from "fflate";
-import { analysisJobSchema, type AnalysisJob, type ResumeImportDetail } from "@hr/contracts";
+import { analysisJobSchema, type AnalysisJob, type ResumeImportDetail, type RequirementUpdates, type RequirementReassessmentResult, type Cluster, type Profile } from "@hr/contracts";
 import { pool, connectBroker, closeBroker, startQueueConsumer, publishQueue, queues, readImportLedger, deleteFile,
-  stagedFilePath, spoolRoot, flushImportOutbox, type config } from "@hr/data-access";
+  stagedFilePath, spoolRoot, flushImportOutbox, restoreClusterAssessmentHistory, type config } from "@hr/data-access";
 
 assert.match(process.env.POSTGRES_DB || "", /^hr_dam_queue_test_[a-f0-9]+$/);
 assert.equal(process.env.RABBITMQ_VHOST, process.env.POSTGRES_DB);
@@ -47,7 +47,7 @@ async function upload(name: string, content: Uint8Array, archive = true) {
 }
 const accepted: AnalysisJob[] = [];
 try {
-  for (const name of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql"])
+  for (const name of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql", "V5__cluster_assessment_requirements.sql"])
     await pool.query(await readFile(`db/migrations/${name}`, "utf8"));
   const cluster = randomUUID(), profile = randomUUID();
   await pool.query("INSERT INTO clusters(id,name,track) VALUES($1,'Integration','test')", [cluster]);
@@ -111,12 +111,37 @@ try {
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM candidates")).rows[0].n, 3);
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM candidates WHERE phone IS NULL")).rows[0].n, 2, "Unknown people were merged");
 
-  const retryBatch = await request<ResumeImportDetail>(`/resumes/${done.items[0].resume_id}/retry`, { method: "POST" }, 202);
+  const retryResumeId = done.items[0].resume_id;
+  for (const status of ["in_process", "historical"]) {
+    await pool.query("UPDATE resumes SET status=$2 WHERE id=$1", [retryResumeId, status]);
+    const denied = await request<{ error: string }>(`/resumes/${retryResumeId}/retry`, { method: "POST" }, 409);
+    assert.match(denied.error, /только.*«В работе»/);
+    assert.equal((await pool.query("SELECT scoring_status FROM resumes WHERE id=$1", [retryResumeId])).rows[0].scoring_status, "completed");
+    assert.equal((await publisher.checkQueue(queues.analysis)).messageCount, 0, "Rejected retry must not enqueue analysis");
+  }
+  await pool.query("UPDATE resumes SET status='in_work' WHERE id=$1", [retryResumeId]);
+  const retryBatch = await request<ResumeImportDetail>(`/resumes/${retryResumeId}/retry`, { method: "POST" }, 202);
   batchIds.push(retryBatch.id);
   await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Existing resume did not enter RabbitMQ");
   message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
   job = analysisJobSchema.parse(JSON.parse(message.content.toString()));
   assert.equal(job.file.target_resume_id, done.items[0].resume_id);
+  await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
+    attempt: job.attempt, status: "failed", error: { code: "analysis_failed", message: "Test retry failure" } }, job.job_id);
+  publisher.ack(message);
+  await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${retryBatch.id}`), d => d.failed_files === 1, "Re-evaluation failure not applied");
+  for (const status of ["in_process", "historical"]) {
+    await pool.query("UPDATE resumes SET status=$2 WHERE id=$1", [retryResumeId, status]);
+    const denied = await request<{ error: string }>(`/resume-imports/${retryBatch.id}/items/${job.item_id}/retry`, { method: "POST" }, 409);
+    assert.match(denied.error, /только.*«В работе»/);
+    assert.equal((await pool.query("SELECT scoring_status FROM resumes WHERE id=$1", [retryResumeId])).rows[0].scoring_status, "failed");
+    assert.equal((await publisher.checkQueue(queues.analysis)).messageCount, 0, "Rejected import retry must not enqueue analysis");
+  }
+  await pool.query("UPDATE resumes SET status='in_work' WHERE id=$1", [retryResumeId]);
+  await request(`/resume-imports/${retryBatch.id}/items/${job.item_id}/retry`, { method: "POST" }, 202);
+  await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Failed re-evaluation did not retry");
+  message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
+  job = analysisJobSchema.parse(JSON.parse(message.content.toString()));
   await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
     attempt: job.attempt, status: "completed", candidate: {}, analysis }, job.job_id);
   publisher.ack(message);
@@ -133,6 +158,93 @@ try {
     attempt: 1, status: "completed", candidate: {}, analysis }, job.job_id);
   publisher.ack(message);
   await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${job.batch_id}`), d => d.processed_files === 1, "Reconciled result not applied");
+  const updates = async () => (await request<{ requirementUpdates: RequirementUpdates }>("/overview")).requirementUpdates;
+  const reassess = (ids: string[]) => request<RequirementReassessmentResult>("/requirements/reassessment", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cluster_ids: ids }),
+  }, 202);
+  assert.equal((await updates()).resume_count, 0, "Current requirement snapshots must be fresh");
+  const others = (await pool.query("SELECT id FROM resumes WHERE id<>$1 ORDER BY id", [retryResumeId])).rows;
+  await pool.query("UPDATE resumes SET status='in_process' WHERE id=$1", [others[0].id]);
+  await pool.query("UPDATE resumes SET status='historical' WHERE id=$1", [others[1].id]);
+  const jsonPost = (data: unknown, method = "POST"): RequestInit => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+  const addedCluster = await request<Cluster>("/clusters", jsonPost({ name: "New cluster", track: "test" }), 201);
+  assert.equal((await updates()).resume_count, 0, "Empty clusters do not require analysis");
+  const addedProfile = await request<Profile>("/profiles", jsonPost({ cluster_id: addedCluster.id, position_name: "New profile" }), 201);
+  assert.equal((await updates()).resume_count, 1, "Only resumes in work are affected");
+  assert.deepEqual((await updates()).clusters.map(cluster => cluster.cluster_id), [addedCluster.id]);
+  const preserved = (await pool.query("SELECT score,calculated_at FROM profile_ratings WHERE resume_id=$1 AND profile_id=$2", [retryResumeId, profile])).rows[0];
+  assert.equal((await reassess([addedCluster.id])).queued_resumes, 1);
+  await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Scoped assessment did not queue");
+  message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
+  job = analysisJobSchema.parse(JSON.parse(message.content.toString())); batchIds.push(job.batch_id);
+  assert.deepEqual(job.requirements.map(cluster => cluster.id), [addedCluster.id]);
+  assert.deepEqual(job.file.assessment_cluster_ids, [addedCluster.id]);
+  assert.equal((await updates()).ready_resume_count, 0, "Notice remains while analysis runs");
+  assert.equal((await reassess([addedCluster.id])).queued_resumes, 0, "Repeated clicks must not duplicate pending work");
+  await request(`/profiles/${addedProfile.id}`, jsonPost({ ...addedProfile, experience: "Changed during assessment" }, "PUT"));
+  await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
+    attempt: job.attempt, status: "completed", candidate: {}, analysis: { clusters: [{ id: addedCluster.id, profiles: [{ id: addedProfile.id, score: 88 }] }] } }, job.job_id);
+  publisher.ack(message);
+  await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${job.batch_id}`), d => d.processed_files === 1, "Scoped result not applied");
+  assert.deepEqual((await pool.query("SELECT score,calculated_at FROM profile_ratings WHERE resume_id=$1 AND profile_id=$2", [retryResumeId, profile])).rows[0], preserved, "Other cluster ratings must remain unchanged");
+  assert.equal((await updates()).resume_count, 1, "Edits during assessment must remain stale");
+  assert.equal((await reassess([addedCluster.id])).queued_resumes, 1);
+  await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Updated assessment did not queue");
+  message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
+  job = analysisJobSchema.parse(JSON.parse(message.content.toString())); batchIds.push(job.batch_id);
+  assert.equal(job.requirements[0].profiles[0].experience, "Changed during assessment");
+  await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
+    attempt: job.attempt, status: "completed", candidate: {}, analysis: { clusters: [{ id: addedCluster.id, profiles: [{ id: addedProfile.id, score: 91 }] }] } }, job.job_id);
+  publisher.ack(message);
+  await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${job.batch_id}`), d => d.processed_files === 1, "Fresh scoped result not applied");
+  assert.equal((await updates()).resume_count, 0, "Notice clears only after current results are saved");
+  const savedClusters = (await request<{ clusters: Cluster[] }>("/overview")).clusters;
+  const unchangedProfile = savedClusters.find(cluster => cluster.id === addedCluster.id)!.profiles[0];
+  await request(`/profiles/${addedProfile.id}`, jsonPost(unchangedProfile, "PUT"));
+  assert.equal((await updates()).resume_count, 0, "Saving identical requirements must not invalidate results");
+  const originalProfile = savedClusters.find(row => row.id === cluster)!.profiles[0];
+  await request(`/profiles/${profile}`, jsonPost({ ...originalProfile, education: "Changed education" }, "PUT"));
+  assert.deepEqual((await updates()).clusters.map(row => row.cluster_id), [cluster], "Only the edited cluster needs analysis");
+  assert.equal((await reassess([cluster])).queued_resumes, 1);
+  await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Edited cluster did not queue");
+  message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
+  job = analysisJobSchema.parse(JSON.parse(message.content.toString())); batchIds.push(job.batch_id);
+  assert.deepEqual(job.requirements.map(row => row.id), [cluster]);
+  await failStorageJob(job, new Error("Scoped storage failure"));
+  publisher.ack(message);
+  await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${job.batch_id}`), d => d.failed_files === 1, "Scoped failure not applied");
+  assert.equal((await updates()).ready_resume_count, 1, "Failed assessments remain stale and can be retried");
+  assert.equal((await reassess([cluster])).queued_resumes, 1);
+  await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Failed scoped assessment did not retry");
+  message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
+  job = analysisJobSchema.parse(JSON.parse(message.content.toString())); batchIds.push(job.batch_id);
+  await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
+    attempt: job.attempt, status: "completed", candidate: {}, analysis: { clusters: [{ id: cluster, profiles: [{ id: profile, score: 33 }] }] } }, job.job_id);
+  publisher.ack(message);
+  await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${job.batch_id}`), d => d.processed_files === 1, "Retried scoped result not applied");
+  assert.equal((await updates()).resume_count, 0);
+  assert.equal(Number((await pool.query("SELECT score FROM profile_ratings WHERE resume_id=$1 AND profile_id=$2", [retryResumeId, addedProfile.id])).rows[0].score), 91, "Unrelated cluster score must survive edited-cluster assessment");
+  await request(`/profiles/${profile}`, jsonPost({ ...originalProfile, education: "Another education change" }, "PUT"));
+  await pool.query("DELETE FROM resume_cluster_assessments WHERE resume_id=$1", [retryResumeId]);
+  const restoredHistory = await restoreClusterAssessmentHistory();
+  assert.equal(restoredHistory.restored, 2, "Legacy inputs must be restored from matching successful jobs");
+  assert.equal(restoredHistory.baselined, 0, "Known inputs must not be replaced by current requirements");
+  assert.deepEqual((await updates()).clusters.map(row => row.cluster_id), [cluster], "One edited legacy profile must affect exactly one cluster");
+  assert.deepEqual(await restoreClusterAssessmentHistory(), { restored: 0, baselined: 0 }, "Restoring history must be idempotent");
+  const legacyPerson = randomUUID(), legacyFile = randomUUID(), legacyResume = randomUUID();
+  await pool.query("INSERT INTO candidates(id,phone,last_name,first_name,middle_name,created_at,updated_at) VALUES($1,NULL,NULL,NULL,NULL,now(),now())", [legacyPerson]);
+  await pool.query(`INSERT INTO files(id,bucket,object_key,file_name,mime_type,size_bytes,created_at)
+    VALUES($1,'test',$2,'legacy.txt','text/plain',1,now())`, [legacyFile, `legacy-history/${legacyFile}`]);
+  await pool.query(`INSERT INTO resumes(id,candidate_id,file_id,status,scoring_status,created_at,updated_at)
+    VALUES($1,$2,$3,'in_work','completed',now(),now())`, [legacyResume, legacyPerson, legacyFile]);
+  await pool.query("INSERT INTO profile_ratings(id,resume_id,profile_id,score,calculated_at) VALUES($1,$2,$3,42,now())", [randomUUID(), legacyResume, profile]);
+  assert.deepEqual(await restoreClusterAssessmentHistory(), { restored: 0, baselined: 1 }, "Unrecorded legacy results start tracking existing requirements without demanding a new assessment");
+  const legacyUpdates = await updates();
+  assert.equal(legacyUpdates.clusters.find(row => row.cluster_id === cluster)!.resume_count, 1, "Missing history must not add unchanged legacy results to the edited cluster");
+  await pool.query("DELETE FROM profile_ratings WHERE resume_id=$1", [legacyResume]);
+  await pool.query("DELETE FROM resumes WHERE id=$1", [legacyResume]);
+  await pool.query("DELETE FROM candidates WHERE id=$1", [legacyPerson]);
+  await pool.query("DELETE FROM files WHERE id=$1", [legacyFile]);
   await request("/internal/resume-results", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }, 401);
   await request(`/resume-imports/${randomUUID()}`, undefined, 404);
   infected = true;

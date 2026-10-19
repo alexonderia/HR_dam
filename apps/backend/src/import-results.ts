@@ -67,11 +67,24 @@ async function persistResult(manifest: ImportManifest, file: ImportFile, result:
     const blacklisted = await client.query(`SELECT EXISTS(SELECT 1 FROM candidates c JOIN candidate_blacklist b
       ON b.is_active AND ${blacklistMatchSql} WHERE c.id=$1) AS matched`, [candidateId]);
     const warning = blacklisted.rows[0].matched ? "Кандидат найден в чёрном списке. Требуется ручная проверка." : undefined;
-    await client.query("DELETE FROM profile_ratings WHERE resume_id=$1", [resumeId]);
+    if (file.assessment_cluster_ids) {
+      const ids = manifest.requirements.map(cluster => cluster.id);
+      if (!file.target_resume_id || ids.length !== file.assessment_cluster_ids.length
+          || ids.some(id => !file.assessment_cluster_ids!.includes(id)))
+        throw new PermanentQueueError("Набор кластеров повторной оценки не соответствует требованиям задания.");
+      await client.query(`DELETE FROM profile_ratings p USING profiles f
+        WHERE p.resume_id=$1 AND p.profile_id=f.id AND f.cluster_id=ANY($2::uuid[])`, [resumeId, ids]);
+    } else {
+      await client.query("DELETE FROM profile_ratings WHERE resume_id=$1", [resumeId]);
+      await client.query("DELETE FROM resume_cluster_assessments WHERE resume_id=$1", [resumeId]);
+    }
     for (const cluster of rank.clusters) for (const rating of cluster.profiles) await client.query(
       `INSERT INTO profile_ratings(id,resume_id,profile_id,score,matched_keywords,triggered_stop_factors,details,explanation,calculated_at)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,now())`, [randomUUID(), resumeId, rating.id, rating.score,
         JSON.stringify(rating.matched_keywords ?? null), JSON.stringify(rating.triggered_stop_factors ?? null), JSON.stringify(rating.details ?? null), rating.explanation ?? null]);
+    for (const cluster of manifest.requirements) await client.query(`INSERT INTO resume_cluster_assessments(resume_id,cluster_id,requirements,assessed_at)
+      VALUES($1,$2,$3,now()) ON CONFLICT(resume_id,cluster_id) DO UPDATE SET requirements=EXCLUDED.requirements,assessed_at=EXCLUDED.assessed_at`,
+      [resumeId, cluster.id, JSON.stringify(cluster)]);
     await client.query("UPDATE resumes SET scoring_status='completed',updated_at=now() WHERE id=$1", [resumeId]);
     // The event UUID remains the idempotency receipt for this analysis attempt.
     await client.query("INSERT INTO resume_events(id,resume_id,event_type,message,created_at,analysis_duration_ms) VALUES($1,$2,'scored',$3,now(),$4)",

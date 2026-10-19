@@ -310,7 +310,6 @@ body {
 .matrix .cluster-header { width: 100%; }
 .matrix .cluster-header span { min-width: 0; overflow-wrap: anywhere; }
 .matrix-scroll .matrix .score-button { width: 100%; }
-.matrix-status { display: flex; flex-direction: column; align-items: flex-start; gap: var(--af-space-4); }
 .phone-input { display: flex; align-items: stretch; }
 .phone-input > .phone-country { width: 76px; min-width: 0; padding-left: 10px; padding-right: 24px; flex-shrink: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .phone-input > input { min-width: 0; flex: 1; border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
@@ -343,7 +342,7 @@ body {
 .rating-explanation .tag { background: var(--af-color-neutral-100, #eef0f2); color: var(--af-text-secondary, #59636e); }
 .stop-factor-tag { max-width: 100%; }
 .stop-factor-tag > span { min-width: 0; }
-.rating-explanation .stop-factor-tag--long { border-radius: var(--af-radius-8); }
+.stop-factor-tag--long { border-radius: var(--af-radius-8); }
 @media print { .matrix-scroll .matrix th:first-child, .matrix-scroll .matrix td:first-child { position: static; } }
 .matrix th {
   position: static;
@@ -1379,6 +1378,14 @@ body {
   gap: var(--af-space-4);
   flex-wrap: wrap;
 }
+.requirement-updates-notice { align-items: flex-start; flex-wrap: wrap; }
+.requirement-updates-notice > div { flex: 1; min-width: min(260px, 100%); }
+.requirement-updates-notice > button { flex-shrink: 0; }
+.requirement-updates-notice p { margin: var(--af-space-4) 0 0; }
+.requirement-updates-list { display: grid; gap: var(--af-space-12); margin: var(--af-space-20) 0; }
+.requirement-updates-cluster { display: flex; align-items: flex-start; gap: var(--af-space-12); padding: var(--af-space-12); border: 1px solid var(--af-border-default); border-radius: var(--af-radius-8); }
+.requirement-updates-cluster > span { min-width: 0; overflow-wrap: anywhere; }
+.requirement-updates-cluster small { display: block; margin-top: var(--af-space-4); color: var(--af-text-secondary); }
 .tag {
   white-space: normal;
   overflow-wrap: anywhere;

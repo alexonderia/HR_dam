@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   ChevronRight,
 } from "lucide-react";
-import { clusterScore, formatMoscowDateTime, formatAnalysisDuration } from "@hr/contracts";
+import { clusterScore, formatMoscowDateTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate, reportUrl, openWindow } from "../lib/api";
 import {
@@ -58,6 +58,7 @@ export function CandidateDetails({
     dialog.scrollTop = Math.max(0, top);
   }, [focusClusterId, focusProfileId, candidateId, preview]);
   if (!candidate) return null;
+  const retryRestriction = assessmentRetryRestriction(candidate);
   const ratingsByProfile = new Map(
     candidate.ratings.map((rating) => [rating.profile_id, rating]),
   );
@@ -132,10 +133,8 @@ export function CandidateDetails({
             <div className="toolbar candidate-management">
               <Button
                 secondary
-                disabled={
-                  busy ||
-                  !["failed", "completed"].includes(candidate.scoring_status)
-                }
+                disabled={busy || !!retryRestriction}
+                title={retryRestriction || undefined}
                 onClick={async () => {
                   setBusy(true);
                   setError("");

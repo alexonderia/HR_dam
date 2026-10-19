@@ -167,16 +167,20 @@ try {
   });
   await mkdir(".qa", { recursive: true });
   await page.goto(base);
-  const rowStatus = page.locator(".matrix tbody tr").filter({ hasText: "Иванов Иван" }).locator(".matrix-status");
-  await expect(rowStatus.locator(".badge")).toHaveText(["Оценён", "В работе"]);
-  for (const [state, label] of [["pending", "В очереди"], ["processing", "Оценивается"], ["failed", "Ошибка оценки"], ["completed", "Оценён"]] as const) {
+  const rowStatus = page.locator(".matrix tbody tr").filter({ hasText: "Иванов Иван" });
+  await expect(rowStatus.locator(".badge")).toHaveText(["В работе"]);
+  for (const [state, label] of [["pending", "В очереди"], ["processing", "Оценивается"], ["failed", "Ошибка оценки"], ["completed", "В работе"]] as const) {
     candidate.scoring_status = state;
     await page.getByRole("button", { name: "Обновить данные", exact: true }).click();
     await expect(rowStatus.locator(".badge").first()).toHaveText(label);
-    await expect(rowStatus.locator(".badge")).toHaveCount(state === "completed" ? 2 : 1);
+    await expect(rowStatus.locator(".badge")).toHaveCount(1);
     if (state === "processing") await expect(rowStatus.locator(".spin")).toBeVisible();
   }
-  await expect(rowStatus.locator(".badge")).toHaveText(["Оценён", "В работе"]);
+  for (const [status, label] of [["in_process", "В процессе"], ["historical", "Архив"], ["in_work", "В работе"]] as const) {
+    candidate.status = status;
+    await page.getByRole("button", { name: "Обновить данные", exact: true }).click();
+    await expect(rowStatus.locator(".badge")).toHaveText([label]);
+  }
   const matrixWidth = await page.locator(".matrix-scroll").evaluate(element => ({
     viewport: element.clientWidth,
     table: element.querySelector("table")!.getBoundingClientRect().width,
@@ -240,6 +244,7 @@ try {
     page.getByText("Последняя обработка:", { exact: false }),
   ).toHaveCount(1);
   await expect(page.getByRole("dialog").getByText("Время анализа: 5 мин 29 с", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Пересчитать оценку", exact: true })).toBeEnabled();
   await page.screenshot({
     path: ".qa/candidate-rating-focus.png",
     fullPage: true,
@@ -304,6 +309,19 @@ try {
   await page.screenshot({ path: ".qa/submission-phone.png", fullPage: true });
 
   await page.goto(base + "/processing");
+  for (const status of ["in_process", "historical", "in_work"] as const) {
+    candidate.status = status;
+    await page.getByRole("button", { name: "Обновить данные", exact: true }).click();
+    const retry = page.getByRole("button", { name: "Повторить оценку", exact: true });
+    if (status === "in_work") await expect(retry).toBeEnabled();
+    else {
+      await expect(retry).toBeDisabled();
+      await expect(retry).toHaveAttribute("title", /только.*«В работе»/);
+      await page.getByRole("button", { name: "Открыть результат", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Пересчитать оценку", exact: true })).toBeDisabled();
+      await page.getByRole("dialog").getByRole("button", { name: "Закрыть", exact: true }).first().click();
+    }
+  }
   await expect(page.locator(".event-list .event").first()).toContainText(
     "Новое событие",
   );

@@ -293,10 +293,7 @@ export function Distribution() {
                     </td>
                   ))}
                   <td>
-                    <div className="matrix-status">
-                      <CandidateStatus candidate={candidate} showScoring />
-                      {candidate.scoring_status === "completed" && <CandidateStatus candidate={candidate} />}
-                    </div>
+                    <CandidateStatus candidate={candidate} />
                   </td>
                   <td className="no-print">
                     <button

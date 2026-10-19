@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
-export function StopFactorTag({ text }: { text: string }) {
+export function StopFactorTag({ text, className = "" }: { text: string; className?: string }) {
   const textRef = useRef<HTMLSpanElement>(null);
   const [long, setLong] = useState(false);
   useLayoutEffect(() => {
@@ -15,7 +15,7 @@ export function StopFactorTag({ text }: { text: string }) {
     measure();
     return () => observer.disconnect();
   }, [text]);
-  return <span className={`af-badge tag stop-factor-tag${long ? " stop-factor-tag--long" : ""}`}>
+  return <span className={`af-badge tag stop-factor-tag${long ? " stop-factor-tag--long" : ""}${className ? ` ${className}` : ""}`}>
     <span ref={textRef}>{text}</span>
   </span>;
 }

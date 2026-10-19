@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { unzipSync, strFromU8 } from "fflate";
 import {
   canChangeStatus,
+  assessmentRetryRestriction,
   inProcessRestriction,
   personSchema,
   type Candidate,
@@ -284,6 +285,18 @@ test("phone input formats Russian digits, strips pasted prefixes and preserves i
   assert.ok(shortInternational.success);
   assert.equal(shortInternational.data.phone, "+4930123456");
 });
+test("assessment retry is limited to completed or failed resumes in work", () => {
+  for (const status of ["in_work", "in_process", "historical"] as const) {
+    for (const scoring_status of ["pending", "processing", "completed", "failed"] as const) {
+      const restriction = assessmentRetryRestriction({ status, scoring_status });
+      if (status === "in_work" && ["completed", "failed"].includes(scoring_status))
+        assert.equal(restriction, null);
+      else
+        assert.match(restriction!, status === "in_work" ? /окончания текущей обработки/ : /только.*«В работе»/);
+    }
+  }
+});
+
 test("workflow allows completed candidates to progress or return, and keeps archived/incomplete candidates locked", () => {
   assert.ok(canChangeStatus(candidate, "in_process"));
   assert.ok(canChangeStatus(candidate, "historical"));

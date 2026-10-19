@@ -11,6 +11,7 @@ import {
 import type { Cluster, Profile } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate } from "../lib/api";
+import { StopFactorTag } from "../components/StopFactorTag";
 import {
   Button,
   Empty,
@@ -107,7 +108,8 @@ export function Requirements() {
         <span>
           Проверяются только активные профили активных кластеров. Отключённые
           требования сохраняются, чтобы их можно было использовать снова. Для
-          старых резюме запускайте пересчёт из карточки кандидата.
+          резюме «В работе» появится уведомление с предложением обновить оценки
+          только по новым или изменённым кластерам.
         </span>
       </div>
       <div className="requirements-top">
@@ -247,9 +249,7 @@ export function Requirements() {
                           <td>
                             <div className="tags">
                               {profile.stop_factors?.map((s) => (
-                                <span key={s} className="af-badge tag badge--danger">
-                                  {s}
-                                </span>
+                                <StopFactorTag key={s} text={s} className="badge--danger" />
                               ))}
                               {!profile.stop_factors?.length && "—"}
                             </div>

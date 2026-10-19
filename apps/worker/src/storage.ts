@@ -27,6 +27,13 @@ export async function failStorageJob(input: unknown, error: Error) {
   const parsed = storageJobSchema.safeParse(input);
   if (!parsed.success) return;
   const job = parsed.data;
+  const message = error instanceof PermanentQueueError ? error.message : "Не удалось сохранить файл в хранилище. Повторите обработку.";
+  if (job.file.target_resume_id) {
+    // Let the result consumer release the resume's pending state before exposing a retry.
+    await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
+      attempt: job.attempt, status: "failed", error: { code: "storage_failed", message } }, job.job_id);
+    return;
+  }
   await publishImportEvent({ version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
-    attempt: job.attempt, stage: "failed", error: error instanceof PermanentQueueError ? error.message : "Не удалось сохранить файл в хранилище. Повторите обработку.", created_at: new Date().toISOString() });
+    attempt: job.attempt, stage: "failed", error: message, created_at: new Date().toISOString() });
 }
