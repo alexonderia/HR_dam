@@ -8,7 +8,7 @@ COPY apps/worker/package.json ./apps/worker/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/documents/package.json ./packages/documents/
 COPY packages/data-access/package.json ./packages/data-access/
-RUN --mount=type=cache,id=hr-dam-npm,target=/root/.npm,sharing=locked npm ci --workspace=@hr/frontend --workspace=@hr/contracts --include-workspace-root --fetch-timeout=30000 --fetch-retries=2 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=10000
+RUN --mount=type=cache,id=hr-dam-npm-frontend,target=/root/.npm,sharing=locked npm ci --workspace=@hr/frontend --workspace=@hr/contracts --include-workspace-root --no-audit --no-fund --prefer-offline --fetch-timeout=30000 --fetch-retries=2 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=10000
 COPY tsconfig.base.json ./
 COPY packages/contracts ./packages/contracts
 COPY apps/frontend ./apps/frontend

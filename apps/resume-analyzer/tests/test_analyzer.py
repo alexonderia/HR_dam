@@ -1,4 +1,4 @@
-import json
+﻿import json
 import asyncio
 import threading
 import unittest
@@ -31,9 +31,9 @@ from app.text_extractor import extract_text_from_file
 class AnalyzerTests(unittest.TestCase):
     def setUp(self):
         mark_ready(True)
-        self.profile = ProfileRequest(id="profile", position_name="Разработчик", keywords=["Python"])
-        self.requirements = json.dumps({"clusters": [{"id": "cluster", "name": "ИТ",
-            "comment": "Общие требования", "profiles": [self.profile.model_dump()]}]})
+        self.profile = ProfileRequest(id="profile", position_name="Р Р°Р·СЂР°Р±РѕС‚С‡РёРє", keywords=["Python"])
+        self.requirements = json.dumps({"clusters": [{"id": "cluster", "name": "РРў",
+            "comment": "РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ", "profiles": [self.profile.model_dump()]}]})
 
     def tearDown(self):
         mark_ready(False)
@@ -150,7 +150,7 @@ class AnalyzerTests(unittest.TestCase):
         rating = {"score": 80, "explanation": "Stop", "triggered_stop_factors": ["stop"]}
         with patch("app.scoring.ask_ollama_chat", return_value={"response": json.dumps(rating)}):
             self.assertEqual(rank_profile("resume", self.profile)["score"], 80)
-        self.assertIn("Общие требования", build_ranking_prompt("resume", self.profile, "Общие требования")[1])
+        self.assertIn("РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ", build_ranking_prompt("resume", self.profile, "РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ")[1])
 
 
     def test_late_valid_model_response_raises_timeout(self):
@@ -194,7 +194,7 @@ class AnalyzerTests(unittest.TestCase):
         }
 
         with patch(
-            "app.main.rank_profile",
+            "app.analysis_service.rank_profile",
             side_effect=[
                 first_result,
                 ModelResponseError("Invalid response for second profile"),
@@ -208,7 +208,7 @@ class AnalyzerTests(unittest.TestCase):
         self.assertFalse(model_lock.locked())
     
     def assert_rank_error(self, error, expected_status):
-        with patch("app.main.rank_profile", side_effect=error):
+        with patch("app.analysis_service.rank_profile", side_effect=error):
             with self.assertRaises(HTTPException) as context:
                 rank_resume(self.upload(), self.requirements)
 
@@ -242,11 +242,11 @@ class AnalyzerTests(unittest.TestCase):
 
     def test_success_preserves_contract_and_details(self):
         rating = {"score": 80, "explanation": "OK", "details": {"method": "ollama-agent-v1"}}
-        with patch("app.main.rank_profile", return_value=rating) as rank:
+        with patch("app.analysis_service.rank_profile", return_value=rating) as rank:
             result = rank_resume(self.upload(), self.requirements)
         self.assertEqual(result.clusters[0].profiles[0].score, 80)
         self.assertEqual(result.clusters[0].profiles[0].details["method"], "ollama-agent-v1")
-        self.assertEqual(rank.call_args.kwargs["cluster_requirements"], "Общие требования")
+        self.assertEqual(rank.call_args.kwargs["cluster_requirements"], "РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ")
 
     def test_profiles_are_ranked_sequentially_with_cluster_requirements(self):
         req = json.loads(self.requirements)
@@ -265,7 +265,7 @@ class AnalyzerTests(unittest.TestCase):
                 "explanation": "OK",
             }
 
-        with patch("app.main.rank_profile", side_effect=fake_rank):
+        with patch("app.analysis_service.rank_profile", side_effect=fake_rank):
             result = rank_resume(self.upload(), requirements)
 
         self.assertEqual(len(result.clusters[0].profiles), 2)
@@ -281,7 +281,7 @@ class AnalyzerTests(unittest.TestCase):
     def test_partial_failure_returns_no_success_and_disables_analysis(self):
         req = json.loads(self.requirements)
         req["clusters"][0]["profiles"].append({**self.profile.model_dump(), "id": "second"})
-        with patch("app.main.rank_profile", side_effect=[{"score": 80, "explanation": "OK"}, ModelUnavailable("offline")]):
+        with patch("app.analysis_service.rank_profile", side_effect=[{"score": 80, "explanation": "OK"}, ModelUnavailable("offline")]):
             with self.assertRaises(HTTPException) as exc:
                 rank_resume(self.upload(), json.dumps(req))
         self.assertEqual(exc.exception.status_code, 503)
@@ -415,3 +415,4 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

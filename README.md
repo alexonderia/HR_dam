@@ -35,6 +35,21 @@ docker compose ps -a
 docker compose logs flyway s3-init
 ```
 
+Для обычного перезапуска без изменения кода достаточно `docker compose restart`.
+После изменения `.env` примените настройки через `docker compose up -d --no-build`.
+Если изменён один сервис, собирайте и пересоздавайте только его, например:
+
+```powershell
+docker compose build backend
+docker compose up -d --no-build --no-deps backend
+```
+
+У frontend, backend и worker отдельные npm-кэши, поэтому параллельные сборки
+не ждут освобождения общего кэша. Backend и worker устанавливают зависимости
+один раз, затем удаляют пакеты разработки из копии для рабочего образа.
+Изменение общего `package-lock.json` по-прежнему обновляет слой зависимостей
+всех трёх сервисов; при первой сборке новые кэши потребуется заполнить.
+
 Для Ollama, установленной на хосте вне Docker, используйте отдельный режим:
 
 ```powershell
@@ -101,7 +116,7 @@ docker compose restart pgadmin
 docker compose logs -f postgres seaweedfs
 docker compose logs flyway s3-init
 docker compose stop
-docker compose up -d --build
+docker compose up -d --no-build
 docker compose down
 ```
 

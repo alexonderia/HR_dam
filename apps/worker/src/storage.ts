@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 import { readFile, unlink } from "node:fs/promises";
 import { storageJobSchema } from "@hr/contracts";
-import { stagedFilePath, putFile, getFile, fileDownloadUrl, publishQueue, publishImportEvent, queues, PermanentQueueError } from "@hr/data-access";
+import { stagedFilePath, putFile, getFile, fileDownloadUrl, publishQueue, publishImportEvent, queues, PermanentQueueError, getImportJobState } from "@hr/data-access";
 
 export async function storeResume(input: unknown) {
   const parsed = storageJobSchema.safeParse(input);
   if (!parsed.success) throw new PermanentQueueError("Invalid storage job");
   const job = parsed.data;
+  if (!(await getImportJobState(job)).should_process) return;
   let content: Buffer;
   try { content = await readFile(stagedFilePath(job.file.file_id)); }
   catch (error) {

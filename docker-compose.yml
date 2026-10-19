@@ -43,7 +43,7 @@ services:
       WORKER_HEALTH_URL: http://worker:3003/health
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-false}
-      RANK_BRIDGE_ENABLED: ${RANK_BRIDGE_ENABLED:-true}
+      RANK_BRIDGE_ENABLED: ${RANK_BRIDGE_ENABLED:-false}
       RABBITMQ_USER: ${RABBITMQ_USER:-hr_dam}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
       RABBITMQ_VHOST: /
@@ -119,6 +119,46 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    restart: unless-stopped
+
+  resume-analyzer-consumer:
+    profiles: [broker]
+    container_name: hr_dam-resume-analyzer-consumer
+    image: hr-dam-resume-analyzer:local
+
+    build:
+      context: ./apps/resume-analyzer
+
+    command: ["python", "-m", "app.consumer"]
+
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:9b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-180}
+      RANK_TIMEOUT_SECONDS: ${RANK_TIMEOUT_SECONDS:-840}
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-hr_dam}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
+      RABBITMQ_VHOST: /
+
+      BACKEND_BASE_URL: http://backend:3001
+      RESUME_ANALYZER_CALLBACK_TOKEN: ${RESUME_ANALYZER_CALLBACK_TOKEN:-}
+      LOG_DIR: /app/logs
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    networks: [infrastructure]
+
+    volumes:
+      - ./logs/resume-analyzer-consumer:/app/logs
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
     restart: unless-stopped
 
   # Model download/readiness is independent of API and frontend startup.

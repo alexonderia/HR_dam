@@ -5,6 +5,7 @@ import { unzipSync } from "fflate";
 import { config } from "./config.js";
 import { HttpError } from "./errors.js";
 import { decodeText, extractDocumentText } from "@hr/documents";
+import { validatePdf } from "./pdf.js";
 
 export async function scanFile(buffer: Buffer) {
   await new Promise<void>((resolve, reject) => {
@@ -52,15 +53,7 @@ export async function validateFile(buffer: Buffer, filename: string) {
   const ext = filename.toLowerCase().split(".").pop();
   const type = ["pdf", "docx"].includes(ext || "") ? await fileTypeFromBuffer(buffer) : undefined;
   if (type?.ext === "pdf" && ext === "pdf") {
-    if (
-      /\/(JavaScript|JS|Launch|EmbeddedFile|RichMedia)\b/.test(
-        buffer.toString("latin1"),
-      )
-    )
-      throw new HttpError(
-        422,
-        "PDF содержит активное или вложенное содержимое.",
-      );
+    await validatePdf(buffer);
     return "application/pdf";
   }
   if (type?.ext === "docx" && ext === "docx") {

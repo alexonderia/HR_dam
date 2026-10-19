@@ -8,3 +8,6 @@ services:
   resume-analyzer:
     environment:
       OLLAMA_BASE_URL: ${LOCAL_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  resume-analyzer-consumer:
+    environment:
+      OLLAMA_BASE_URL: ${LOCAL_OLLAMA_BASE_URL:-http://host.docker.internal:11434}

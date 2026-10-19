@@ -14,6 +14,7 @@ import {
   fullName,
   importResultSchema,
   importEventSchema,
+  importJobIdentitySchema,
 } from "@hr/contracts";
 import { pool, transaction } from "@hr/data-access";
 import { blacklistMatchSql, otherInProcessResumeSql } from "@hr/data-access";
@@ -27,7 +28,7 @@ import { extractDocumentText } from "@hr/documents";
 import { candidateExportNames, createCompleteExport, createExport, exportOptionsSchema } from "./export-options.js";
 import { presentResumeEvent, queueStatus } from "./processing.js";
 import { acceptResumes, listImports, listImportDetails, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
-import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists } from "@hr/data-access";
+import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists, getImportJobState } from "@hr/data-access";
 import { brokerEnabled, rankBridgeEnabled, processingMode, getAnalysisStatus } from "@hr/data-access";
 import { requirementUpdatePlan, initializeAssessmentHistory } from "./requirement-updates.js";
 import type { RequirementReassessmentResult } from "@hr/contracts";
@@ -70,6 +71,9 @@ router.use("/internal", (req, _res, next) => {
   if (!config.analyzerToken || expected.length !== actual.length || !timingSafeEqual(expected, actual))
     throw new HttpError(401, "Требуется авторизация обработчика.");
   next();
+});
+router.post("/internal/resume-jobs/status", async (req, res) => {
+  res.json(await getImportJobState(importJobIdentitySchema.parse(req.body)));
 });
 router.post("/internal/resume-imports/:id/items/:item/download-url", async (req, res) => {
   const { manifest } = await readImportLedger(z.uuid().parse(req.params.id));

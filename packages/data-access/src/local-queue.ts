@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { importManifestSchema, importEventSchema, type ImportManifest, type ImportEvent, type BrokerStatus } from "@hr/contracts";
-import { queues, batchQueue, PermanentQueueError, MissingImportError, QueuePausedError, type RabbitQueue } from "./rabbit-queue.js";
+import { queues, batchQueue, type RabbitQueue } from "./rabbit-queue.js";
+import { PermanentQueueError, MissingImportError, queueRetry } from "./queue-errors.js";
 import { spoolRoot } from "./spool.js";
 
 const root = join(spoolRoot, "direct");
@@ -115,9 +116,10 @@ export function startLocalQueueConsumer(name: string, handler: (body: unknown) =
             } catch (cause) {
               const error = cause instanceof Error ? cause : new Error("Direct processing failed");
               const retries = Number(envelope.headers["hr-retries"] || 0);
-              if (error instanceof QueuePausedError || (!(error instanceof PermanentQueueError) && retries < 5)) {
+              const next = queueRetry(error, retries);
+              if (next != null) {
                 await publishLocalQueue(name + ".retry", envelope.body, envelope.id,
-                  { ...envelope.headers, "hr-retries": error instanceof QueuePausedError ? retries : retries + 1 });
+                  { ...envelope.headers, "hr-retries": next });
               } else {
                 await exhausted(envelope.body, error);
                 await publishLocalQueue(queues.dead, envelope.body, envelope.id, envelope.headers);

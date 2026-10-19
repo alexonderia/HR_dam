@@ -22,4 +22,26 @@ class Settings:
         os.getenv("TEXT_CACHE_MAX_BYTES", str(20 * 1024 * 1024))
     )
 
+        # RabbitMQ
+    RABBITMQ_HOST: str = os.getenv("RABBITMQ_HOST", "rabbitmq")
+    RABBITMQ_PORT: int = int(os.getenv("RABBITMQ_PORT", "5672"))
+    RABBITMQ_USER: str = os.getenv("RABBITMQ_USER", "guest")
+    RABBITMQ_PASSWORD: str = os.getenv("RABBITMQ_PASSWORD", "guest")
+    RABBITMQ_VHOST: str = os.getenv("RABBITMQ_VHOST", "/")
+
+    # Очереди
+    RABBITMQ_ANALYSIS_QUEUE: str = "hr.resume.analysis"
+    RABBITMQ_PROGRESS_QUEUE: str = "hr.resume.progress"
+    RABBITMQ_RESULTS_QUEUE: str = "hr.resume.results"
+
+    # Backend: обновление истёкших S3-ссылок
+    BACKEND_BASE_URL: str = os.getenv(
+        "BACKEND_BASE_URL",
+        "http://backend:3001",
+    )
+    RESUME_ANALYZER_CALLBACK_TOKEN: str = os.getenv(
+        "RESUME_ANALYZER_CALLBACK_TOKEN",
+        "",
+    )
+
 settings = Settings()

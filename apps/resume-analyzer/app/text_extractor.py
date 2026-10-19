@@ -11,6 +11,12 @@ from docx import Document
 from app.config import settings
 from app.logging_config import get_logger, log_event
 
+import subprocess
+import tempfile
+from pathlib import Path
+
+from striprtf.striprtf import rtf_to_text
+
 logger = get_logger("app.text_extractor")
 
 # LRU-кэш: {хэш_файла: извлечённый_текст}
@@ -88,37 +94,138 @@ def extract_text_from_docx_bytes(docx_bytes: bytes) -> str:
         raise Exception(f"Ошибка при извлечении текста из DOCX: {str(e)}")
 
 
+
 def extract_text_from_file(file_bytes: bytes, filename: str) -> str:
     """
-    Извлекает текст из файла с кэшированием по хэшу содержимого.
-    
-    Если файл с таким же содержимым уже обрабатывался,
-    возвращает текст из кэша без повторного извлечения.
+    Извлекает текст из PDF, DOCX, DOC, RTF и TXT.
+
+    Повторно использует текст из LRU-кэша,
+    если файл с таким содержимым уже обрабатывался.
     """
     file_hash = get_file_hash(file_bytes)
 
-    # Проверяем кэш
     cached = _cache_get(file_hash)
+
     if cached is not None:
-        log_event(logger, logging.INFO, "text_cache_hit",
-                  file_hash=file_hash[:12],
-                  text_length_chars=len(cached))
+        log_event(
+            logger,
+            logging.INFO,
+            "text_cache_hit",
+            file_hash=file_hash[:12],
+            text_length_chars=len(cached),
+        )
         return cached
 
-    # Извлекаем текст
-    filename_lower = filename.lower()
+    extension = Path(filename).suffix.lower()
 
-    if filename_lower.endswith('.pdf'):
+    if extension == ".pdf":
         text = extract_text_from_pdf_bytes(file_bytes)
-    elif filename_lower.endswith('.docx'):
-        text = extract_text_from_docx_bytes(file_bytes)
-    else:
-        raise Exception("Поддерживаются только файлы PDF и DOCX")
 
-    # Сохраняем в кэш
+    elif extension == ".docx":
+        text = extract_text_from_docx_bytes(file_bytes)
+
+    elif extension == ".doc":
+        text = extract_doc(file_bytes)
+
+    elif extension == ".rtf":
+        text = extract_rtf(file_bytes)
+
+    elif extension == ".txt":
+        text = extract_txt(file_bytes)
+
+    else:
+        raise ValueError(
+            f"Неподдерживаемый формат документа: {extension}"
+        )
+
+    text = text.strip()
+
     _cache_put(file_hash, text)
-    log_event(logger, logging.INFO, "text_cache_miss",
-              file_hash=file_hash[:12],
-              text_length_chars=len(text))
+
+    log_event(
+        logger,
+        logging.INFO,
+        "text_cache_miss",
+        file_hash=file_hash[:12],
+        text_length_chars=len(text),
+    )
 
     return text
+
+
+def extract_txt(file_bytes: bytes) -> str:
+    """Извлекает текст из TXT."""
+
+    if file_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return file_bytes.decode("utf-16")
+
+    if file_bytes.startswith(b"\xef\xbb\xbf"):
+        return file_bytes.decode("utf-8-sig")
+
+    for encoding in ("utf-8", "cp1251"):
+        try:
+            return file_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+
+    raise ValueError("Не удалось определить кодировку TXT.")
+
+
+def extract_rtf(file_bytes: bytes) -> str:
+    """Извлекает текст из RTF."""
+
+    # RTF использует ASCII-совместимую разметку,
+    # а символы могут быть представлены escape-последовательностями.
+    raw_text = file_bytes.decode("latin-1")
+
+    return rtf_to_text(raw_text)
+
+
+def extract_doc(file_bytes: bytes) -> str:
+    """Преобразует DOC в DOCX через LibreOffice."""
+
+    from docx import Document
+    from io import BytesIO
+
+    with tempfile.TemporaryDirectory() as tmp:
+        directory = Path(tmp)
+
+        source = directory / "resume.doc"
+        output = directory / "converted"
+        output.mkdir()
+
+        source.write_bytes(file_bytes)
+
+        try:
+            subprocess.run(
+                [
+                    "libreoffice",
+                    "-env:UserInstallation=file://" + str(directory / "lo-profile"),
+                    "--headless",
+                    "--convert-to",
+                    "docx",
+                    "--outdir",
+                    str(output),
+                    str(source),
+                ],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+        ) as exc:
+            raise ValueError(
+                "Не удалось преобразовать DOC в DOCX."
+            ) from exc
+
+        converted = output / "resume.docx"
+
+        if not converted.exists():
+            raise ValueError(
+                "LibreOffice не создал DOCX."
+            )
+
+        return extract_text_from_docx_bytes(converted.read_bytes())

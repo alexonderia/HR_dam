@@ -7,6 +7,9 @@ export const pool = new pg.Pool({
   max: 10,
   connectionTimeoutMillis: 5000,
 });
+// An idle connection can be closed during a PostgreSQL restart. Handle the
+// pool event so the process survives and later jobs can acquire new connections.
+pool.on("error", error => console.error("Database connection interrupted", (error as { code?: string }).code || error.name));
 export async function transaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {

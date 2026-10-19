@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { extractedPersonSchema, importManifestSchema, importAnalysisTiming, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
-import { getClusters, enqueueImport, ensureProcessingTransport, brokerQueues, readImportLedger, latestItemEvent, pool, transaction } from "@hr/data-access";
+import { getClusters, enqueueImport, ensureProcessingTransport, brokerQueues, readImportLedger, latestItemEvent, pool, transaction, blacklistMatchSql } from "@hr/data-access";
 import { extractResumeArchive, multipartFileName } from "./archive.js";
 import { validateFile, scanFile, hashFile } from "./files.js";
 import { config } from "./config.js";
@@ -53,16 +53,18 @@ export function initialImportDetail(manifest: ImportManifest): ResumeImportDetai
 export async function importDetail(id: string): Promise<ResumeImportDetail> {
   const { manifest, events } = await readImportLedger(id);
   const latest = manifest.items.map(file => latestItemEvent(events, file.id));
-  const receipts = await pool.query(`SELECT e.id,e.created_at,e.analysis_duration_ms,r.id AS resume_id,r.candidate_id FROM resume_events e
-    JOIN resumes r ON r.id=e.resume_id WHERE e.id=ANY($1::uuid[]) AND e.event_type='scored'`,
+  const receipts = await pool.query(`SELECT e.id,e.created_at,e.analysis_duration_ms,r.id AS resume_id,r.candidate_id,
+    EXISTS(SELECT 1 FROM candidate_blacklist b WHERE b.is_active AND ${blacklistMatchSql}) AS blacklisted FROM resume_events e
+    JOIN resumes r ON r.id=e.resume_id JOIN candidates c ON c.id=r.candidate_id WHERE e.id=ANY($1::uuid[]) AND e.event_type='scored'`,
     [manifest.items.map((file, i) => latest[i]?.job_id || file.id)]);
   const detail = initialImportDetail(manifest);
   detail.items = detail.items.map((item, i) => {
     const event = latest[i], receipt = receipts.rows.find(row => row.id === (event?.job_id || item.id));
     const timing = importAnalysisTiming(events, event, receipt?.created_at?.toISOString());
     return { ...item, status: receipt ? "completed" : event?.stage === "completed" ? "pending" : event?.stage || "uploading",
-      attempt: event?.attempt || 1, error: receipt ? null : event?.error || null, warning: event?.warning || null,
-      candidate_id: receipt?.candidate_id || null, resume_id: receipt?.resume_id || null, updated_at: event?.created_at || item.updated_at,
+      attempt: event?.attempt || 1, error: receipt ? null : event?.error || null,
+      warning: receipt ? receipt.blacklisted ? "Кандидат найден в чёрном списке. Требуется ручная проверка." : null : event?.warning || null,
+      candidate_id: receipt?.candidate_id || null, resume_id: receipt?.resume_id || null, updated_at: receipt?.created_at?.toISOString() || event?.created_at || item.updated_at,
       ...timing, analysis_duration_ms: receipt?.analysis_duration_ms ?? timing.analysis_duration_ms };
   });
   detail.processed_files = detail.items.filter(i => i.status === "completed").length;

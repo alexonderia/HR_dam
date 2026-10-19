@@ -2,7 +2,7 @@ import { importEventSchema, type ImportEvent } from "@hr/contracts";
 import * as rabbit from "./rabbit-queue.js";
 import * as local from "./local-queue.js";
 import { brokerEnabled, processingMode, rankBridgeEnabled } from "./processing-mode.js";
-export { queues, batchQueue, PermanentQueueError, QueuePausedError, MissingImportError, latestItemEvent } from "./rabbit-queue.js";
+export { queues, batchQueue, PermanentQueueError, QueuePausedError, MissingImportError, isInfrastructureError, latestItemEvent } from "./rabbit-queue.js";
 export { closeBroker } from "./rabbit-queue.js";
 export function connectBroker() {
   if (!brokerEnabled) throw new Error("RabbitMQ is disabled; use ensureProcessingTransport");

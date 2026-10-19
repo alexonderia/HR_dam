@@ -26,6 +26,7 @@ test("direct tasks survive a consumer process crash without contacting RabbitMQ"
   process.env.RABBITMQ_URL = "amqp://127.0.0.1:1";
   process.env.RABBITMQ_MANAGEMENT_URL = "http://127.0.0.1:1";
   process.env.DIRECT_QUEUE_LEASE_MS = "500";
+  process.env.QUEUE_RETRY_DELAY_MS = "1";
   const data = await import("@hr/data-access");
   const moduleUrl = pathToFileURL(resolve("packages/data-access/dist/index.js")).href;
   const child = spawn(process.execPath, ["--input-type=module", "-e", `
@@ -54,6 +55,19 @@ test("direct tasks survive a consumer process crash without contacting RabbitMQ"
     assert.equal(stats.queues[data.queues.analysis].ready, 0);
     assert.equal(stats.queues[data.queues.analysis].processing, 0);
     assert.throws(() => data.connectBroker(), /disabled/);
+    let outages = 0, recovered = false, exhausted = 0;
+    const original = { job_id: "same-job", attempt: 1 };
+    stop = data.startQueueConsumer(data.queues.analysis, async body => {
+      assert.deepEqual(body, original);
+      if (++outages <= 7) throw Object.assign(new Error("Database restarting"), { code: "57P03" });
+      recovered = true;
+    }, async () => { exhausted++; });
+    await data.publishQueue(data.queues.analysis, original, "infrastructure", { "hr-retries": 5 });
+    for (let i = 0; i < 100 && !recovered; i++) await delay(50);
+    assert.equal(recovered, true, "Infrastructure waiting must survive an already used document retry budget");
+    assert.equal(outages, 8);
+    assert.equal(exhausted, 0);
+    await stop(); stop = undefined;
   } finally {
     child.kill("SIGKILL");
     await stop?.(); await data.closeBroker();
