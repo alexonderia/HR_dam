@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 
+from app.analysis_service import analyze_resume_text
 from app.logging_config import setup_logging, get_logger, get_diagnostic_logger, log_event
 from app.ollama_client import (
     ModelUnavailable,
@@ -152,55 +153,20 @@ def rank_resume(
               text_preview=resume_text[:2000])
 
     # ── Оценка по профилям ──────────────────────────────────────────────
-    result_clusters = []
-    if not model_lock.acquire(timeout=PROBE_TIMEOUT + 5):
-        raise HTTPException(status_code=503, detail="Модель занята. Повторите анализ позже.")
-    deadline = time.monotonic() + RANK_TIMEOUT
+
     try:
-        if not is_ready():
-            raise ModelUnavailable("Модель недоступна. Повторите анализ позже.")
-        for cluster in requirements_obj.clusters:
-            cluster_profiles = []
-
-            for profile in cluster.profiles:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    raise ModelTimeout(
-                        "Истекло общее время обработки резюме"
-                    )
-                ranking_result = rank_profile(
-                    resume_text,
-                    profile,
-                    cluster_requirements=cluster.comment or "",
-                    timeout=min(DEFAULT_TIMEOUT, remaining),
-                    job_id=job_id,
-                )
-                cluster_profiles.append(ProfileResponse(
-                    id=profile.id,
-                    position_name=profile.position_name,
-                    **ranking_result,
-                ))
-
-            result_clusters.append(ClusterResponse(
-                id=cluster.id,
-                name=cluster.name,
-                profiles=cluster_profiles,
-            ))
-        # Проверяем общий таймаут даже после последнего профиля.
-        if time.monotonic() >= deadline:
-            raise ModelTimeout(
-                "Истекло общее время обработки резюме"
-            )
-        mark_ready(True)
+        result = analyze_resume_text(
+            resume_text=resume_text,
+            requirements=requirements_obj,
+            job_id=job_id,
+        )
 
     except ModelUnavailable as exc:
-        mark_ready(False)
         log_event(
             logger,
             logging.ERROR,
             "profile_ranking_failed",
             job_id=job_id,
-            error_type=type(exc).__name__,
             error=str(exc),
         )
         raise HTTPException(
@@ -214,7 +180,6 @@ def rank_resume(
             logging.ERROR,
             "profile_ranking_timeout",
             job_id=job_id,
-            error_type=type(exc).__name__,
             error=str(exc),
         )
         raise HTTPException(
@@ -228,7 +193,6 @@ def rank_resume(
             logging.ERROR,
             "profile_ranking_invalid_response",
             job_id=job_id,
-            error_type=type(exc).__name__,
             error=str(exc),
         )
         raise HTTPException(
@@ -242,15 +206,13 @@ def rank_resume(
             logging.WARNING,
             "profile_ranking_context_error",
             job_id=job_id,
-            error_type=type(exc).__name__,
             error=str(exc),
         )
         raise HTTPException(
             status_code=422,
             detail=str(exc),
         ) from exc
-    finally:
-        model_lock.release()
+
 
     # ── Завершение задания ──────────────────────────────────────────────
     total_duration = time.time() - job_started_at
@@ -261,4 +223,4 @@ def rank_resume(
               profiles_total=total_profiles,
               profiles_failed=0)
 
-    return RankResponse(clusters=result_clusters)
+    return result
