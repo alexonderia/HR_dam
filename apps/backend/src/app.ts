@@ -5,7 +5,7 @@ import { ZodError } from "zod";
 import multer from "multer";
 import { router } from "./routes.js";
 import { HttpError } from "./errors.js";
-import { MissingImportError } from "@hr/data-access";
+import { MissingImportError, isInfrastructureError } from "@hr/data-access";
 import { moscowJsonReplacer, moscowTimestamp } from "@hr/contracts";
 
 export const app = express();
@@ -63,6 +63,10 @@ app.use(
     }
     if (error instanceof MissingImportError) {
       res.status(404).json({ error: error.message });
+      return;
+    }
+    if (isInfrastructureError(error)) {
+      res.status(503).json({ error: "Обработка временно недоступна. Повторите запрос после восстановления сервисов." });
       return;
     }
     if (error instanceof HttpError) {

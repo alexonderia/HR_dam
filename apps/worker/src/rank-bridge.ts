@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { analysisJobSchema, type AnalysisJob, moscowTimestamp } from "@hr/contracts";
-import { getFile, getAnalysisStatus, publishQueue, queues, readImportLedger, latestItemEvent,
+import { getFile, getAnalysisStatus, publishQueue, queues, getImportJobState,
   PermanentQueueError, QueuePausedError, rankBridgeEnabled, startQueueConsumer } from "@hr/data-access";
 import { extractDocumentText } from "@hr/documents";
 import { analyzeResume, AnalysisError } from "./analysis.js";
@@ -13,9 +13,7 @@ export async function rankQueuedResume(input: unknown) {
   const parsed = analysisJobSchema.safeParse(input);
   if (!parsed.success) throw new PermanentQueueError("Некорректное задание временного адаптера /rank.");
   const job = parsed.data;
-  const { events } = await readImportLedger(job.batch_id);
-  const latest = latestItemEvent(events, job.item_id);
-  if (!latest || latest.job_id !== job.job_id || latest.attempt !== job.attempt || ["completed", "failed"].includes(latest.stage)) return;
+  if (!(await getImportJobState(job)).should_process) return;
   if (!(await getAnalysisStatus()).available) throw new QueuePausedError("HTTP analyzer is not ready");
   const buffer = await getFile(job.file.bucket, job.file.object_key);
   if (buffer.length !== job.file.size_bytes || createHash("sha256").update(buffer).digest("hex") !== job.file.sha256)
@@ -34,6 +32,8 @@ export async function rankQueuedResume(input: unknown) {
       analysis_duration_ms: Math.round(performance.now() - analysisStarted) }, job.job_id);
   } catch (error) {
     if (!(error instanceof AnalysisError)) throw error;
+    if ((error.kind === "network" && error.retryable) || error.httpStatus === 429 || error.httpStatus === 503)
+      throw new QueuePausedError("HTTP analyzer is temporarily unavailable");
     await publishQueue(queues.results, { ...envelope(job), status: "failed",
       analysis_duration_ms: analysisStarted == null ? undefined : Math.round(performance.now() - analysisStarted),
       error: { code: `RANK_${error.kind.toUpperCase()}`, message: error.message.slice(0, 2000) } }, job.job_id);

@@ -34,6 +34,12 @@ export const storageJobSchema = z.object({
   requirements: z.array(requirementSchema).min(1),
 });
 export type StorageJob = z.infer<typeof storageJobSchema>;
+export const importJobIdentitySchema = storageJobSchema.pick({ version: true, job_id: true, batch_id: true, item_id: true, attempt: true }).strict();
+export type ImportJobIdentity = z.infer<typeof importJobIdentitySchema>;
+export interface ImportJobState {
+  status: "pending" | "processing" | "completed" | "failed" | "superseded";
+  should_process: boolean;
+}
 export const analysisJobSchema = storageJobSchema.extend({
   file: importFileSchema.extend({ download_url: z.url(), download_url_expires_at: z.iso.datetime({ offset: true }) }),
 });

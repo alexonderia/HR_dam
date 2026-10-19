@@ -9,6 +9,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@cantoo/pdf-lib": "^2.11.1",
     "@hr/contracts": "1.0.0",
     "@hr/documents": "1.0.0",
     "@hr/data-access": "1.0.0",

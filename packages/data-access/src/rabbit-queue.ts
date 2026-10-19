@@ -1,6 +1,8 @@
 import amqp, { type ChannelModel, type ConfirmChannel, type ConsumeMessage, type Channel } from "amqplib";
 import { setTimeout as delay } from "node:timers/promises";
 import { importManifestSchema, importEventSchema, type ImportManifest, type ImportEvent, type BrokerStatus } from "@hr/contracts";
+import { PermanentQueueError, QueuePausedError, MissingImportError, queueRetry } from "./queue-errors.js";
+export { PermanentQueueError, QueuePausedError, MissingImportError, isInfrastructureError } from "./queue-errors.js";
 
 export const queues = {
   storage: "hr.resume.storage", analysis: "hr.resume.analysis", results: "hr.resume.results",
@@ -15,9 +17,6 @@ export const brokerConfig = {
   managementUrl: process.env.RABBITMQ_MANAGEMENT_URL || "http://127.0.0.1:15672",
   retryDelayMs: Number(process.env.QUEUE_RETRY_DELAY_MS || 10000),
 };
-export class PermanentQueueError extends Error {}
-export class QueuePausedError extends Error {}
-export class MissingImportError extends Error {}
 let broker: Promise<{ connection: ChannelModel; publisher: ConfirmChannel }> | undefined;
 
 async function topology(channel: Channel) {
@@ -100,10 +99,16 @@ export async function readImportLedger(id: string): Promise<{ manifest: ImportMa
 }
 export interface RabbitQueue { name: string; messages_ready?: number; messages_unacknowledged?: number; consumers?: number }
 export async function brokerQueues(): Promise<RabbitQueue[]> {
-  const response = await fetch(`${brokerConfig.managementUrl}/api/queues/${encodeURIComponent(vhost)}?columns=name,messages_ready,messages_unacknowledged,consumers`, {
-    headers: { Authorization: `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}` }, signal: AbortSignal.timeout(5000),
-  });
-  if (!response.ok) throw new Error("RabbitMQ management API is unavailable");
+  let response: Response;
+  try {
+    response = await fetch(`${brokerConfig.managementUrl}/api/queues/${encodeURIComponent(vhost)}?columns=name,messages_ready,messages_unacknowledged,consumers`, {
+      headers: { Authorization: `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}` }, signal: AbortSignal.timeout(5000),
+    });
+  } catch { throw new QueuePausedError("RabbitMQ management API is unavailable"); }
+  if (!response.ok) {
+    if (response.status === 429 || response.status >= 500) throw new QueuePausedError("RabbitMQ management API is unavailable");
+    throw new PermanentQueueError("RabbitMQ management API rejected the request");
+  }
   return await response.json() as RabbitQueue[];
 }
 export async function getBrokerStatus(): Promise<BrokerStatus> {
@@ -138,40 +143,44 @@ export function startQueueConsumer(name: string, handler: (body: unknown) => Pro
         current = channel;
         channel.on("error", () => {});
         await channel.prefetch(1);
-        const closed = new Promise<void>(resolve => channel.once("close", resolve));
+        let channelClosed = false;
+        const closed = new Promise<void>(resolve => channel.once("close", () => { channelClosed = true; resolve(); }));
         await channel.consume(name, (message: ConsumeMessage | null) => {
           if (!message) { void channel.close().catch(() => {}); return; }
           active = (async () => {
             let body: unknown;
+            let failure: Error | undefined;
             try {
               body = JSON.parse(message.content.toString());
               await handler(body);
-              channel.ack(message);
             } catch (cause) {
-              const error = cause instanceof Error ? cause : new Error("Queue processing failed");
+              failure = cause instanceof Error ? cause : new Error("Queue processing failed");
+            }
+            // Closing a connection already returns its unacknowledged deliveries.
+            // Never republish/charge a document retry merely because ACK failed.
+            if (channelClosed) return;
+            try {
+              if (!failure) { channel.ack(message); return; }
               const retries = Number(message.properties.headers?.["hr-retries"] || 0);
-              try {
-                if (body && error instanceof QueuePausedError) {
-                  await publishQueue(name + ".retry", body, message.properties.messageId || "paused", { "hr-retries": retries });
-                  channel.ack(message);
-                } else if (body && !(error instanceof PermanentQueueError) && retries < 5) {
-                  await publishQueue(name + ".retry", body, message.properties.messageId || "retry", { "hr-retries": retries + 1 });
-                  channel.ack(message);
-                } else {
-                  if (body) await exhausted(body, error);
-                  channel.nack(message, false, false);
-                }
-              } catch {
-                await delay(brokerConfig.retryDelayMs);
-                try { channel.nack(message, false, true); } catch { /* Connection loss already requeues the delivery. */ }
+              const next = queueRetry(failure, retries);
+              if (body && next != null) {
+                await publishQueue(name + ".retry", body, message.properties.messageId || "retry",
+                  { ...message.properties.headers, "hr-retries": next });
+                channel.ack(message);
+              } else {
+                if (body) await exhausted(body, failure);
+                channel.nack(message, false, false);
               }
+            } catch {
+              await delay(brokerConfig.retryDelayMs);
+              try { channel.nack(message, false, true); } catch { /* Connection loss already requeues the delivery. */ }
             }
           })();
         }, { noAck: false });
         if (stopped) await channel.close().catch(() => {});
         await closed;
-        await active;
       } catch { if (!stopped) console.error("Queue consumer disconnected; reconnecting"); }
+      await active;
       if (!stopped) await delay(3000);
     }
   })();

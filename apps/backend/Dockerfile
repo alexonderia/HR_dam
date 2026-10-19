@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS dependencies
+FROM node:24-bookworm-slim AS build-dependencies
 WORKDIR /app
 COPY package*.json ./
 COPY .npmrc ./
@@ -8,19 +8,13 @@ COPY apps/worker/package.json ./apps/worker/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/documents/package.json ./packages/documents/
 COPY packages/data-access/package.json ./packages/data-access/
-RUN --mount=type=cache,id=hr-dam-npm,target=/root/.npm,sharing=locked npm ci --omit=dev --workspace=@hr/backend --workspace=@hr/contracts --workspace=@hr/documents --workspace=@hr/data-access --include-workspace-root=false --fetch-timeout=30000 --fetch-retries=2 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=10000
+RUN --mount=type=cache,id=hr-dam-npm-backend,target=/root/.npm,sharing=locked npm ci --workspace=@hr/backend --workspace=@hr/contracts --workspace=@hr/documents --workspace=@hr/data-access --include-workspace-root --no-audit --no-fund --prefer-offline --fetch-timeout=30000 --fetch-retries=2 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=10000
 
-FROM node:24-bookworm-slim AS build
-WORKDIR /app
-COPY package*.json ./
-COPY .npmrc ./
-COPY apps/frontend/package.json ./apps/frontend/
-COPY apps/backend/package.json ./apps/backend/
-COPY apps/worker/package.json ./apps/worker/
-COPY packages/contracts/package.json ./packages/contracts/
-COPY packages/documents/package.json ./packages/documents/
-COPY packages/data-access/package.json ./packages/data-access/
-RUN --mount=type=cache,id=hr-dam-npm,target=/root/.npm,sharing=locked npm ci --workspace=@hr/backend --workspace=@hr/contracts --workspace=@hr/documents --workspace=@hr/data-access --include-workspace-root --fetch-timeout=30000 --fetch-retries=2 --fetch-retry-mintimeout=1000 --fetch-retry-maxtimeout=10000
+FROM build-dependencies AS dependencies
+# Include the root so its build tools are pruned as well.
+RUN npm prune --omit=dev --workspace=@hr/backend --workspace=@hr/contracts --workspace=@hr/documents --workspace=@hr/data-access --include-workspace-root --ignore-scripts --offline --no-audit --no-fund
+
+FROM build-dependencies AS build
 COPY tsconfig.base.json ./
 COPY packages/contracts ./packages/contracts
 COPY packages/documents ./packages/documents

@@ -4,13 +4,14 @@ import { createServer } from "node:net";
 import { readFile, rm } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { zipSync, strToU8 } from "fflate";
-import { analysisJobSchema, type AnalysisJob, type ResumeImportDetail, type RequirementUpdates, type RequirementReassessmentResult, type Cluster, type Profile } from "@hr/contracts";
+import { analysisJobSchema, type AnalysisJob, type ImportJobState, type ResumeImportDetail, type RequirementUpdates, type RequirementReassessmentResult, type Cluster, type Profile } from "@hr/contracts";
 import { pool, connectBroker, closeBroker, startQueueConsumer, publishQueue, queues, readImportLedger, deleteFile,
   stagedFilePath, spoolRoot, flushImportOutbox, restoreClusterAssessmentHistory, type config } from "@hr/data-access";
 
 assert.match(process.env.POSTGRES_DB || "", /^hr_dam_queue_test_[a-f0-9]+$/);
 assert.equal(process.env.RABBITMQ_VHOST, process.env.POSTGRES_DB);
 const batchIds: string[] = [], stops: (() => Promise<void>)[] = [];
+let releaseCompletion: (() => void) | undefined;
 let infected = false;
 const scanner = createServer(socket => {
   let content = Buffer.alloc(0);
@@ -39,6 +40,11 @@ async function waitFor<T>(read: () => Promise<T>, match: (value: T) => boolean, 
   for (let i = 0; i < 150; i++) { const value = await read(); if (match(value)) return value; await delay(100); }
   throw new Error(message);
 }
+const identity = (job: AnalysisJob) => ({ version: job.version, job_id: job.job_id,
+  batch_id: job.batch_id, item_id: job.item_id, attempt: job.attempt });
+const jobState = (job: AnalysisJob) => request<ImportJobState>("/internal/resume-jobs/status", {
+  method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify(identity(job)),
+});
 async function upload(name: string, content: Uint8Array, archive = true) {
   const form = new FormData();
   form.append(archive ? "archive" : "resume", new Blob([Uint8Array.from(content)]), name);
@@ -63,6 +69,17 @@ try {
   assert.equal(batch.ignored_files.length, 1);
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM candidates")).rows[0].n, 0);
   const { publisher } = await connectBroker();
+  const send = publisher.sendToQueue.bind(publisher);
+  // Hold the blacklist item's final event AFTER its DB transaction commits.
+  // Completion and its warning must already be visible from the DB receipt.
+  publisher.sendToQueue = (...args: Parameters<typeof send>) => {
+    const record = JSON.parse(args[1].toString()) as { kind?: string; event?: { job_id: string; stage: string } };
+    if (record.kind === "event" && record.event?.stage === "completed" && record.event.job_id === accepted[1]?.job_id) {
+      releaseCompletion = () => { publisher.sendToQueue = send; send(...args); };
+      return true;
+    }
+    return send(...args);
+  };
   await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 2, "Files did not reach analysis queue");
   const redeliveryChannel = await (await connectBroker()).connection.createChannel();
   const abandoned = await redeliveryChannel.get(queues.analysis, { noAck: false }); assert.ok(abandoned);
@@ -71,6 +88,7 @@ try {
   for (let i = 0; i < 2; i++) {
     const message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
     const job = analysisJobSchema.parse(JSON.parse(message.content.toString())); accepted.push(job);
+    assert.deepEqual(await jobState(job), { status: "pending", should_process: true });
     assert.equal(await (await fetch(job.file.download_url)).text(), job.file.file_name === "a.txt" ? "Resume A" : "Resume B");
     const renewed = await request<{ download_url: string }>(`/internal/resume-imports/${batch.id}/items/${job.item_id}/download-url`, { method: "POST", headers: auth });
     assert.ok(renewed.download_url.includes("X-Amz-Signature"));
@@ -89,6 +107,30 @@ try {
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM profile_ratings")).rows[0].n, 2);
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM candidates WHERE phone IS NULL AND first_name IS NULL AND last_name IS NULL")).rows[0].n, 1);
   assert.ok(done.items.some(i => i.warning?.includes("чёрном списке")));
+  assert.ok(releaseCompletion, "The completed event was not delayed");
+  assert.deepEqual(await jobState(accepted[1]), { status: "completed", should_process: false });
+  await storeResume(accepted[1]);
+  assert.equal((await publisher.checkQueue(queues.analysis)).messageCount, 0, "Completed storage redelivery enqueued another analysis");
+  releaseCompletion(); releaseCompletion = undefined;
+  await request("/internal/resume-jobs/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(identity(accepted[0])) }, 401);
+  await request("/internal/resume-jobs/status", { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: "{}" }, 422);
+  await request("/internal/resume-jobs/status", { method: "POST", headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({ ...identity(accepted[0]), item_id: randomUUID() }) }, 404);
+
+  let infrastructureRecovered = false, infrastructureFailures = 0, exhaustedFailures = 0;
+  const infrastructureProbe = { probe: randomUUID() };
+  const stopRecovery = startQueueConsumer(queues.analysis, async body => {
+    assert.deepEqual(body, infrastructureProbe);
+    if (++infrastructureFailures <= 7) throw Object.assign(new Error("Database restarting"), { code: "57P03" });
+    infrastructureRecovered = true;
+  }, async () => { exhaustedFailures++; });
+  stops.push(stopRecovery);
+  await publishQueue(queues.analysis, infrastructureProbe, infrastructureProbe.probe);
+  await waitFor(async () => infrastructureRecovered, value => value, "Infrastructure outage exhausted document retries");
+  await stopRecovery();
+  assert.equal(infrastructureFailures, 8);
+  assert.equal(exhaustedFailures, 0);
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM profile_ratings")).rows[0].n, 2, "Infrastructure recovery changed completed ZIP items");
 
   const single = await upload("single.txt", strToU8("Single resume"), false);
   await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Single upload bypassed queue");
@@ -98,11 +140,14 @@ try {
     attempt: job.attempt, status: "failed", error: { code: "UNREADABLE", message: "Test failure" } }, job.job_id);
   publisher.ack(message);
   await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${single.id}`), d => d.failed_files === 1, "Failure was not recorded in RabbitMQ");
+  assert.deepEqual(await jobState(job), { status: "failed", should_process: false });
   await request(`/resume-imports/${single.id}/items/${job.item_id}/retry`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }, 202);
   await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Retry not published");
   message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
   const retried = analysisJobSchema.parse(JSON.parse(message.content.toString()));
   assert.equal(retried.attempt, 2);
+  assert.deepEqual(await jobState(job), { status: "superseded", should_process: false });
+  assert.deepEqual(await jobState(retried), { status: "pending", should_process: true });
   const analysis = { clusters: [{ id: cluster, profiles: [{ id: profile, score: 75 }] }] };
   await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id, attempt: 1, status: "completed", candidate: {}, analysis }, job.job_id);
   await publishQueue(queues.results, { version: 1, job_id: retried.job_id, batch_id: retried.batch_id, item_id: retried.item_id, attempt: 2, status: "completed", candidate: {}, analysis }, retried.job_id);
@@ -126,6 +171,7 @@ try {
   message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
   job = analysisJobSchema.parse(JSON.parse(message.content.toString()));
   assert.equal(job.file.target_resume_id, done.items[0].resume_id);
+  assert.deepEqual(await jobState(job), { status: "pending", should_process: true }, "A completed candidate must not suppress a new assessment job");
   await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
     attempt: job.attempt, status: "failed", error: { code: "analysis_failed", message: "Test retry failure" } }, job.job_id);
   publisher.ack(message);
@@ -266,6 +312,7 @@ try {
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM candidates")).rows[0].n, 3, "Queue recovery prematurely created a candidate");
   console.log("PASS: ZIP/single -> RabbitMQ -> S3 -> results -> DB; nullable identity, blacklist, duplicates, consumer disconnect, retry, stale result, re-evaluation, legacy reconciliation, URL refresh, antivirus rejection, rejected publish/outbox recovery");
 } finally {
+  releaseCompletion?.();
   for (const stop of stops) await stop();
   for (const id of batchIds) {
     try { const { manifest } = await readImportLedger(id); for (const item of manifest.items) await deleteFile(item.object_key); } catch { /* Retain diagnostics on infrastructure failure. */ }

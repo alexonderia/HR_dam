@@ -9,13 +9,14 @@ import type { ResumeImportDetail, Candidate, Cluster } from "@hr/contracts";
 
 assert.match(process.env.POSTGRES_DB || "", /^hr_dam_queue_test_[a-f0-9]+$/);
 const batches: string[] = [], stops: (() => Promise<void>)[] = [];
-let ready = false, rankCalls = 0, rejectNext = false;
+let ready = false, rankCalls = 0, rejectNext = false, unavailableRequests = 0;
 let held: (() => void) | undefined;
 const analyzer = createServer(async (req, res) => {
   const reply = (status: number, data: unknown) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(data)); };
   if (req.url === "/ready") { reply(ready ? 200 : 503, { available: ready }); return; }
   if (req.url !== "/rank" || req.method !== "POST") { reply(404, {}); return; }
   rankCalls++;
+  if (unavailableRequests > 0) { unavailableRequests--; reply(503, { detail: "Model temporarily unavailable" }); return; }
   if (rejectNext) { rejectNext = false; reply(422, { error: "Test document error" }); return; }
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(Buffer.from(chunk));
@@ -101,6 +102,20 @@ try {
   await waitFor(() => detail(batch.id), d => d.processed_files === 2, "ZIP results not saved through /rank");
   assert.equal((await data.pool.query("SELECT count(*)::int AS n FROM profile_ratings")).rows[0].n, 4);
   assert.equal((await data.pool.query("SELECT count(*)::int AS n FROM candidates WHERE phone IS NULL AND first_name IS NULL")).rows[0].n, 2);
+  const beforeOutage = rankCalls;
+  unavailableRequests = 12; // More than five queue retries, with two HTTP attempts per delivery.
+  const recovering = await upload("recovering.txt", strToU8("Python infrastructure recovery"));
+  const recovered = await waitFor(() => detail(recovering.id), d => d.processed_files === 1, "Temporary /rank outage exhausted document retries");
+  assert.equal(recovered.failed_files, 0);
+  assert.equal(recovered.items[0].attempt, 1);
+  assert.ok(rankCalls - beforeOutage >= 13);
+  const firstLedger = await data.readImportLedger(batch.id);
+  const firstFile = firstLedger.manifest.items[0];
+  const beforeRedelivery = rankCalls;
+  const { rankQueuedResume } = await import("../apps/worker/src/rank-bridge.js");
+  await rankQueuedResume({ version: 1, job_id: firstFile.id, batch_id: batch.id, item_id: firstFile.id, attempt: 1,
+    file: { ...firstFile, ...await data.fileDownloadUrl(firstFile.bucket, firstFile.object_key) }, requirements: firstLedger.manifest.requirements });
+  assert.equal(rankCalls, beforeRedelivery, "Completed job redelivery reran the model");
 
   const single = await upload("single.txt", strToU8("Python manual identity"), false,
     { last_name: "Иванов", first_name: "Иван", phone: "+79991234567" });
@@ -152,8 +167,8 @@ try {
   await waitFor(() => detail(delayed.id), d => d.processed_files === 1, "Persisted task not recovered after consumer restart");
   const stats = await data.getBrokerStatus();
   assert.equal(stats.broker_enabled, data.brokerEnabled);
-  assert.equal((await data.pool.query("SELECT count(*)::int AS n FROM candidates")).rows[0].n, 6);
-  assert.equal((await data.pool.query("SELECT count(*)::int AS n FROM profile_ratings")).rows[0].n, 12);
+  assert.equal((await data.pool.query("SELECT count(*)::int AS n FROM candidates")).rows[0].n, 7);
+  assert.equal((await data.pool.query("SELECT count(*)::int AS n FROM profile_ratings")).rows[0].n, 14);
   console.log(`PASS: mode=${mode.mode}; ZIP/single -> S3 -> real HTTP multipart /rank -> DB; readiness, null identity, manual hints, processing, failure/retry, restart`);
 } finally {
   held?.();

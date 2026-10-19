@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, expect } from "@playwright/test";
 import { zipSync, unzipSync, strToU8 } from "fflate";
+import { PDFDocument } from "@cantoo/pdf-lib";
 import { pool, transaction } from "@hr/data-access";
 import { deleteFile } from "@hr/data-access";
 import type {
@@ -241,7 +242,9 @@ try {
     ).status,
     409,
   );
-  const badPdf = Buffer.concat([pdf, Buffer.from("\n/JavaScript (evil)")]);
+  const activePdf = await PDFDocument.load(pdf);
+  activePdf.addJavaScript("startup", "app.alert('test')");
+  const badPdf = Buffer.from(await activePdf.save());
   assert.equal((await upload(person, badPdf, "resume.pdf", true)).status, 422);
   // Standard EICAR test signature, in memory only; no malware file is written.
   const eicar = Buffer.from(

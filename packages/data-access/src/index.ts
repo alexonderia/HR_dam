@@ -8,3 +8,4 @@ export * from "./import-outbox.js";
 export * from "./spool.js";
 export * from "./processing-mode.js";
 export * from "./assessment-history.js";
+export * from "./import-job.js";
