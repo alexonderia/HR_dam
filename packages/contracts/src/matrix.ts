@@ -1,4 +1,11 @@
 import type { Candidate, Cluster } from "./domain.js";
+import { ratingEvidence } from "./evidence.js";
+
+export function clusterScoreRange(candidate: { ratings: { profile_id: string; score: number; details?: unknown }[] }, cluster: { profiles: { id: string }[] }) {
+  const ranges = candidate.ratings.filter(r => cluster.profiles.some(p => p.id === r.profile_id))
+    .map(r => ratingEvidence(r)?.score_range || { min: Number(r.score), max: Number(r.score) });
+  return ranges.length ? { min: Math.max(...ranges.map(r => r.min)), max: Math.max(...ranges.map(r => r.max)) } : undefined;
+}
 
 export function clusterScore(candidate: Candidate, cluster: Cluster) {
   const scores = candidate.ratings

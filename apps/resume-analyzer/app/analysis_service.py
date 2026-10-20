@@ -6,6 +6,7 @@ from app.ollama_client import (
     DEFAULT_TIMEOUT,
     ModelUnavailable,
     ModelTimeout,
+    ModelResponseError,
 )
 from app.rank_models import (
     RequirementsRequest,
@@ -20,9 +21,22 @@ from app.readiness import (
     PROBE_TIMEOUT,
 )
 from app.scoring import rank_profile
+from app.evidence_scoring import validate_rating_source
 
 
 RANK_TIMEOUT = float(os.getenv("RANK_TIMEOUT_SECONDS", "840"))
+
+
+class InsufficientResumeTextError(ValueError):
+    """В документе недостаточно доступного текста для анализа."""
+
+    message = (
+        "Не удалось извлечь достаточно текста из резюме. "
+        "Загрузите документ с доступным текстом."
+    )
+
+    def __init__(self):
+        super().__init__(self.message)
 
 
 def analyze_resume_text(
@@ -33,7 +47,7 @@ def analyze_resume_text(
     """Оценивает резюме по всем кластерам и профилям."""
 
     if not resume_text or len(resume_text.strip()) < 50:
-        raise ValueError("Не удалось извлечь достаточно текста")
+        raise InsufficientResumeTextError()
 
     if not is_ready():
         raise ModelUnavailable("Модель недоступна")
@@ -66,6 +80,10 @@ def analyze_resume_text(
                     timeout=min(DEFAULT_TIMEOUT, remaining),
                     job_id=job_id,
                 )
+                try:
+                    validate_rating_source(ranking_result, resume_text)
+                except ValueError as error:
+                    raise ModelResponseError("Подтверждения оценки не совпадают с резюме") from error
 
                 cluster_profiles.append(
                     ProfileResponse(

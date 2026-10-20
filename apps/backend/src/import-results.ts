@@ -16,7 +16,9 @@ async function trustedJob(result: Pick<ImportResult, "batch_id" | "item_id" | "j
   return { manifest, file, latest, events };
 }
 async function persistResult(manifest: ImportManifest, file: ImportFile, result: Extract<ImportResult, { status: "completed" }>, analysisDurationMs: number | null) {
-  const rank = validateRankResponse(result.analysis, manifest.requirements);
+  let rank: ReturnType<typeof validateRankResponse>;
+  try { rank = validateRankResponse(result.analysis, manifest.requirements); }
+  catch { throw new PermanentQueueError("Обработчик вернул некорректное обоснование оценки."); }
   const person = { ...result.candidate };
   for (const key of ["last_name", "first_name", "middle_name", "phone"] as const)
     if (file.candidate_hint[key]) person[key] = file.candidate_hint[key];

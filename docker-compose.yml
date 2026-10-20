@@ -126,6 +126,8 @@ services:
     container_name: hr_dam-resume-analyzer-consumer
     image: hr-dam-resume-analyzer:local
 
+    stop_grace_period: 240s
+
     build:
       context: ./apps/resume-analyzer
 

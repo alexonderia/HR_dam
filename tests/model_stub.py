@@ -10,6 +10,12 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_args):
         pass
 
+    def do_GET(self):
+        if self.path == "/api/tags":
+            self.reply(200, {"models": [{"name": name} for name in ("qwen3.5:9b", "qwen3.5:4b-q4_K_M")]})
+        else:
+            self.reply(404, {"error": "Unknown fixture route"})
+
     def do_POST(self):
         global mode
         data = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
@@ -30,6 +36,13 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(200, {"message": {"content": "invalid JSON"}})
             return
         prompt = data["messages"][-1]["content"]
+        if "assessments" in data["format"].get("properties", {}):
+            criteria = json.JSONDecoder().raw_decode(prompt.split("КРИТЕРИИ_JSON:\n", 1)[1])[0]
+            stops = json.JSONDecoder().raw_decode(prompt.split("СТОП_ФАКТОРЫ_JSON:\n", 1)[1])[0]
+            rating = {"assessments": [{"id": c["id"], "status": "unknown", "evidence": []} for c in criteria],
+                      "stop_factors": [{"id": s["id"], "status": "unknown", "evidence": []} for s in stops]}
+            self.reply(200, {"message": {"content": json.dumps(rating)}})
+            return
         resume = prompt.split("РЕЗЮМЕ КАНДИДАТА:")[-1].casefold()
         match = re.search(r"Ключевые навыки: ([^\n]+)", prompt)
         words = match[1].split(", ") if match else []

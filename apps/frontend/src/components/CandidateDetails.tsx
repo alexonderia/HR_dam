@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   ChevronRight,
 } from "lucide-react";
-import { clusterScore, formatMoscowDateTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
+import { clusterScore, clusterScoreRange, ratingEvidence, formatMoscowDateTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate, reportUrl, openWindow } from "../lib/api";
 import {
@@ -177,7 +177,7 @@ export function CandidateDetails({
                         Неактивен
                       </span>
                     )}
-                    <Score value={clusterScore(candidate, cluster)} />
+                    <Score value={clusterScore(candidate, cluster)} upperValue={clusterScoreRange(candidate, cluster)?.max} />
                   </h4>
                   {rated.map((p) => {
                     const r = ratingsByProfile.get(p.id)!;
@@ -193,11 +193,16 @@ export function CandidateDetails({
                             {p.position_name}
                             {!p.is_active && <small> · неактивен</small>}
                           </span>
-                          <Score value={Number(r.score)} />
+                          <Score value={Number(r.score)} upperValue={ratingEvidence(r)?.score_range.max} />
                         </summary>
                         <div className="rating-explanation">
                           <section>
                             <h5>Обоснование оценки</h5>
+                            {ratingEvidence(r) && <p className="muted">
+                              Охват проверенными критериями: {ratingEvidence(r)!.coverage}%.
+                              Диапазон отражает сведения, требующие уточнения. Правила оценки предварительные;
+                              качество на разметке рекрутеров ещё не проверено.
+                            </p>}
                             <p className="explanation-text">
                               {r.explanation ||
                                 "Обработчик не предоставил пояснение."}

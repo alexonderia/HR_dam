@@ -3,16 +3,37 @@
 import json
 import logging
 import threading
+import signal
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from app.job_processor import process_job
-from app.job_result import processing_event
 from app.job_result import (
     processing_event,
     failed_result,
     should_retry,
 )
+
+from app.document_loader import (
+    DocumentTemporaryError,
+    DownloadLinkTemporaryError,
+    DocumentDownloadError,
+    DownloadLinkError,
+)
+
+from app.job_processor import process_job, JobCancelled
+
+from app.job_status import (
+    check_job_status,
+    JobStatusTemporaryError,
+    JobStatusPermanentError,
+)
+
+from app.ollama_client import (
+    ModelUnavailable,
+    ModelTimeout,
+)
+
 from app.readiness import monitor, mark_ready
 from app.rabbitmq_client import publish_retry
 
@@ -73,15 +94,64 @@ def validate_job_envelope(job: dict) -> None:
         raise ValueError("Missing requirements")
 
 
+def process_checked_job(
+    job: dict,
+    stop_event: threading.Event,
+):
+    if stop_event.is_set():
+        raise JobCancelled("Consumer is stopping")
+
+    should_process = check_job_status(job)
+
+    if stop_event.is_set():
+        raise JobCancelled("Consumer is stopping")
+
+    if not should_process:
+        return {
+            "skipped": True,
+            "result": None,
+        }
+
+    result = process_job(
+        job,
+        stop_event=stop_event,
+    )
+
+    return {
+        "skipped": False,
+        "result": result,
+    }
+
 def run_consumer():
     """Запускает consumer RabbitMQ."""
+
+    shutdown_started_at = None
+
+    active_future = None
+    delivery_in_progress = False
+
+    stop_event = threading.Event()
+
+    def handle_shutdown(signum, frame):
+        logger.warning(
+            "Shutdown signal received: %s",
+            signum,
+    )
+
+        stop_event.set()
+
+    signal.signal(signal.SIGTERM, handle_shutdown)
+    signal.signal(signal.SIGINT, handle_shutdown)
 
     executor = ThreadPoolExecutor(
         max_workers=1,
         thread_name_prefix="resume-analysis",
     )
 
-    while True:
+    active_future = None
+
+    while not stop_event.is_set():
+
         connection = None
 
         try:
@@ -91,8 +161,6 @@ def run_consumer():
 
             channel.basic_qos(prefetch_count=1)
 
-            executor = ThreadPoolExecutor(max_workers=1)
-
             logger.info(
                 "Waiting for messages in %s",
                 settings.RABBITMQ_ANALYSIS_QUEUE,
@@ -101,9 +169,22 @@ def run_consumer():
             def on_message(ch, method, properties, body):
                 delivery_tag = method.delivery_tag
 
+                if stop_event.is_set():
+                    logger.info(
+                        "Shutdown requested; returning new delivery to RabbitMQ"
+                    )
+
+                    ch.basic_nack(
+                        delivery_tag=delivery_tag,
+                        requeue=True,
+                    )
+                    return
+
                 try:
                     job = json.loads(body)
-                    validate_job_envelope(job)\
+                    validate_job_envelope(job)
+
+                    job_id = job["job_id"]
 
                     try:
                         validate_analysis_job(job)
@@ -114,10 +195,9 @@ def run_consumer():
                             requeue=False,
                         )
                         return
-                    
-                    job_id = job["job_id"]
 
                     headers = properties.headers or {}
+                    
                     raw_retries = headers.get("hr-retries", 0)
 
                     try:
@@ -136,22 +216,82 @@ def run_consumer():
                         requeue=False,
                     )
                     return
+                
+                nonlocal active_future, delivery_in_progress
 
-                publish_json(
-                    channel,
-                    settings.RABBITMQ_PROGRESS_QUEUE,
-                    processing_event(job),
-                    f"{job_id}:processing",
+                delivery_in_progress = True
+
+                future = executor.submit(
+                    process_checked_job,
+                    job,
+                    stop_event,
                 )
+                active_future = future
 
-                future = executor.submit(process_job, job)
-
-                def on_done(future):
+                def on_done(
+                    future,
+                    session_connection=connection,
+                    session_channel=ch,
+                ):
                     result = None
                     retry_message = None
 
+                    skipped = False
+
+                    infrastructure_retry = False
+                    reject_message = False
+                    cancelled = False
+
                     try:
-                        result = future.result()
+                        outcome = future.result()
+
+                        if outcome["skipped"]:
+                            skipped = True
+                        else:
+                            result = outcome["result"]
+
+                    except JobCancelled:
+                        logger.info(
+                            "Resume analysis cancelled: job_id=%s",
+                            job_id,
+                        )
+                        cancelled = True        
+
+                    except JobStatusTemporaryError:
+                        logger.exception(
+                            "Backend temporarily unavailable: job_id=%s",
+                            job_id,
+                        )
+                        retry_message = job
+                        infrastructure_retry = True
+
+                    except JobStatusPermanentError:
+                        logger.exception(
+                            "Backend rejected job: job_id=%s",
+                            job_id,
+                        )
+                        reject_message = True 
+
+                    except (
+                        ModelUnavailable,
+                        ModelTimeout,
+                        DocumentTemporaryError,
+                        DownloadLinkTemporaryError,
+                    ):
+                        logger.exception(
+                            "Temporary infrastructure error: job_id=%s",
+                            job_id,
+                        )
+
+                        retry_message = job
+                        infrastructure_retry = True   
+
+                    except (DownloadLinkError, DocumentDownloadError):
+                        logger.exception(
+                            "Document access or configuration error: job_id=%s",
+                            job_id,
+                        )
+                        reject_message = True          
 
                     except Exception as exc:
                         logger.exception(
@@ -165,23 +305,70 @@ def run_consumer():
                             result = failed_result(job, exc)
 
                     def finish():
+
+                        nonlocal delivery_in_progress
+
                         try:
-                            if retry_message is not None:
-                                publish_retry(channel, retry_message, retries + 1)
+                            if skipped:
                                 logger.info(
-                                    "Retry scheduled: job_id=%s, retries=%s",
+                                    "Skipping job: %s",
                                     job_id,
+                                )
+
+                            elif cancelled:
+                                logger.info(
+                                    "Returning cancelled job to RabbitMQ: %s",
+                                    job_id,
+                                )
+
+                                session_channel.basic_nack(
+                                    delivery_tag=delivery_tag,
+                                    requeue=True,
+                                )
+
+                                delivery_in_progress = False
+                                return    
+
+                            elif reject_message:
+                                session_channel.basic_nack(
+                                    delivery_tag=delivery_tag,
+                                    requeue=False,
+                                )
+                                delivery_in_progress = False
+                                return
+
+                            elif infrastructure_retry:
+                                publish_retry(
+                                    session_channel,
+                                    retry_message,
+                                    retries,
+                                )
+
+                                logger.warning(
+                                    "Backend unavailable, retry scheduled: job_id=%s",
+                                    job_id,
+                                )
+
+                            elif retry_message is not None:
+                                publish_retry(
+                                    session_channel,
+                                    retry_message,
                                     retries + 1,
                                 )
+
                             else:
                                 publish_json(
-                                    channel,
+                                    session_channel,
                                     settings.RABBITMQ_RESULTS_QUEUE,
                                     result,
                                     job_id,
                                 )
 
-                            ch.basic_ack(delivery_tag=delivery_tag)
+                            session_channel.basic_ack(
+                                delivery_tag=delivery_tag,
+                            )
+
+                            delivery_in_progress = False
 
                         except Exception:
                             logger.exception(
@@ -189,12 +376,12 @@ def run_consumer():
                                 job_id,
                             )
 
-                            # Не отправляем ACK.
-                            # При закрытии канала RabbitMQ
-                            # вернёт неподтверждённое сообщение в очередь.
+                            # ACK не отправляем.
+                            # RabbitMQ повторно доставит сообщение
+                            # после закрытия канала.
                             try:
-                                if ch.is_open:
-                                    ch.close()
+                                if session_channel.is_open:
+                                    session_channel.close()
                             except Exception:
                                 logger.exception(
                                     "Could not close channel for job %s",
@@ -202,7 +389,7 @@ def run_consumer():
                                 )
 
                     try:
-                        connection.add_callback_threadsafe(finish)
+                        session_connection.add_callback_threadsafe(finish)
 
                     except pika.exceptions.ConnectionWrongStateError:
                         logger.error(
@@ -220,6 +407,52 @@ def run_consumer():
                 auto_ack=False,
             )
 
+            def check_shutdown():
+                if not stop_event.is_set():
+                    if connection.is_open:
+                        connection.call_later(1, check_shutdown)
+                    return
+
+                if delivery_in_progress:
+                    elapsed = (
+                        time.monotonic() - shutdown_started_at
+                        if shutdown_started_at is not None
+                        else 0
+                    )
+
+                    if elapsed < settings.SHUTDOWN_GRACE_SECONDS:
+                        logger.info(
+                            "Waiting for RabbitMQ delivery to finish: %.1fs",
+                            elapsed,
+                        )
+
+                        if connection.is_open:
+                            connection.call_later(1, check_shutdown)
+                        return
+
+                    logger.warning(
+                        "Shutdown timeout reached; closing RabbitMQ connection"
+                    )
+
+                    # ACK не отправляем: RabbitMQ сможет
+                    # повторно доставить неподтверждённое задание.
+                    if connection.is_open:
+                        connection.close()
+
+                    return
+
+                logger.info("Stopping RabbitMQ consumer")
+
+                if channel.is_open and channel.is_consuming:
+                    channel.stop_consuming()
+
+            connection.call_later(1, check_shutdown)
+
+            logger.info(
+                "Waiting for messages in %s",
+                settings.RABBITMQ_ANALYSIS_QUEUE,
+            )
+
             channel.start_consuming()
 
         except KeyboardInterrupt:
@@ -230,11 +463,30 @@ def run_consumer():
             logger.exception(
                 "RabbitMQ consumer disconnected; reconnecting"
             )
-            time.sleep(5)
 
         finally:
             if connection and connection.is_open:
                 connection.close()
+
+            if active_future is not None and not active_future.done():
+                logger.warning(
+                    "Waiting for active resume analysis before reconnecting"
+                )
+
+                try:
+                    active_future.result()
+                except Exception:
+                    logger.exception(
+                        "Previous resume analysis finished with error"
+                    )
+
+            active_future = None
+
+        if not stop_event.is_set():
+            stop_event.wait(5)
+
+    executor.shutdown(wait=True)
+    logger.info("Resume analyzer executor stopped")
 
 
 

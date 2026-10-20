@@ -11,10 +11,14 @@ from app.rank_models import (
     ProfileRequest,
     RequirementsRequest,
 )
+import threading
 from app.text_extractor import extract_text_from_file
 
 
 logger = logging.getLogger(__name__)
+
+class JobCancelled(Exception):
+    """Обработка остановлена по запросу завершения сервиса."""
 
 
 class JobValidationError(ValueError):
@@ -127,10 +131,19 @@ def validate_analysis_structure(
                 )
 
 
-def process_job(job: dict) -> dict:
+def process_job(
+    job: dict,
+    stop_event: threading.Event | None = None,
+) -> dict:
     """Скачивает резюме, анализирует и формирует completed result."""
 
     job_id = job["job_id"]
+
+    def check_cancelled():
+        if stop_event is not None and stop_event.is_set():
+            raise JobCancelled(
+                f"Resume analysis cancelled: job_id={job_id}"
+            )
 
     logger.info("Started resume analysis: job_id=%s", job_id)
 
@@ -138,24 +151,29 @@ def process_job(job: dict) -> dict:
     requirements = build_requirements(job)
 
     # 2. Скачиваем документ и проверяем SHA-256.
+    check_cancelled()
     document_bytes = download_document(job)
 
     # 3. Извлекаем текст документа.
+    check_cancelled()
     resume_text = extract_text_from_file(
         document_bytes,
         job["file"]["file_name"],
     )
 
     # 4. Извлекаем ФИО и телефон.
+    check_cancelled()
     candidate = extract_candidate(resume_text)
 
     # 5. Выполняем существующий анализ через Ollama.
+    check_cancelled()
     analysis_result = analyze_resume_text(
         resume_text=resume_text,
         requirements=requirements,
         job_id=job_id,
     )
 
+    check_cancelled()
     analysis = analysis_result.model_dump()
 
     # 6. Проверяем полноту результата.

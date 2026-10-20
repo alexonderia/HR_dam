@@ -7,7 +7,7 @@ class Settings:
     # Ollama
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen3.5:9b")
-    OLLAMA_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
+    OLLAMA_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))
 
     # Контекст
     OLLAMA_NUM_CTX: int = int(os.getenv("OLLAMA_NUM_CTX", "16384"))
@@ -43,5 +43,11 @@ class Settings:
         "RESUME_ANALYZER_CALLBACK_TOKEN",
         "",
     )
+
+    BACKEND_STATUS_TIMEOUT_SECONDS: float = float(
+        os.getenv("BACKEND_STATUS_TIMEOUT_SECONDS", "10")
+    )
+
+    SHUTDOWN_GRACE_SECONDS: float = 60.0
 
 settings = Settings()

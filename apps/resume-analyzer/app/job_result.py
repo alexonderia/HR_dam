@@ -3,6 +3,7 @@
 
 from datetime import datetime, timezone
 
+from app.analysis_service import InsufficientResumeTextError
 from app.document_loader import (
     DocumentDownloadError,
     DocumentIntegrityError,
@@ -51,10 +52,10 @@ def classify_error(exc: Exception) -> tuple[str, bool]:
         return "DOCUMENT_INTEGRITY_ERROR", False
 
     if isinstance(exc, DocumentDownloadError):
-        return "DOCUMENT_DOWNLOAD_ERROR", True
+        return "DOCUMENT_DOWNLOAD_ERROR", False
 
     if isinstance(exc, DownloadLinkError):
-        return "DOWNLOAD_LINK_ERROR", True
+        return "DOWNLOAD_LINK_ERROR", False
 
     if isinstance(exc, ModelUnavailable):
         return "MODEL_UNAVAILABLE", True
@@ -64,6 +65,9 @@ def classify_error(exc: Exception) -> tuple[str, bool]:
 
     if isinstance(exc, ModelResponseError):
         return "MODEL_RESPONSE_ERROR", True
+
+    if isinstance(exc, InsufficientResumeTextError):
+        return "TEXT_EXTRACTION_FAILED", False
 
     if isinstance(exc, (JobValidationError, ValueError)):
         return "INVALID_JOB", False
@@ -86,6 +90,7 @@ def failed_result(job: dict, exc: Exception) -> dict:
         "MODEL_UNAVAILABLE": "Модель временно недоступна.",
         "MODEL_TIMEOUT": "Превышено время ожидания модели.",
         "MODEL_RESPONSE_ERROR": "Модель вернула некорректный ответ.",
+        "TEXT_EXTRACTION_FAILED": InsufficientResumeTextError.message,
         "INVALID_JOB": "Некорректное задание анализа.",
         "INTERNAL_ERROR": "Внутренняя ошибка обработки.",
     }

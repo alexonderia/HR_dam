@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 
-from app.analysis_service import analyze_resume_text
+from app.analysis_service import analyze_resume_text, InsufficientResumeTextError
 from app.logging_config import setup_logging, get_logger, get_diagnostic_logger, log_event
 from app.ollama_client import (
     ModelUnavailable,
@@ -144,7 +144,7 @@ def rank_resume(
         log_event(logger, logging.WARNING, "rank_job_insufficient_text",
                   job_id=job_id,
                   text_length_chars=len(resume_text))
-        raise HTTPException(status_code=422, detail="Не удалось извлечь достаточно текста")
+        raise HTTPException(status_code=422, detail=InsufficientResumeTextError.message)
 
     # Диагностический лог: извлечённый текст резюме
     log_event(diag_logger, logging.DEBUG, "resume_text_extracted",
