@@ -23,6 +23,7 @@ import { ResumePreview } from "./ResumePreview";
 import { ExportDialog } from "./ExportDialog";
 import { BlacklistAction, CandidateWorkflow } from "./CandidateActions";
 import { StopFactorTag } from "./StopFactorTag";
+import { ContactRecovery, ContactSources } from "./ContactRecovery";
 
 export function CandidateDetails({
   candidateId,
@@ -119,6 +120,8 @@ export function CandidateDetails({
             </div>
           </div>
           <ErrorMessage message={error} />
+          {candidate.contact_extraction?.warnings.map(warning => <p key={warning} role="status">{warning}</p>)}
+          <ContactSources candidate={candidate} />
           {candidate.blacklisted && (
             <div className="af-alert af-alert--warning notice">
               <ShieldAlert size={19} />
@@ -131,6 +134,7 @@ export function CandidateDetails({
           <div className="candidate-controls">
             <CandidateWorkflow key={candidate.id} candidate={candidate} />
             <div className="toolbar candidate-management">
+              <ContactRecovery key={candidate.resume_id} resumeId={candidate.resume_id} />
               <Button
                 secondary
                 disabled={busy || !!retryRestriction}

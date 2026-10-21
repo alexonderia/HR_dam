@@ -1,53 +1,53 @@
-"""Главный модуль FastAPI приложения."""
+"""One analyzer process with HTTP control endpoints and one selected adapter."""
 
+import asyncio
 import json
 import logging
-import os
 import threading
-import time
 import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 
-from app.analysis_service import analyze_resume_text, InsufficientResumeTextError
-from app.logging_config import setup_logging, get_logger, get_diagnostic_logger, log_event
-from app.ollama_client import (
-    ModelUnavailable,
-    ModelTimeout,
-    ModelResponseError,
-    DEFAULT_TIMEOUT,
-)
-from app.rank_models import (
-    RequirementsRequest,
-    RankResponse,
-    ClusterResponse,
-    ProfileResponse,
-)
-from app.scoring import rank_profile, ContextFitError
-from app.readiness import is_ready, mark_ready, model_lock, monitor, PROBE_TIMEOUT
-from app.text_extractor import extract_text_from_file
+from app.analysis_service import analyze_resume_text
+from app.config import settings
+from app.errors import JobValidationError
+from app.job_result import http_error
+from app.logging_config import setup_logging, get_logger
+from app.pipeline import process_document
+from app.rank_models import RequirementsRequest, ContactsResponse, RankWithContactsResponse
+from app.readiness import is_ready, mark_ready, monitor
+from app.resume_document import prepare_resume_document
+from app.runtime import runtime_status, update_runtime
 
-# Инициализация логирования при старте приложения
 setup_logging()
-
 logger = get_logger("app.main")
-diag_logger = get_diagnostic_logger()
-
-RANK_TIMEOUT = float(os.getenv("RANK_TIMEOUT_SECONDS", "840"))
 
 
 @asynccontextmanager
 async def lifespan(_app):
+    settings.validate()
     stop = threading.Event()
     mark_ready(False)
-    thread = threading.Thread(target=monitor, args=(stop,), daemon=True)
-    thread.start()
+    update_runtime(stopping=False, broker_connected=False, consumer_alive=False, busy=False)
+    threads = [threading.Thread(target=monitor, args=(stop,), daemon=True, name="model-readiness")]
+    if settings.ANALYZER_ADAPTER == "amqp":
+        from app.consumer import run_consumer
+        threads.append(threading.Thread(target=run_consumer, args=(stop,), daemon=True, name="amqp-consumer"))
+    for thread in threads:
+        thread.start()
     try:
         yield
     finally:
+        update_runtime(stopping=True)
         stop.set()
+        for thread in reversed(threads):
+            await asyncio.to_thread(thread.join, settings.SHUTDOWN_GRACE_SECONDS)
+            if thread.is_alive():
+                logger.error("Service thread did not stop within shutdown grace: %s", thread.name)
+        mark_ready(False)
+        update_runtime(broker_connected=False, consumer_alive=False, busy=False, stopping=False)
 
 
 app = FastAPI(title="Resume Analyzer API", lifespan=lifespan)
@@ -56,171 +56,45 @@ app = FastAPI(title="Resume Analyzer API", lifespan=lifespan)
 @app.get("/")
 @app.get("/health")
 def health_check():
-    """Проверка, что API работает."""
+    state = runtime_status(is_ready())
+    if not state["alive"]:
+        return JSONResponse(status_code=503, content={"ok": False, **state})
     return {"ok": True}
+
+
+@app.get("/status")
+def status():
+    return runtime_status(is_ready())
+
 
 @app.get("/ready")
 def readiness():
-    """Проверка готовности сервиса принимать задачи."""
-    available = is_ready()
-    return JSONResponse(status_code=200 if available else 503,
-                        content={"available": available})
+    state = status()
+    return JSONResponse(status_code=200 if state["available"] else 503, content=state)
 
-@app.post("/rank", response_model=RankResponse)
-def rank_resume(
-    file: UploadFile = File(...),
-    requirements: str = Form(...),
-):
-    """
-    Принимает файл резюме и требования, возвращает оценки по профилям.
-    """
-    # Blocking extraction/model calls run in FastAPI's thread pool so status stays responsive.
-    job_id = str(uuid.uuid4())
-    job_started_at = time.time()
 
-    log_event(logger, logging.INFO, "rank_job_started",
-              job_id=job_id,
-              filename=file.filename,
-              content_type=file.content_type)
-
-    # ── Парсинг требований ──────────────────────────────────────────────
+@app.post("/contacts", response_model=ContactsResponse)
+def resume_contacts(file: UploadFile = File(...)):
     try:
-        requirements_data = json.loads(requirements)
-        requirements_obj = RequirementsRequest.model_validate(requirements_data)
-    except (ValueError, TypeError) as exc:
-        log_event(logger, logging.WARNING, "rank_job_invalid_requirements",
-                  job_id=job_id, error=str(exc))
-        raise HTTPException(status_code=422, detail=f"Невалидные требования: {exc}")
-
-    total_profiles = sum(len(c.profiles) for c in requirements_obj.clusters)
-    if not total_profiles:
-        raise HTTPException(status_code=422, detail="Нет профилей для анализа.")
-    if not is_ready():
-        raise HTTPException(status_code=503, detail="Модель недоступна. Повторите анализ позже.")
-
-    log_event(logger, logging.INFO, "requirements_parsed",
-              job_id=job_id,
-              clusters_count=len(requirements_obj.clusters),
-              profiles_count=total_profiles)
-
-    # Диагностический лог: полный набор требований
-    log_event(diag_logger, logging.DEBUG, "requirements_full",
-              job_id=job_id,
-              requirements=requirements_data)
-
-    # ── Чтение файла ────────────────────────────────────────────────────
-    try:
-        file_bytes = file.file.read()
+        _, contacts = prepare_resume_document(file.file.read(), file.filename or "resume")
+        return ContactsResponse.model_validate(contacts)
     except Exception as exc:
-        log_event(logger, logging.ERROR, "rank_job_file_read_failed",
-                  job_id=job_id, error=str(exc))
-        raise HTTPException(status_code=500, detail="Ошибка чтения файла")
+        status_code, message = http_error(exc)
+        raise HTTPException(status_code=status_code, detail=message) from exc
 
-    log_event(logger, logging.INFO, "file_received",
-              job_id=job_id,
-              filename=file.filename,
-              size_bytes=len(file_bytes))
 
-    # ── Извлечение текста ───────────────────────────────────────────────
-    extract_started_at = time.time()
-
-    log_event(logger, logging.INFO, "text_extraction_started", job_id=job_id)
-
+@app.post("/rank", response_model=RankWithContactsResponse)
+def rank_resume(file: UploadFile = File(...), requirements: str = Form(...)):
+    if settings.ANALYZER_ADAPTER != "http":
+        raise HTTPException(status_code=409, detail="HTTP scoring adapter is disabled; ANALYZER_ADAPTER=amqp")
     try:
-        resume_text = extract_text_from_file(file_bytes, file.filename or "resume")
+        try:
+            parsed = RequirementsRequest.model_validate(json.loads(requirements))
+        except (ValueError, TypeError) as exc:
+            raise JobValidationError("Invalid requirements") from exc
+        return process_document(file.file.read(), file.filename or "resume", parsed, str(uuid.uuid4()), analyze=analyze_resume_text)
     except Exception as exc:
-        log_event(logger, logging.ERROR, "text_extraction_failed",
-                  job_id=job_id, error=str(exc))
-        raise HTTPException(status_code=422, detail=str(exc))
-
-    extract_duration = time.time() - extract_started_at
-
-    log_event(logger, logging.INFO, "text_extraction_completed",
-              job_id=job_id,
-              duration_sec=round(extract_duration, 2),
-              text_length_chars=len(resume_text))
-
-    if not resume_text or len(resume_text.strip()) < 50:
-        log_event(logger, logging.WARNING, "rank_job_insufficient_text",
-                  job_id=job_id,
-                  text_length_chars=len(resume_text))
-        raise HTTPException(status_code=422, detail=InsufficientResumeTextError.message)
-
-    # Диагностический лог: извлечённый текст резюме
-    log_event(diag_logger, logging.DEBUG, "resume_text_extracted",
-              job_id=job_id,
-              text_length_chars=len(resume_text),
-              text_preview=resume_text[:2000])
-
-    # ── Оценка по профилям ──────────────────────────────────────────────
-
-    try:
-        result = analyze_resume_text(
-            resume_text=resume_text,
-            requirements=requirements_obj,
-            job_id=job_id,
-        )
-
-    except ModelUnavailable as exc:
-        log_event(
-            logger,
-            logging.ERROR,
-            "profile_ranking_failed",
-            job_id=job_id,
-            error=str(exc),
-        )
-        raise HTTPException(
-            status_code=503,
-            detail="Сервис модели временно недоступен",
-        ) from exc
-
-    except ModelTimeout as exc:
-        log_event(
-            logger,
-            logging.ERROR,
-            "profile_ranking_timeout",
-            job_id=job_id,
-            error=str(exc),
-        )
-        raise HTTPException(
-            status_code=504,
-            detail="Превышено время ожидания ответа модели",
-        ) from exc
-
-    except ModelResponseError as exc:
-        log_event(
-            logger,
-            logging.ERROR,
-            "profile_ranking_invalid_response",
-            job_id=job_id,
-            error=str(exc),
-        )
-        raise HTTPException(
-            status_code=502,
-            detail="Модель вернула некорректный ответ",
-        ) from exc
-
-    except ContextFitError as exc:
-        log_event(
-            logger,
-            logging.WARNING,
-            "profile_ranking_context_error",
-            job_id=job_id,
-            error=str(exc),
-        )
-        raise HTTPException(
-            status_code=422,
-            detail=str(exc),
-        ) from exc
-
-
-    # ── Завершение задания ──────────────────────────────────────────────
-    total_duration = time.time() - job_started_at
-
-    log_event(logger, logging.INFO, "rank_job_completed",
-              job_id=job_id,
-              total_duration_sec=round(total_duration, 2),
-              profiles_total=total_profiles,
-              profiles_failed=0)
-
-    return result
+        status_code, message = http_error(exc)
+        logger.log(logging.WARNING if status_code < 500 else logging.ERROR,
+                   "HTTP analysis stopped: %s", type(exc).__name__)
+        raise HTTPException(status_code=status_code, detail=message) from exc

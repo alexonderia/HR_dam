@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { analysisJobSchema, type AnalysisJob, moscowTimestamp } from "@hr/contracts";
 import { getFile, getAnalysisStatus, publishQueue, queues, getImportJobState,
   PermanentQueueError, QueuePausedError, rankBridgeEnabled, startQueueConsumer } from "@hr/data-access";
-import { extractDocumentText } from "@hr/documents";
 import { analyzeResume, AnalysisError } from "./analysis.js";
 import { config } from "./config.js";
 
@@ -21,18 +20,17 @@ export async function rankQueuedResume(input: unknown) {
   await publishQueue(queues.progress, { ...envelope(job), stage: "processing", created_at: new Date().toISOString() }, `${job.job_id}:processing`);
   let analysisStarted: number | undefined;
   try {
-    const legacy = ["application/msword", "application/rtf", "text/plain"].includes(job.file.mime_type);
-    const content = legacy ? Buffer.from(await extractDocumentText(buffer, job.file.mime_type), "utf8") : buffer;
-    const file = new Blob([new Uint8Array(content)], { type: legacy ? "text/plain" : job.file.mime_type });
+    const file = new Blob([new Uint8Array(buffer)], { type: job.file.mime_type });
     analysisStarted = performance.now();
-    const analysis = await analyzeResume(job.requirements, file, legacy ? "resume.txt" : job.file.file_name, config,
+    const analysis = await analyzeResume(job.requirements, file, job.file.file_name, config,
       event => console.info(JSON.stringify({ timestamp: moscowTimestamp(), event: `rank_bridge_${event.type}`, job_id: job.job_id, ...event })));
-    // /rank currently returns ratings only. Unknown identity remains null.
-    await publishQueue(queues.results, { ...envelope(job), status: "completed", candidate: job.file.candidate_hint, analysis,
-      analysis_duration_ms: Math.round(performance.now() - analysisStarted) }, job.job_id);
+    await publishQueue(queues.results, { ...envelope(job), status: "completed", candidate: analysis.candidate ?? job.file.candidate_hint,
+      contact_details: analysis.contact_details, analysis,
+      analysis_duration_ms: analysis.analysis_duration_ms ?? Math.round(performance.now() - analysisStarted) }, job.job_id);
   } catch (error) {
     if (!(error instanceof AnalysisError)) throw error;
-    if ((error.kind === "network" && error.retryable) || error.httpStatus === 429 || error.httpStatus === 503)
+    if ((error.kind === "network" && error.retryable) || error.kind === "timeout" ||
+        error.httpStatus === 429 || error.httpStatus === 503 || error.httpStatus === 504)
       throw new QueuePausedError("HTTP analyzer is temporarily unavailable");
     await publishQueue(queues.results, { ...envelope(job), status: "failed",
       analysis_duration_ms: analysisStarted == null ? undefined : Math.round(performance.now() - analysisStarted),

@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { importResultSchema, importEventSchema, identityKey, fullName, validateRankResponse,
+import { importResultSchema, importEventSchema, identityKey, fullName, validateRankResponse, contactsResponseSchema,
   assessmentCompletedMessage, importAnalysisTiming, type ImportResult, type ImportFile, type ImportManifest, type ImportEvent } from "@hr/contracts";
 import { transaction, pool, readImportLedger, latestItemEvent, publishImportEvent, startQueueConsumer,
   queues, PermanentQueueError, MissingImportError, blacklistMatchSql } from "@hr/data-access";
+import { emptyPerson, manualContactFields, planContactUpdate } from "./contact-policy.js";
+import { lockContactWrites, writeContactPlan } from "./contact-persistence.js";
+import { HttpError } from "./errors.js";
 
 async function trustedJob(result: Pick<ImportResult, "batch_id" | "item_id" | "job_id" | "attempt">) {
   const { manifest, events } = await readImportLedger(result.batch_id).catch(error => {
@@ -19,10 +22,13 @@ async function persistResult(manifest: ImportManifest, file: ImportFile, result:
   let rank: ReturnType<typeof validateRankResponse>;
   try { rank = validateRankResponse(result.analysis, manifest.requirements); }
   catch { throw new PermanentQueueError("Обработчик вернул некорректное обоснование оценки."); }
-  const person = { ...result.candidate };
-  for (const key of ["last_name", "first_name", "middle_name", "phone"] as const)
-    if (file.candidate_hint[key]) person[key] = file.candidate_hint[key];
+  if (result.contact_details && !contactsResponseSchema.safeParse(result).success)
+    throw new PermanentQueueError("Контакты не подтверждены источником.");
+  const manual = manualContactFields(file);
+  const initial = planContactUpdate(emptyPerson(), result.candidate, result.contact_details, file.file_id, file.candidate_hint, manual, true);
+  const person = initial.values;
   return transaction(async client => {
+    await lockContactWrites(client);
     const existingReceipt = await client.query(`SELECT r.id AS resume_id,r.candidate_id FROM resume_events e
       JOIN resumes r ON r.id=e.resume_id WHERE e.id=$1 AND e.event_type='scored'`, [result.job_id]);
     if (existingReceipt.rows[0]) return { ...existingReceipt.rows[0], warning: undefined };
@@ -38,6 +44,9 @@ async function persistResult(manifest: ImportManifest, file: ImportFile, result:
       if (!row || row.file_id !== file.file_id || !row.lease_matches)
         throw new PermanentQueueError("Резюме изменилось после отправки на оценку. Запустите новую обработку.");
       candidateId = row.candidate_id; resumeId = row.id;
+      const currentContacts = await client.query("SELECT * FROM candidates WHERE id=$1 FOR UPDATE", [candidateId]);
+      await writeContactPlan(client, candidateId, planContactUpdate(currentContacts.rows[0], result.candidate,
+        result.contact_details, file.file_id));
     } else {
       const matched = await client.query(`SELECT c.* FROM candidates c WHERE c.phone=$1 OR ($2::boolean AND
         lower(replace(c.last_name,'ё','е'))=$3 AND lower(replace(c.first_name,'ё','е'))=$4 AND
@@ -53,11 +62,10 @@ async function persistResult(manifest: ImportManifest, file: ImportFile, result:
       const current = currentResume?.rows[0];
       if (current?.status === "in_process") throw new PermanentQueueError("Кандидат в процессе отбора. Замена резюме запрещена.");
       resumeId = current?.id || randomUUID(); replacing = Boolean(current);
-      if (!same) await client.query(`INSERT INTO candidates(id,phone,last_name,first_name,middle_name,created_at,updated_at)
-        VALUES($1,$2,$3,$4,$5,now(),now())`, [candidateId, person.phone, person.last_name, person.first_name, person.middle_name]);
-      else await client.query(`UPDATE candidates SET phone=coalesce(phone,$2),last_name=coalesce(last_name,$3),
-        first_name=coalesce(first_name,$4),middle_name=coalesce(middle_name,$5),updated_at=now() WHERE id=$1`,
-        [candidateId, person.phone, person.last_name, person.first_name, person.middle_name]);
+      if (!same) await client.query(`INSERT INTO candidates(id,phone,last_name,first_name,middle_name,contact_provenance,created_at,updated_at)
+        VALUES($1,$2,$3,$4,$5,$6,now(),now())`, [candidateId, person.phone, person.last_name, person.first_name, person.middle_name, JSON.stringify(initial.provenance)]);
+      else await writeContactPlan(client, candidateId, planContactUpdate(same, result.candidate, result.contact_details,
+        file.file_id, file.candidate_hint, manual));
       await client.query(`INSERT INTO files(id,bucket,object_key,file_name,mime_type,size_bytes,file_sha256,created_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,now())`, [file.file_id, file.bucket, file.object_key, file.file_name, file.mime_type, file.size_bytes, file.sha256]);
       if (current) await client.query("UPDATE resumes SET file_id=$2,status='in_work',scoring_status='completed',updated_at=now() WHERE id=$1", [resumeId, file.file_id]);
@@ -66,6 +74,7 @@ async function persistResult(manifest: ImportManifest, file: ImportFile, result:
       await client.query(`INSERT INTO resume_events(id,resume_id,event_type,message,created_at) VALUES($1,$2,$3,$4,now())`,
         [randomUUID(), resumeId, replacing ? "replaced" : "uploaded", replacing ? "Найдено ранее загруженное резюме. Текущее резюме обновлено." : "Резюме загружено и обработано."]);
     }
+    await client.query("UPDATE resumes SET contact_extraction=$2 WHERE id=$1", [resumeId, JSON.stringify(result.contact_details ?? null)]);
     const blacklisted = await client.query(`SELECT EXISTS(SELECT 1 FROM candidates c JOIN candidate_blacklist b
       ON b.is_active AND ${blacklistMatchSql} WHERE c.id=$1) AS matched`, [candidateId]);
     const warning = blacklisted.rows[0].matched ? "Кандидат найден в чёрном списке. Требуется ручная проверка." : undefined;
@@ -124,6 +133,7 @@ export async function processImportResult(input: unknown) {
   try { receipt = await persistResult(job.manifest, job.file, result, timing.analysis_duration_ms); }
   catch (error) {
     if (error instanceof PermanentQueueError) throw error;
+    if (error instanceof HttpError && error.status === 409) throw new PermanentQueueError(error.message);
     if (error instanceof Error && /неполный|некорректный набор|профилей/.test(error.message)) throw new PermanentQueueError(error.message);
     throw error;
   }

@@ -94,11 +94,18 @@ class AnalysisJob(BaseModel):
     file: ResumeFile
     requirements: list[Cluster] = Field(min_length=1)
 
-    @field_validator("version")
+    @field_validator("version", mode="before")
     @classmethod
     def validate_version(cls, value):
-        if value != 1:
+        if type(value) is not int or value != 1:
             raise ValueError("Unsupported job version")
+        return value
+
+    @field_validator("attempt", mode="before")
+    @classmethod
+    def validate_attempt(cls, value):
+        if type(value) is not int:
+            raise ValueError("Invalid attempt")
         return value
 
     @model_validator(mode="after")

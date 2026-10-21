@@ -298,7 +298,9 @@ class AnalyzerTests(unittest.TestCase):
             mark_ready(available)
             response = readiness()
             self.assertEqual(response.status_code, 200 if available else 503)
-            self.assertEqual(json.loads(response.body), {"available": available})
+            self.assertEqual(json.loads(response.body)["available"], available)
+            self.assertEqual(json.loads(response.body)["model_ready"], available)
+            self.assertFalse(json.loads(response.body)["busy"])
             self.assertEqual(health_check(), {"ok": True})
 
     
@@ -403,7 +405,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             with patch("app.main.monitor", side_effect=fake_monitor):
                 async with lifespan(app):
                     self.assertTrue(await asyncio.to_thread(started.wait, 1))
-                    self.assertEqual(json.loads(readiness().body), {"available": True})
+                    self.assertTrue(json.loads(readiness().body)["available"])
                 self.assertTrue(await asyncio.to_thread(stopped.wait, 1))
         finally:
             mark_ready(False)
