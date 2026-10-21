@@ -68,5 +68,48 @@ class ClusterResponse(BaseModel):
     profiles: list[ProfileResponse]
 
 
+class ExtractedCandidate(BaseModel):
+    last_name: str | None = None
+    first_name: str | None = None
+    middle_name: str | None = None
+    phone: str | None = None
+
+
+class ContactSource(BaseModel):
+    source: Literal["resume_text"]
+    confidence: Literal["high", "medium"]
+    quote: str = Field(min_length=1, max_length=4000)
+    line_start: int = Field(ge=1)
+    line_end: int = Field(ge=1)
+
+
+class ContactFields(BaseModel):
+    last_name: ContactSource | None
+    first_name: ContactSource | None
+    middle_name: ContactSource | None
+    phone: ContactSource | None
+
+
+class ContactDetails(BaseModel):
+    version: Literal[1]
+    method: Literal["rules-ru-v1"]
+    text_status: Literal["present", "no_text"]
+    name_status: Literal["extracted", "not_found", "ambiguous"]
+    phone_status: Literal["extracted", "not_found", "unsupported", "ambiguous"]
+    fields: ContactFields
+    warnings: list[str]
+
+
+class ContactsResponse(BaseModel):
+    candidate: ExtractedCandidate
+    contact_details: ContactDetails
+
+
 class RankResponse(BaseModel):
     clusters: list[ClusterResponse]
+
+
+class RankWithContactsResponse(RankResponse):
+    candidate: ExtractedCandidate
+    contact_details: ContactDetails
+    analysis_duration_ms: int = Field(ge=0, le=2147483647)

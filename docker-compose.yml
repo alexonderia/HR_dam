@@ -39,11 +39,13 @@ services:
       CLAMAV_HOST: clamav
       RESUME_ANALYZER_URL: ${RESUME_ANALYZER_URL:-http://resume-analyzer:8000/rank}
       RESUME_ANALYZER_READY_URL: ${RESUME_ANALYZER_READY_URL:-}
+      RESUME_ANALYZER_CONTACTS_URL: ${RESUME_ANALYZER_CONTACTS_URL:-}
       RESUME_ANALYZER_TIMEOUT_MS: ${RESUME_ANALYZER_TIMEOUT_MS:-900000}
       WORKER_HEALTH_URL: http://worker:3003/health
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-false}
-      RANK_BRIDGE_ENABLED: ${RANK_BRIDGE_ENABLED:-false}
+      ANALYZER_ADAPTER: ${ANALYZER_ADAPTER:-http}
+      RANK_BRIDGE_ENABLED: ${RANK_BRIDGE_ENABLED:-true}
       RABBITMQ_USER: ${RABBITMQ_USER:-hr_dam}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
       RABBITMQ_VHOST: /
@@ -98,11 +100,22 @@ services:
       context: ./apps/resume-analyzer
     environment:
       <<: *moscow-environment
+      ANALYZER_ADAPTER: ${ANALYZER_ADAPTER:-http}
+      RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-false}
+      RANK_BRIDGE_ENABLED: ${RANK_BRIDGE_ENABLED:-true}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-hr_dam}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
+      RABBITMQ_VHOST: /
+      BACKEND_BASE_URL: http://backend:3001
+      RESUME_ANALYZER_CALLBACK_TOKEN: ${RESUME_ANALYZER_CALLBACK_TOKEN:-}
+      SHUTDOWN_GRACE_SECONDS: ${SHUTDOWN_GRACE_SECONDS:-210}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:9b}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-180}
       RANK_TIMEOUT_SECONDS: ${RANK_TIMEOUT_SECONDS:-840}
-      MODEL_PROBE_TIMEOUT_SECONDS: ${MODEL_PROBE_TIMEOUT_SECONDS:-60}
+      MODEL_PROBE_TIMEOUT_SECONDS: ${MODEL_PROBE_TIMEOUT_SECONDS:-10}
       MODEL_PROBE_INTERVAL_SECONDS: ${MODEL_PROBE_INTERVAL_SECONDS:-15}
       LOG_DIR: /app/logs
       DIAGNOSTIC_LOGS_ENABLED: ${DIAGNOSTIC_LOGS_ENABLED:-true}
@@ -119,48 +132,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
-    restart: unless-stopped
-
-  resume-analyzer-consumer:
-    profiles: [broker]
-    container_name: hr_dam-resume-analyzer-consumer
-    image: hr-dam-resume-analyzer:local
-
     stop_grace_period: 240s
-
-    build:
-      context: ./apps/resume-analyzer
-
-    command: ["python", "-m", "app.consumer"]
-
-    environment:
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:9b}
-      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-180}
-      RANK_TIMEOUT_SECONDS: ${RANK_TIMEOUT_SECONDS:-840}
-
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-hr_dam}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
-      RABBITMQ_VHOST: /
-
-      BACKEND_BASE_URL: http://backend:3001
-      RESUME_ANALYZER_CALLBACK_TOKEN: ${RESUME_ANALYZER_CALLBACK_TOKEN:-}
-      LOG_DIR: /app/logs
-
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-    networks: [infrastructure]
-
-    volumes:
-      - ./logs/resume-analyzer-consumer:/app/logs
-
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
     restart: unless-stopped
 
   # Model download/readiness is independent of API and frontend startup.
@@ -203,7 +175,7 @@ services:
     environment:
       <<: *moscow-environment
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:9b}
     entrypoint: [/bin/sh, /init/model.sh]
     volumes:
       - ./infra/ollama/model.sh:/init/model.sh:ro

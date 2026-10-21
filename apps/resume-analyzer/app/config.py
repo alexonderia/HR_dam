@@ -3,11 +3,24 @@
 import os
 
 
+def boolean_setting(name: str, default: bool) -> bool:
+    value = os.getenv(name, "").strip()
+    if not value:
+        return default
+    if value not in ("true", "false"):
+        raise ValueError(f"{name} must be true or false")
+    return value == "true"
+
+
 class Settings:
+    ANALYZER_ADAPTER: str = os.getenv("ANALYZER_ADAPTER", "http")
     # Ollama
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen3.5:9b")
-    OLLAMA_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))
+    OLLAMA_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "180"))
+    RANK_TIMEOUT_SECONDS: float = float(os.getenv("RANK_TIMEOUT_SECONDS", "840"))
+    MODEL_PROBE_INTERVAL_SECONDS: float = float(os.getenv("MODEL_PROBE_INTERVAL_SECONDS", "15"))
+    MODEL_PROBE_TIMEOUT_SECONDS: float = float(os.getenv("MODEL_PROBE_TIMEOUT_SECONDS", "10"))
 
     # Контекст
     OLLAMA_NUM_CTX: int = int(os.getenv("OLLAMA_NUM_CTX", "16384"))
@@ -48,6 +61,24 @@ class Settings:
         os.getenv("BACKEND_STATUS_TIMEOUT_SECONDS", "10")
     )
 
-    SHUTDOWN_GRACE_SECONDS: float = 60.0
+    SHUTDOWN_GRACE_SECONDS: float = float(os.getenv("SHUTDOWN_GRACE_SECONDS", "210"))
+
+    def validate(self):
+        if self.ANALYZER_ADAPTER not in ("http", "amqp"):
+            raise ValueError("ANALYZER_ADAPTER must be http or amqp")
+        broker = boolean_setting("RABBITMQ_ENABLED", False)
+        bridge = boolean_setting("RANK_BRIDGE_ENABLED", self.ANALYZER_ADAPTER == "http")
+        if self.ANALYZER_ADAPTER == "amqp" and (bridge or not broker):
+            raise ValueError("AMQP analyzer requires RABBITMQ_ENABLED=true and RANK_BRIDGE_ENABLED=false")
+        if self.ANALYZER_ADAPTER == "http" and not bridge:
+            raise ValueError("HTTP analyzer requires RANK_BRIDGE_ENABLED=true")
+        if any(int(os.getenv(key, "1")) != 1 for key in ("WEB_CONCURRENCY", "UVICORN_WORKERS")):
+            raise ValueError("Analyzer supports one process; multiple workers require external model coordination")
+        if self.ANALYZER_ADAPTER == "amqp" and not self.RESUME_ANALYZER_CALLBACK_TOKEN:
+            raise ValueError("AMQP analyzer requires RESUME_ANALYZER_CALLBACK_TOKEN")
+        for key in ("OLLAMA_TIMEOUT_SECONDS", "RANK_TIMEOUT_SECONDS", "MODEL_PROBE_INTERVAL_SECONDS",
+                    "MODEL_PROBE_TIMEOUT_SECONDS", "SHUTDOWN_GRACE_SECONDS"):
+            if not 0 < getattr(self, key) < float("inf"):
+                raise ValueError(f"{key} must be finite and positive")
 
 settings = Settings()

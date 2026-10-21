@@ -1,4 +1,5 @@
 export * from "./domain.js";
+export * from "./contacts.js";
 export * from "./rank.js";
 export * from "./evidence.js";
 export * from "./matrix.js";
