@@ -151,7 +151,7 @@ export function Modal({
     </dialog>
   );
 }
-export function Score({ value, upperValue }: { value?: number; upperValue?: number }) {
+export function Score({ value }: { value?: number }) {
   if (value === undefined)
     return (
       <span className="no-score" aria-label="Оценка отсутствует">
@@ -160,12 +160,10 @@ export function Score({ value, upperValue }: { value?: number; upperValue?: numb
     );
   return (
     <span
-      className={`score ${upperValue !== undefined && upperValue !== value ? "uncertain" : value >= 75 ? "high" : value >= 45 ? "medium" : "low"}`}
-      title={upperValue !== undefined && upperValue !== value ? "Нижняя граница подтверждена резюме. Верхняя зависит от сведений, требующих уточнения." : undefined}
+      className={`score ${value >= 75 ? "high" : value >= 45 ? "medium" : "low"}`}
     >
       <span>
-        {Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}
-        {upperValue !== undefined && upperValue !== value && `–${upperValue.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}`}
+        {Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 2 })}
       </span>
       <i style={{ width: `${value}%` }} />
     </span>

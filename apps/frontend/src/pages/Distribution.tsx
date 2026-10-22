@@ -16,7 +16,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useData } from "../lib/store";
-import { fullName, clusterScore, clusterScoreRange, ratingEvidence, matrixColumns } from "@hr/contracts";
+import { fullName, clusterScore, ratingScore, matrixColumns } from "@hr/contracts";
 import {
   Button,
   CandidateStatus,
@@ -288,8 +288,7 @@ export function Distribution() {
                           aria-label={`${profile?.position_name || cluster.name}: детали рейтинга`}
                           onClick={() => openCandidate(candidate.id, cluster.id, profile?.id)}
                         >
-                          <Score value={profile ? candidate.ratings.find(r => r.profile_id === profile.id)?.score : clusterScore(candidate, cluster)}
-                            upperValue={profile ? ratingEvidence(candidate.ratings.find(r => r.profile_id === profile.id))?.score_range.max : clusterScoreRange(candidate, cluster)?.max} />
+                          <Score value={profile ? (() => { const rating = candidate.ratings.find(r => r.profile_id === profile.id); return rating ? ratingScore(rating) : undefined; })() : clusterScore(candidate, cluster)} />
                         </button>
                     </td>
                   ))}

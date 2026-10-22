@@ -1,7 +1,17 @@
-import { contactFields, identityKey, type ContactDetails, type ContactField, type ContactProvenance,
+import { contactFields, extractedPersonSchema, identityKey, type ContactDetails, type ContactField, type ContactProvenance,
   type ExtractedPerson, type ImportFile } from "@hr/contracts";
 
 export const emptyPerson = (): ExtractedPerson => ({ last_name: null, first_name: null, middle_name: null, phone: null });
+export function snapshotContactHint(current: ExtractedPerson): ExtractedPerson {
+  // Legacy contacts can predate validation. Omit invalid transport hints while
+  // keeping the stored contacts protected by the existing contact policy.
+  const hint = emptyPerson();
+  for (const field of contactFields) {
+    const parsed = extractedPersonSchema.shape[field].safeParse(current[field]);
+    hint[field] = parsed.success ? parsed.data : null;
+  }
+  return hint;
+}
 export const contactLabels: Record<ContactField, string> = {
   last_name: "Фамилия", first_name: "Имя", middle_name: "Отчество", phone: "Телефон",
 };

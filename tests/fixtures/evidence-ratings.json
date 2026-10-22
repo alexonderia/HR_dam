@@ -703,5 +703,1739 @@
         }
       ]
     }
+  },
+  {
+    "name": "range_v2_22_87",
+    "kind": "synthetic_contract_fixture",
+    "source": "Postman. DevTools. Swagger. Чек-листы.",
+    "requirements": [
+      {
+        "id": "c00000f0-0000-4000-8000-000000000001",
+        "profiles": [
+          {
+            "id": "d00000f0-0000-4000-8000-000000000001",
+            "position_name": "QA",
+            "education": null,
+            "experience": "1-3 года",
+            "keywords": [
+              "Postman",
+              "DevTools",
+              "Swagger",
+              "тест-кейсы",
+              "чек-листы",
+              "баг репорты",
+              "отчёты о тестировании",
+              "регресс-тестирование",
+              "тестирования ПО (SDLC/STLC)",
+              "тестовая документация."
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "c00000f0-0000-4000-8000-000000000001",
+          "profiles": [
+            {
+              "id": "d00000f0-0000-4000-8000-000000000001",
+              "score": 22.87,
+              "matched_keywords": [
+                "Postman",
+                "DevTools",
+                "Swagger",
+                "чек-листы"
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: Postman — «Postman»; DevTools — «DevTools»; Swagger — «Swagger»; чек-листы — «Чек-листы».\nТребует уточнения: тест-кейсы; баг репорты; отчёты о тестировании; регресс-тестирование; тестирования ПО (SDLC/STLC); тестовая документация.; 1-3 года.\nДиапазон оценки по данным резюме: 22.87–42.87/100; охват проверенными критериями — 22.87%. Неизвестные сведения не означают отсутствие компетенции.\nШирина диапазона ограничена правилом оценки: не более 20 баллов. Неизвестные требования остаются на уточнение.",
+              "details": {
+                "method": "evidence-v2",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "8aef7837b42a3d9ef9e201a96fe7074c1fdbbcb3cd8a96d3b404a6e3bd80a0f0",
+                "source_text_length": 38,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Postman",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Postman",
+                        "start": 0,
+                        "end": 7
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "DevTools",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "DevTools",
+                        "start": 9,
+                        "end": 17
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "Swagger",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Swagger",
+                        "start": 19,
+                        "end": 26
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:3:0",
+                    "category": "keyword",
+                    "requirement": "тест-кейсы",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:4:0",
+                    "category": "keyword",
+                    "requirement": "чек-листы",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Чек-листы",
+                        "start": 28,
+                        "end": 37
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:5:0",
+                    "category": "keyword",
+                    "requirement": "баг репорты",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:6:0",
+                    "category": "keyword",
+                    "requirement": "отчёты о тестировании",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:7:0",
+                    "category": "keyword",
+                    "requirement": "регресс-тестирование",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:8:0",
+                    "category": "keyword",
+                    "requirement": "тестирования ПО (SDLC/STLC)",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:9:0",
+                    "category": "keyword",
+                    "requirement": "тестовая документация.",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "1-3 года",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 4286,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "required_months": 12,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 22.87,
+                "score_range": {
+                  "min": 22.87,
+                  "max": 42.87
+                },
+                "full_score_range": {
+                  "min": 22.87,
+                  "max": 100.0
+                },
+                "range_limit": 20,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "range_v2_qa_word_forms",
+    "kind": "synthetic_contract_fixture",
+    "source": "2 года 2 месяца\nQA-инженер. Создавал баг-репорты. Организовал процесс регрессионного тестирования. Вёл тестовую документацию.",
+    "requirements": [
+      {
+        "id": "c00000f0-0000-4000-8000-000000000002",
+        "profiles": [
+          {
+            "id": "d00000f0-0000-4000-8000-000000000002",
+            "position_name": "QA",
+            "education": null,
+            "experience": "1-3 года",
+            "keywords": [
+              "баг репорты",
+              "регресс-тестирование",
+              "тестовая документация."
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "c00000f0-0000-4000-8000-000000000002",
+          "profiles": [
+            {
+              "id": "d00000f0-0000-4000-8000-000000000002",
+              "score": 100.0,
+              "matched_keywords": [
+                "баг репорты",
+                "регресс-тестирование",
+                "тестовая документация."
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: баг репорты — «Создавал баг-репорты»; регресс-тестирование — «Организовал процесс регрессионного тестирования»; тестовая документация. — «Вёл тестовую документацию»; 1-3 года — в приведённых сведениях 2 года 2 месяца, требуется не менее 1 года — «2 года 2 месяца».\nДиапазон оценки по данным резюме: 100–100/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v2",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "c8cd0f731e5352c60424a2f1a4de83cafc146e02528261fd7b0c2370940274c7",
+                "source_text_length": 125,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "баг репорты",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1905,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Создавал баг-репорты",
+                        "start": 28,
+                        "end": 48
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "регресс-тестирование",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1905,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Организовал процесс регрессионного тестирования",
+                        "start": 50,
+                        "end": 97
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "тестовая документация.",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1905,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Вёл тестовую документацию",
+                        "start": 99,
+                        "end": 124
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "1-3 года",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 4285,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "2 года 2 месяца",
+                        "start": 0,
+                        "end": 15
+                      },
+                      {
+                        "quote": "QA-инженер",
+                        "start": 16,
+                        "end": 26
+                      }
+                    ],
+                    "credit": 1,
+                    "experience_months": 26,
+                    "required_months": 12,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 100.0,
+                  "max": 100.0
+                },
+                "full_score_range": {
+                  "min": 100.0,
+                  "max": 100.0
+                },
+                "range_limit": 20,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "range_v2_insufficient",
+    "kind": "synthetic_contract_fixture",
+    "source": "Опыт продаж.",
+    "requirements": [
+      {
+        "id": "c00000f0-0000-4000-8000-000000000003",
+        "profiles": [
+          {
+            "id": "d00000f0-0000-4000-8000-000000000003",
+            "position_name": "QA",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "SQL"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "c00000f0-0000-4000-8000-000000000003",
+          "profiles": [
+            {
+              "id": "d00000f0-0000-4000-8000-000000000003",
+              "score": 0.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Требует уточнения: SQL.\nДиапазон оценки по данным резюме: 0–20/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.\nШирина диапазона ограничена правилом оценки: не более 20 баллов. Неизвестные требования остаются на уточнение.\nНедостаточно подтверждений для оценки компетенций кандидата.",
+              "details": {
+                "method": "evidence-v2",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "fc75a622bbd834a1c37e3f709dec89259f5d00dae23ef856a4c0b61e9af4b250",
+                "source_text_length": 12,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 0.0,
+                "score_range": {
+                  "min": 0.0,
+                  "max": 20.0
+                },
+                "full_score_range": {
+                  "min": 0.0,
+                  "max": 100.0
+                },
+                "range_limit": 20,
+                "stop_penalty": 0,
+                "score_status": "insufficient_evidence"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_mironova_unsupported_stack",
+    "kind": "synthetic_contract_fixture",
+    "source": "Филология. Преподаватель. Canva, Tilda, PowerPoint.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "Python",
+              "Pandas",
+              "Tableau",
+              "Power BI",
+              "React",
+              "TypeScript"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 10.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Требует уточнения: Python; Pandas; Tableau; Power BI; React; TypeScript.\nОценка по данным резюме: 10/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.\nНедостаточно подтверждений для оценки компетенций кандидата.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "9e42962ee177ba967af34d4dc33ee7be65a0aedbc1cee228b4ff40260d861a62",
+                "source_text_length": 51,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "Pandas",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "Tableau",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:3:0",
+                    "category": "keyword",
+                    "requirement": "Power BI",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:4:0",
+                    "category": "keyword",
+                    "requirement": "React",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1666,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:5:0",
+                    "category": "keyword",
+                    "requirement": "TypeScript",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1666,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 0.0,
+                "stop_penalty": 0,
+                "score_status": "insufficient_evidence"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_moskalenko_15_of_36_months",
+    "kind": "synthetic_contract_fixture",
+    "source": "Опыт работы — 1 год 3 месяца. Android-разработчик — 1 год 3 месяца.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 41.67,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Частичное соответствие: От 3 лет — в приведённых сведениях 1 год 3 месяца, требуется не менее 3 лет — «Android-разработчик — 1 год 3 месяца».\nОценка по данным резюме: 41.67/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "b9d3d314952c099a2afcfef2eb430305d9f82fc81ce373a7022602e58a51527e",
+                "source_text_length": 67,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "partial",
+                    "evidence": [
+                      {
+                        "quote": "Android-разработчик — 1 год 3 месяца",
+                        "start": 30,
+                        "end": 66
+                      },
+                      {
+                        "quote": "Опыт работы — 1 год 3 месяца",
+                        "start": 0,
+                        "end": 28
+                      }
+                    ],
+                    "credit": 0.4166666666666667,
+                    "experience_months": 15,
+                    "required_months": 36,
+                    "total_experience_months": 15,
+                    "possible_credit": 0.4166666666666667
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_unknown_is_not_absent",
+    "kind": "synthetic_contract_fixture",
+    "source": "SQL. Готов переехать в Татарстан.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "SQL",
+              "Python"
+            ],
+            "stop_factors": [
+              "Отказ от переезда в Татарстан"
+            ],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 60.0,
+              "matched_keywords": [
+                "SQL"
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: SQL — «SQL».\nТребует уточнения: Python.\nСтоп-факторы требуют уточнения, штраф не применён: Отказ от переезда в Татарстан.\nОценка по данным резюме: 60/100; охват проверенными критериями — 50%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "5139b69d93aaa8aa900cdd2ab5fefe5c06a1d9d523bcb3dc3a7dd4dcc7c567a2",
+                "source_text_length": 33,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "SQL",
+                        "start": 0,
+                        "end": 3
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [
+                  {
+                    "id": "stop:0",
+                    "requirement": "Отказ от переезда в Татарстан",
+                    "status": "unknown",
+                    "evidence": [],
+                    "penalty": 0,
+                    "duplicates": []
+                  }
+                ],
+                "coverage": 50.0,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_no_double_penalty",
+    "kind": "synthetic_contract_fixture",
+    "source": "Нет Python. SQL.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "Python",
+              "SQL"
+            ],
+            "stop_factors": [
+              "Нет Python"
+            ],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 50.0,
+              "matched_keywords": [
+                "SQL"
+              ],
+              "triggered_stop_factors": [
+                "Нет Python"
+              ],
+              "explanation": "Подтверждено: SQL — «SQL».\nПодтверждённое несоответствие: Python — «Нет Python».\nПодтверждённые стоп-факторы: Нет Python — «Нет Python».\nОценка по данным резюме: 50/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "d0dfeb7b6596cb7c4bfd137783d50f2dcf8aeeb7bd5a6691febfcdd56c1852de",
+                "source_text_length": 16,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "not_met",
+                    "evidence": [
+                      {
+                        "quote": "Нет Python",
+                        "start": 0,
+                        "end": 10
+                      }
+                    ],
+                    "credit": 0,
+                    "possible_credit": 0
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "SQL",
+                        "start": 12,
+                        "end": 15
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [
+                  {
+                    "id": "stop:0",
+                    "requirement": "Нет Python",
+                    "status": "triggered",
+                    "evidence": [
+                      {
+                        "quote": "Нет Python",
+                        "start": 0,
+                        "end": 10
+                      }
+                    ],
+                    "penalty": 0,
+                    "duplicates": [
+                      "keyword:0:0"
+                    ]
+                  }
+                ],
+                "coverage": 100.0,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_optional_mba",
+    "kind": "synthetic_contract_fixture",
+    "source": "Бакалавр филологии.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": "Высшее, MBA приветствуется",
+            "experience": null,
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 100.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: Высшее — «Бакалавр филологии».\nТребует уточнения: MBA приветствуется (желательное требование, на балл не влияет).\nОценка по данным резюме: 100/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "9ce37a264fe285cd1dcf388210db06c9edca986111b93ef9da44e53c3e199231",
+                "source_text_length": 19,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "education:0",
+                    "category": "education",
+                    "requirement": "Высшее",
+                    "source": "education",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Бакалавр филологии",
+                        "start": 0,
+                        "end": 18
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "education:1",
+                    "category": "education",
+                    "requirement": "MBA приветствуется",
+                    "source": "education",
+                    "optional": true,
+                    "weight": 0,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_unicode_and_weight_remainders",
+    "kind": "synthetic_contract_fixture",
+    "source": "🙂 SQL. Python. Не знаю Java.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет",
+            "keywords": [
+              "SQL",
+              "Python",
+              "Java",
+              "Go",
+              "React",
+              "CSS",
+              "HTML"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 26.34,
+              "matched_keywords": [
+                "SQL",
+                "Python"
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: SQL — «🙂 SQL»; Python — «Python».\nПодтверждённое несоответствие: Java — «Не знаю Java».\nТребует уточнения: Go; React; CSS; HTML; От 3 лет.\nОценка по данным резюме: 26.34/100; охват проверенными критериями — 24.5%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "a6afeb47a4e23e85c8f9a2ab51a291e380b9bafb226032dd55502b35851eb2ce",
+                "source_text_length": 28,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 817,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "🙂 SQL",
+                        "start": 0,
+                        "end": 5
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 817,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Python",
+                        "start": 7,
+                        "end": 13
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "Java",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "not_met",
+                    "evidence": [
+                      {
+                        "quote": "Не знаю Java",
+                        "start": 15,
+                        "end": 27
+                      }
+                    ],
+                    "credit": 0,
+                    "possible_credit": 0
+                  },
+                  {
+                    "id": "keyword:3:0",
+                    "category": "keyword",
+                    "requirement": "Go",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:4:0",
+                    "category": "keyword",
+                    "requirement": "React",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:5:0",
+                    "category": "keyword",
+                    "requirement": "CSS",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:6:0",
+                    "category": "keyword",
+                    "requirement": "HTML",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 4286,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "required_months": 36,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 24.5,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_range_v2_22_87",
+    "kind": "synthetic_contract_fixture",
+    "source": "Postman. DevTools. Swagger. Чек-листы.",
+    "requirements": [
+      {
+        "id": "c00000f0-0000-4000-8000-000000000001",
+        "profiles": [
+          {
+            "id": "d00000f0-0000-4000-8000-000000000001",
+            "position_name": "QA",
+            "education": null,
+            "experience": "1-3 года",
+            "keywords": [
+              "Postman",
+              "DevTools",
+              "Swagger",
+              "тест-кейсы",
+              "чек-листы",
+              "баг репорты",
+              "отчёты о тестировании",
+              "регресс-тестирование",
+              "тестирования ПО (SDLC/STLC)",
+              "тестовая документация."
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "c00000f0-0000-4000-8000-000000000001",
+          "profiles": [
+            {
+              "id": "d00000f0-0000-4000-8000-000000000001",
+              "score": 32.87,
+              "matched_keywords": [
+                "Postman",
+                "DevTools",
+                "Swagger",
+                "чек-листы"
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: Postman — «Postman»; DevTools — «DevTools»; Swagger — «Swagger»; чек-листы — «Чек-листы».\nТребует уточнения: тест-кейсы; баг репорты; отчёты о тестировании; регресс-тестирование; тестирования ПО (SDLC/STLC); тестовая документация.; 1-3 года.\nОценка по данным резюме: 32.87/100; охват проверенными критериями — 22.87%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "8aef7837b42a3d9ef9e201a96fe7074c1fdbbcb3cd8a96d3b404a6e3bd80a0f0",
+                "source_text_length": 38,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Postman",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Postman",
+                        "start": 0,
+                        "end": 7
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "DevTools",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "DevTools",
+                        "start": 9,
+                        "end": 17
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "Swagger",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Swagger",
+                        "start": 19,
+                        "end": 26
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:3:0",
+                    "category": "keyword",
+                    "requirement": "тест-кейсы",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 572,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:4:0",
+                    "category": "keyword",
+                    "requirement": "чек-листы",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Чек-листы",
+                        "start": 28,
+                        "end": 37
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:5:0",
+                    "category": "keyword",
+                    "requirement": "баг репорты",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:6:0",
+                    "category": "keyword",
+                    "requirement": "отчёты о тестировании",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:7:0",
+                    "category": "keyword",
+                    "requirement": "регресс-тестирование",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:8:0",
+                    "category": "keyword",
+                    "requirement": "тестирования ПО (SDLC/STLC)",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:9:0",
+                    "category": "keyword",
+                    "requirement": "тестовая документация.",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 571,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "1-3 года",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 4286,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "required_months": 12,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 22.87,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_range_v2_qa_word_forms",
+    "kind": "synthetic_contract_fixture",
+    "source": "2 года 2 месяца\nQA-инженер. Создавал баг-репорты. Организовал процесс регрессионного тестирования. Вёл тестовую документацию.",
+    "requirements": [
+      {
+        "id": "c00000f0-0000-4000-8000-000000000002",
+        "profiles": [
+          {
+            "id": "d00000f0-0000-4000-8000-000000000002",
+            "position_name": "QA",
+            "education": null,
+            "experience": "1-3 года",
+            "keywords": [
+              "баг репорты",
+              "регресс-тестирование",
+              "тестовая документация."
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "c00000f0-0000-4000-8000-000000000002",
+          "profiles": [
+            {
+              "id": "d00000f0-0000-4000-8000-000000000002",
+              "score": 100.0,
+              "matched_keywords": [
+                "баг репорты",
+                "регресс-тестирование",
+                "тестовая документация."
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: баг репорты — «Создавал баг-репорты»; регресс-тестирование — «Организовал процесс регрессионного тестирования»; тестовая документация. — «Вёл тестовую документацию»; 1-3 года — в приведённых сведениях 2 года 2 месяца, требуется не менее 1 года — «2 года 2 месяца».\nОценка по данным резюме: 100/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "c8cd0f731e5352c60424a2f1a4de83cafc146e02528261fd7b0c2370940274c7",
+                "source_text_length": 125,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "баг репорты",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1905,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Создавал баг-репорты",
+                        "start": 28,
+                        "end": 48
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "регресс-тестирование",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1905,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Организовал процесс регрессионного тестирования",
+                        "start": 50,
+                        "end": 97
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "тестовая документация.",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1905,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Вёл тестовую документацию",
+                        "start": 99,
+                        "end": 124
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "1-3 года",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 4285,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "2 года 2 месяца",
+                        "start": 0,
+                        "end": 15
+                      },
+                      {
+                        "quote": "QA-инженер",
+                        "start": 16,
+                        "end": 26
+                      }
+                    ],
+                    "credit": 1,
+                    "experience_months": 26,
+                    "required_months": 12,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_range_v2_insufficient",
+    "kind": "synthetic_contract_fixture",
+    "source": "Опыт продаж.",
+    "requirements": [
+      {
+        "id": "c00000f0-0000-4000-8000-000000000003",
+        "profiles": [
+          {
+            "id": "d00000f0-0000-4000-8000-000000000003",
+            "position_name": "QA",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "SQL"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "c00000f0-0000-4000-8000-000000000003",
+          "profiles": [
+            {
+              "id": "d00000f0-0000-4000-8000-000000000003",
+              "score": 10.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Требует уточнения: SQL.\nОценка по данным резюме: 10/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.\nНедостаточно подтверждений для оценки компетенций кандидата.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "fc75a622bbd834a1c37e3f709dec89259f5d00dae23ef856a4c0b61e9af4b250",
+                "source_text_length": 12,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 0.0,
+                "stop_penalty": 0,
+                "score_status": "insufficient_evidence"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "midpoint_v3_narrow_rounding",
+    "source": "Skill0. Skill1. Skill2. Skill3. Skill4",
+    "requirements": [
+      {
+        "id": "c00000f3-0000-4000-8000-000000000001",
+        "profiles": [
+          {
+            "id": "d00000f3-0000-4000-8000-000000000001",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "Skill0",
+              "Skill1",
+              "Skill2",
+              "Skill3",
+              "Skill4",
+              "Skill5"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "c00000f3-0000-4000-8000-000000000001",
+          "profiles": [
+            {
+              "id": "d00000f3-0000-4000-8000-000000000001",
+              "score": 91.67,
+              "matched_keywords": [
+                "Skill0",
+                "Skill1",
+                "Skill2",
+                "Skill3",
+                "Skill4"
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: Skill0 — «Skill0»; Skill1 — «Skill1»; Skill2 — «Skill2»; Skill3 — «Skill3»; Skill4 — «Skill4».\nТребует уточнения: Skill5.\nОценка по данным резюме: 91.67/100; охват проверенными критериями — 83.34%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v3",
+                "policy_version": "evidence-v3",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "82a8851e021c43298e3687bc6b889ebe0660179163fcc41f7eb1a167f0e9a475",
+                "source_text_length": 38,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Skill0",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Skill0",
+                        "start": 0,
+                        "end": 6
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "Skill1",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Skill1",
+                        "start": 8,
+                        "end": 14
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "Skill2",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Skill2",
+                        "start": 16,
+                        "end": 22
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:3:0",
+                    "category": "keyword",
+                    "requirement": "Skill3",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Skill3",
+                        "start": 24,
+                        "end": 30
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:4:0",
+                    "category": "keyword",
+                    "requirement": "Skill4",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1666,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Skill4",
+                        "start": 32,
+                        "end": 38
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:5:0",
+                    "category": "keyword",
+                    "requirement": "Skill5",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1666,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 83.34,
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
   }
 ]

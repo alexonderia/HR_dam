@@ -183,12 +183,15 @@ try {
     assert.equal((await publisher.checkQueue(queues.analysis)).messageCount, 0, "Rejected retry must not enqueue analysis");
   }
   await pool.query("UPDATE resumes SET status='in_work' WHERE id=$1", [retryResumeId]);
+  const legacyPhone = "+799912345678";
+  await pool.query("UPDATE candidates SET phone=$2 WHERE id=(SELECT candidate_id FROM resumes WHERE id=$1)", [retryResumeId, legacyPhone]);
   const retryBatch = await request<ResumeImportDetail>(`/resumes/${retryResumeId}/retry`, { method: "POST" }, 202);
   batchIds.push(retryBatch.id);
   await waitFor(() => publisher.checkQueue(queues.analysis), q => q.messageCount === 1, "Existing resume did not enter RabbitMQ");
   message = await publisher.get(queues.analysis, { noAck: false }); assert.ok(message);
   job = analysisJobSchema.parse(JSON.parse(message.content.toString()));
   assert.equal(job.file.target_resume_id, done.items[0].resume_id);
+  assert.equal(job.file.candidate_hint.phone, null, "Invalid legacy contacts must not block re-evaluation");
   assert.deepEqual(await jobState(job), { status: "pending", should_process: true }, "A completed candidate must not suppress a new assessment job");
   await publishQueue(queues.results, { version: 1, job_id: job.job_id, batch_id: job.batch_id, item_id: job.item_id,
     attempt: job.attempt, status: "failed", error: { code: "analysis_failed", message: "Test retry failure" } }, job.job_id);
@@ -212,6 +215,8 @@ try {
   await waitFor(() => request<ResumeImportDetail>(`/resume-imports/${retryBatch.id}`), d => d.processed_files === 1, "Re-evaluation not applied");
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM candidates")).rows[0].n, 3, "Re-evaluation created another candidate");
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM profile_ratings")).rows[0].n, 3);
+  assert.equal((await pool.query("SELECT c.phone FROM candidates c JOIN resumes r ON r.candidate_id=c.id WHERE r.id=$1", [retryResumeId])).rows[0].phone,
+    legacyPhone, "Re-evaluation must preserve the stored legacy phone");
   const { reconcilePendingResumes } = await import("../apps/backend/src/imports.js");
   await pool.query("UPDATE resumes SET scoring_status='pending',updated_at=now() WHERE id=$1", [done.items[0].resume_id]);
   await reconcilePendingResumes(); await reconcilePendingResumes();
@@ -243,6 +248,7 @@ try {
   job = analysisJobSchema.parse(JSON.parse(message.content.toString())); batchIds.push(job.batch_id);
   assert.deepEqual(job.requirements.map(cluster => cluster.id), [addedCluster.id]);
   assert.deepEqual(job.file.assessment_cluster_ids, [addedCluster.id]);
+  assert.equal(job.file.candidate_hint.phone, null, "Scoped reassessment must tolerate invalid legacy contacts too");
   assert.equal((await updates()).ready_resume_count, 0, "Notice remains while analysis runs");
   assert.equal((await reassess([addedCluster.id])).queued_resumes, 0, "Repeated clicks must not duplicate pending work");
   await request(`/profiles/${addedProfile.id}`, jsonPost({ ...addedProfile, experience: "Changed during assessment" }, "PUT"));

@@ -9,20 +9,36 @@ const criterionSchema = z.object({
   credit: z.number().min(0).max(1), possible_credit: z.number().min(0).max(1), experience_months: z.number().int().nonnegative().optional(),
   required_months: z.number().int().positive().optional(), total_experience_months: z.number().int().nonnegative().optional(),
 }).strict();
-export const evidenceDetailsSchema = z.object({
-  method: z.literal("evidence-v1"), policy_version: z.literal("evidence-v1"), policy_status: z.literal("provisional"),
+const scoreRangeSchema = z.object({ min: z.number().min(0).max(100), max: z.number().min(0).max(100) }).strict();
+const RANGE_LIMIT = 20;
+const evidenceDetailsBase = z.object({
+  policy_status: z.literal("provisional"),
   model: z.string(), source_text_sha256: z.string().regex(/^[a-f0-9]{64}$/), source_text_length: z.number().int().nonnegative(),
   context_truncated: z.boolean(), criteria: z.array(criterionSchema).max(1000),
   stop_factors: z.array(z.object({ id: z.string(), requirement: z.string(), status: z.enum(["triggered", "not_triggered", "unknown"]),
     evidence: z.array(quotationSchema).max(3), penalty: z.union([z.literal(0), z.literal(10)]), duplicates: z.array(z.string()), }).strict()).max(100),
-  coverage: z.number().min(0).max(100), score_range: z.object({ min: z.number().min(0).max(100), max: z.number().min(0).max(100) }).strict(),
+  coverage: z.number().min(0).max(100),
   stop_penalty: z.number().min(0).max(30), score_status: z.enum(["evaluated", "insufficient_evidence"]),
 }).strict();
+export const evidenceDetailsSchema = z.discriminatedUnion("method", [
+  evidenceDetailsBase.extend({ method: z.literal("evidence-v1"), policy_version: z.literal("evidence-v1"), score_range: scoreRangeSchema }),
+  evidenceDetailsBase.extend({ method: z.literal("evidence-v2"), policy_version: z.literal("evidence-v2"),
+    score_range: scoreRangeSchema, full_score_range: scoreRangeSchema, range_limit: z.literal(RANGE_LIMIT) }),
+  evidenceDetailsBase.extend({ method: z.literal("evidence-v3"), policy_version: z.literal("evidence-v3") }),
+]);
 export type EvidenceDetails = z.infer<typeof evidenceDetailsSchema>;
 type EvidenceProfile = { keywords?: string[]; experience?: string | null; education?: string | null; comment?: string | null; stop_factors?: string[] };
 type CriterionInput = Pick<EvidenceDetails["criteria"][number], "id" | "category" | "requirement" | "source" | "optional" | "weight">;
 const optional = /желатель\w*|приветству\w*|будет\s+плюсом|не\s+обязател\w*/iu;
 const normalize = (text: string) => text.trim().toLowerCase().replaceAll("ё", "е").replace(/\s+/gu, " ");
+const skillAliases: Record<string, string[]> = {
+  sql: ["SQL", "MS SQL", "T-SQL", "MSSQL"], "rest api": ["REST API", "RESTful API"],
+  "тест-кейсы": ["тест-кейсы", "тест-кейс", "тест-кейсов", "тест-кейсами", "тест кейсы", "test cases", "test case"],
+  "баг репорты": ["баг репорты", "баг-репорты", "баг-репортов", "баг-репортами", "багрепорты", "bug reports", "bug report"],
+  "отчеты о тестировании": ["отчеты о тестировании", "отчёты о тестировании", "отчет о тестировании", "отчёт о тестировании", "тестовые отчеты", "тестовые отчёты", "test reports", "test report"],
+  "регресс-тестирование": ["регресс-тестирование", "регресс тестирование", "регрессионное тестирование", "регрессионного тестирования", "регрессионным тестированием", "regression testing"],
+  "тестовая документация": ["тестовая документация", "тестовую документацию", "тестовой документации", "тестовой документацией", "test documentation"],
+};
 
 export function compileRatingCriteria(profile: EvidenceProfile, clusterComment = ""): CriterionInput[] {
   const criteria: CriterionInput[] = [];
@@ -73,6 +89,16 @@ export function minimumExperienceMonths(requirement: string): number | undefined
 }
 const intersects = (a: Set<string>, b: Set<string>) => [...a].some(token => b.has(token));
 const roundScore = (value: number) => Math.round(Math.max(0, Math.min(100, value)) * 100) / 100;
+const midpoint = (min: number, max: number) => roundScore((min + max) / 2);
+function evidenceScore(data: EvidenceDetails): number {
+  if (data.method !== "evidence-v3") return midpoint(data.score_range.min, data.score_range.max);
+  const points = data.criteria.reduce((sum, c) => sum + c.weight * c.credit, 0) / 100;
+  const unknown = data.criteria.filter(c => c.status === "unknown").reduce((sum, c) => sum + c.weight * c.possible_credit, 0) / 100;
+  const weighted = data.criteria.some(c => c.weight);
+  const min = weighted ? roundScore(points - data.stop_penalty) : 0;
+  const max = weighted ? roundScore(points + unknown - data.stop_penalty) : 100;
+  return midpoint(min, Math.min(max, roundScore(min + RANGE_LIMIT)));
+}
 const reject = (): never => { throw new Error("Обработчик вернул некорректное обоснование оценки."); };
 
 export function validateEvidenceRating(rating: { score: number; matched_keywords?: string[]; triggered_stop_factors?: string[]; details?: unknown },
@@ -85,7 +111,10 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
     if (!input || Object.entries(input).some(([key, value]) => criterion[key as keyof typeof input] !== value)) reject();
     if (criterion.status !== "unknown" && !criterion.evidence.length) reject();
     if (criterion.category === "keyword" && criterion.status !== "unknown") {
-      const aliases = ({ sql: ["SQL", "MS SQL", "T-SQL", "MSSQL"], "rest api": ["REST API", "RESTful API"] } as Record<string, string[]>)[normalize(criterion.requirement)] || [criterion.requirement];
+      const term = criterion.requirement.trim().replace(/[.;]+$/u, "");
+      if (!term) reject();
+      const aliases = Object.entries(skillAliases).find(([name, variants]) => name === normalize(term) ||
+        variants.some(alias => normalize(alias) === normalize(term)))?.[1] || [term];
       const containsSkill = criterion.evidence.some(e => aliases.some(alias => {
         const escaped = normalize(alias).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&").replace(/ /gu, "\\s+");
         return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, "u").test(normalize(e.quote));
@@ -130,22 +159,36 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
   const points = data.criteria.reduce((sum, c) => sum + c.weight * c.credit, 0) / 100;
   const unknown = data.criteria.filter(c => c.status === "unknown").reduce((sum, c) => sum + c.weight * c.possible_credit, 0) / 100;
   const weighted = data.criteria.some(c => c.weight);
-  const range = { min: weighted ? roundScore(points - penalty) : 0, max: weighted ? roundScore(points + unknown - penalty) : 100 };
+  const fullRange = { min: weighted ? roundScore(points - penalty) : 0, max: weighted ? roundScore(points + unknown - penalty) : 100 };
+  const range = data.method === "evidence-v2"
+    ? { min: fullRange.min, max: Math.min(fullRange.max, roundScore(fullRange.min + RANGE_LIMIT)) } : fullRange;
+  if (data.method === "evidence-v2" && (data.full_score_range.min !== fullRange.min || data.full_score_range.max !== fullRange.max)) reject();
   const coverage = roundScore(data.criteria.filter(c => c.status !== "unknown").reduce((sum, c) => sum + c.weight, 0) / 100);
-  if (Math.abs(rating.score - range.min) > .001 || data.score_range.min !== range.min || data.score_range.max !== range.max || data.coverage !== coverage || data.stop_penalty !== penalty ||
+  const expectedScore = data.method === "evidence-v3" ? evidenceScore(data) : range.min;
+  if (data.method !== "evidence-v3" && (data.score_range.min !== range.min || data.score_range.max !== range.max)) reject();
+  if (Math.abs(rating.score - expectedScore) > .001 || data.coverage !== coverage || data.stop_penalty !== penalty ||
     data.score_status !== (coverage ? "evaluated" : "insufficient_evidence")) reject();
   return data;
 }
 
 export function ratingEvidence(rating?: { details?: unknown }): EvidenceDetails | undefined {
-  if (!rating || (rating.details as { method?: string } | undefined)?.method !== "evidence-v1") return;
+  if (!rating || !["evidence-v1", "evidence-v2", "evidence-v3"].includes((rating.details as { method?: string } | undefined)?.method || "")) return;
   const parsed = evidenceDetailsSchema.safeParse(rating.details);
   return parsed.success ? parsed.data : undefined;
 }
 
+export function ratingScore(rating: { score: number; details?: unknown }): number {
+  const data = ratingEvidence(rating);
+  return data && data.method !== "evidence-v3" ? evidenceScore(data) : Number(rating.score);
+}
+
 export function ratingScoreText(rating: { score: number; details?: unknown }): string {
-  const range = ratingEvidence(rating)?.score_range;
-  return range && range.min !== range.max ? `${range.min}–${range.max}` : String(rating.score);
+  return String(ratingScore(rating));
+}
+
+export function ratingExplanation(rating: { details?: unknown; explanation?: string }): string {
+  const data = ratingEvidence(rating);
+  return data ? explainEvidenceRating(data) : rating.explanation || "";
 }
 
 export function explainEvidenceRating(data: EvidenceDetails): string {
@@ -176,7 +219,9 @@ export function explainEvidenceRating(data: EvidenceDetails): string {
   if (triggered.length) lines.push("Подтверждённые стоп-факторы: " + triggered.map(s => s.requirement + " — «" + s.evidence[0].quote + "»").join("; ") + ".");
   const unknown = data.stop_factors.filter(s => s.status === "unknown");
   if (unknown.length) lines.push("Стоп-факторы требуют уточнения, штраф не применён: " + unknown.map(s => s.requirement).join("; ") + ".");
-  lines.push(`Диапазон соответствия по доступным сведениям: ${data.score_range.min}–${data.score_range.max}/100; охват проверенными критериями — ${data.coverage}%. Неизвестные сведения не означают отсутствие компетенции.`);
+  lines.push(`Оценка по данным резюме: ${evidenceScore(data)}/100; охват проверенными критериями — ${data.coverage}%. Неизвестные сведения не означают отсутствие компетенции.`);
+  if (!data.coverage)
+    lines.push("Недостаточно подтверждений для оценки компетенций кандидата.");
   if (data.context_truncated) lines.push("Оценён только фрагмент резюме из-за ограничения контекста; оставшиеся сведения требуют проверки.");
   return lines.join("\n");
 }

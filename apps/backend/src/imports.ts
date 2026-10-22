@@ -5,6 +5,7 @@ import { extractResumeArchive, multipartFileName } from "./archive.js";
 import { validateFile, scanFile, hashFile } from "./files.js";
 import { config } from "./config.js";
 import { HttpError } from "./errors.js";
+import { snapshotContactHint } from "./contact-policy.js";
 
 export async function activeRequirements() {
   const clusters = (await getClusters()).filter(c => c.is_active)
@@ -142,7 +143,7 @@ export async function enqueueExistingResume(resumeId: string, options: { recover
     const manifest: ImportManifest = { version: 1, id, archive_name: row.file_name, created_at: new Date().toISOString(), requirements, ignored_files: [], items: [{
       id: randomUUID(), file_id: row.file_id, source_path: row.file_name, file_name: row.file_name, mime_type: row.mime_type,
       size_bytes: Number(row.size_bytes), sha256: row.file_sha256, bucket: row.bucket, object_key: row.object_key,
-      candidate_hint: extractedPersonSchema.parse(row), candidate_hint_source: "snapshot", manual_contact_fields: [],
+      candidate_hint: snapshotContactHint(row), candidate_hint_source: "snapshot", manual_contact_fields: [],
       target_resume_id: resumeId, target_updated_at: update.rows[0].lease,
       ...(options.clusterIds ? { assessment_cluster_ids: requirements.map(cluster => cluster.id) } : {}),
     }] };

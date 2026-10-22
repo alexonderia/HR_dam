@@ -17,7 +17,7 @@ from app.ollama_client import (
     ModelTimeout,
     ModelResponseError,
 )
-from app.rank_models import ProfileRequest
+from app.rank_models import ProfileRequest, RankResponse
 from app.scoring import (
     parse_ranking_response,
     rank_profile,
@@ -25,17 +25,20 @@ from app.scoring import (
     ContextFitError,
 )
 from app.readiness import mark_ready, model_lock, monitor
+from app.analysis_checkpoints import analysis_checkpoints
 from app.text_extractor import extract_text_from_file
 
 
 class AnalyzerTests(unittest.TestCase):
     def setUp(self):
+        analysis_checkpoints.clear()
         mark_ready(True)
         self.profile = ProfileRequest(id="profile", position_name="Р Р°Р·СЂР°Р±РѕС‚С‡РёРє", keywords=["Python"])
         self.requirements = json.dumps({"clusters": [{"id": "cluster", "name": "РРў",
             "comment": "РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ", "profiles": [self.profile.model_dump()]}]})
 
     def tearDown(self):
+        analysis_checkpoints.clear()
         mark_ready(False)
 
     def upload(self):
@@ -50,6 +53,13 @@ class AnalyzerTests(unittest.TestCase):
         self.assertIsNone(parse_ranking_response('{"score":80,"explanation":"OK"}'))
         self.assertIsNone(parse_ranking_response('{"assessments":"Python","stop_factors":[]}'))
         self.assertEqual(parse_ranking_response('```json\n{"assessments":[],"stop_factors":[]}\n```')["assessments"], [])
+
+    def joint_result(self, requirements=None, rating=None):
+        req = json.loads(requirements or self.requirements)
+        return RankResponse.model_validate({"clusters": [{"id": c["id"], "name": c["name"],
+            "profiles": [{"id": p["id"], "position_name": p["position_name"],
+                          **(rating or {"score": 80, "explanation": "OK"})} for p in c["profiles"]]}
+            for c in req["clusters"]]})
 
     def test_model_network_failure_and_empty_response_are_errors(self):
         with patch("app.ollama_client.requests.post", side_effect=requests.Timeout):
@@ -143,17 +153,18 @@ class AnalyzerTests(unittest.TestCase):
     def test_invalid_model_response_is_not_zero_rating(self):
         with patch("app.scoring.ask_ollama_chat", return_value={"response": "bad json"}):
             with self.assertRaises(ModelResponseError):
-                rank_profile("resume", self.profile)
+                rank_profile("resume", self.profile.model_copy(update={"education": "Degree"}))
 
     def test_score_is_computed_from_evidence_and_cluster_requirements_are_sent(self):
-        rating = {"assessments": [], "stop_factors": []}
-        with patch("app.scoring.ask_ollama_chat", return_value={"response": json.dumps(rating)}):
+        rating = {"assessments": [{"id": "keyword:0:0", "status": "unknown", "evidence": []}], "stop_factors": []}
+        with patch("app.scoring.ask_ollama_chat", return_value={"response": json.dumps(rating)}) as model:
             self.assertEqual(rank_profile("Python", self.profile)["score"], 100)
+        model.assert_not_called()
         self.assertIn("РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ", build_ranking_prompt("resume", self.profile, "РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ")[1])
 
 
     def test_late_valid_model_response_raises_timeout(self):
-        rating = {"assessments": [], "stop_factors": []}
+        rating = {"assessments": [{"id": "education:0", "status": "unknown", "evidence": []}], "stop_factors": []}
 
         def late_response(**kwargs):
             time.sleep(0.05)
@@ -164,11 +175,11 @@ class AnalyzerTests(unittest.TestCase):
             with self.assertRaises(ModelTimeout):
                 rank_profile(
                     "resume",
-                    self.profile,
+                    self.profile.model_copy(update={"education": "Degree"}),
                     timeout=0.01,
                 )
 
-    def test_failure_on_second_profile_does_not_return_partial_result(self):
+    def test_joint_failure_does_not_return_partial_result(self):
         requirements = json.dumps({
             "clusters": [{
                 "id": "cluster",
@@ -184,27 +195,19 @@ class AnalyzerTests(unittest.TestCase):
             }],
         })
 
-        first_result = {
-            "score": 80,
-            "explanation": "First profile evaluated",
-        }
-
         with patch(
-            "app.analysis_service.rank_profile",
-            side_effect=[
-                first_result,
-                ModelResponseError("Invalid response for second profile"),
-            ],
+            "app.analysis_service.rank_requirements",
+            side_effect=ModelResponseError("Invalid joint response"),
         ) as rank:
             with self.assertRaises(HTTPException) as context:
                 rank_resume(self.upload(), requirements)
 
         self.assertEqual(context.exception.status_code, 502)
-        self.assertEqual(rank.call_count, 2)
+        self.assertEqual(rank.call_count, 1)
         self.assertFalse(model_lock.locked())
     
     def assert_rank_error(self, error, expected_status):
-        with patch("app.analysis_service.rank_profile", side_effect=error):
+        with patch("app.analysis_service.rank_requirements", side_effect=error):
             with self.assertRaises(HTTPException) as context:
                 rank_resume(self.upload(), self.requirements)
 
@@ -238,13 +241,13 @@ class AnalyzerTests(unittest.TestCase):
 
     def test_success_preserves_contract_and_details(self):
         rating = {"score": 80, "explanation": "OK", "details": {"method": "ollama-agent-v1"}}
-        with patch("app.analysis_service.rank_profile", return_value=rating) as rank:
+        with patch("app.analysis_service.rank_requirements", return_value=self.joint_result(rating=rating)) as rank:
             result = rank_resume(self.upload(), self.requirements)
         self.assertEqual(result.clusters[0].profiles[0].score, 80)
         self.assertEqual(result.clusters[0].profiles[0].details["method"], "ollama-agent-v1")
-        self.assertEqual(rank.call_args.kwargs["cluster_requirements"], "РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ")
+        self.assertEqual(rank.call_args.args[1].clusters[0].comment, json.loads(self.requirements)["clusters"][0]["comment"])
 
-    def test_profiles_are_ranked_sequentially_with_cluster_requirements(self):
+    def test_profiles_and_cluster_requirements_are_passed_to_one_joint_analysis(self):
         req = json.loads(self.requirements)
         req["clusters"][0]["profiles"].append({
             **self.profile.model_dump(),
@@ -254,16 +257,14 @@ class AnalyzerTests(unittest.TestCase):
         requirements = json.dumps(req)
         calls = []
 
-        def fake_rank(resume_text, profile, cluster_requirements=None, **kwargs):
-            calls.append((profile.id, cluster_requirements))
-            return {
-                "score": 80,
-                "explanation": "OK",
-            }
+        def fake_rank(resume_text, received, **kwargs):
+            calls.extend((p.id, c.comment) for c in received.clusters for p in c.profiles)
+            return self.joint_result(requirements)
 
-        with patch("app.analysis_service.rank_profile", side_effect=fake_rank):
+        with patch("app.analysis_service.rank_requirements", side_effect=fake_rank) as rank:
             result = rank_resume(self.upload(), requirements)
 
+        rank.assert_called_once()
         self.assertEqual(len(result.clusters[0].profiles), 2)
         self.assertEqual([item[0] for item in calls], [
             self.profile.id,
@@ -277,7 +278,7 @@ class AnalyzerTests(unittest.TestCase):
     def test_partial_failure_returns_no_success_and_disables_analysis(self):
         req = json.loads(self.requirements)
         req["clusters"][0]["profiles"].append({**self.profile.model_dump(), "id": "second"})
-        with patch("app.analysis_service.rank_profile", side_effect=[{"score": 80, "explanation": "OK"}, ModelUnavailable("offline")]):
+        with patch("app.analysis_service.rank_requirements", side_effect=ModelUnavailable("offline")):
             with self.assertRaises(HTTPException) as exc:
                 rank_resume(self.upload(), json.dumps(req))
         self.assertEqual(exc.exception.status_code, 503)

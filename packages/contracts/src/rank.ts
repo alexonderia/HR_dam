@@ -26,7 +26,7 @@ export function validateRankResponse(
     const input = expected.find(c => c.id === cluster.id)!;
     for (const rating of cluster.profiles) {
       const profile = input.profiles.find(p => p.id === rating.id)!;
-      if ((rating.details as { method?: string } | undefined)?.method === "evidence-v1") {
+      if (["evidence-v1", "evidence-v2", "evidence-v3"].includes((rating.details as { method?: string } | undefined)?.method || "")) {
         const evidence = validateEvidenceRating(rating, profile, input.comment || "");
         rating.explanation = explainEvidenceRating(evidence);
       }

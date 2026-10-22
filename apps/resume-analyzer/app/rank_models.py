@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 
 class ProfileRequest(BaseModel):
@@ -107,6 +107,7 @@ class ContactsResponse(BaseModel):
 
 class RankResponse(BaseModel):
     clusters: list[ClusterResponse]
+    _restored_duration_ms: int = PrivateAttr(default=0)
 
 
 class RankWithContactsResponse(RankResponse):

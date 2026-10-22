@@ -15,6 +15,7 @@ import {
   importResultSchema,
   importEventSchema,
   importJobIdentitySchema,
+  moscowTimestamp,
 } from "@hr/contracts";
 import { pool, transaction } from "@hr/data-access";
 import { blacklistMatchSql, otherInProcessResumeSql } from "@hr/data-access";
@@ -123,7 +124,10 @@ router.post("/requirements/reassessment", async (req, res) => {
       else result.skipped_resumes++;
     } catch (error) {
       if (error instanceof HttpError && error.status === 409) result.skipped_resumes++;
-      else result.errors.push({ resume_id: resume.resume_id, message: error instanceof HttpError ? error.message : "Не удалось поставить резюме в очередь." });
+      else {
+        if (!(error instanceof HttpError)) console.error(moscowTimestamp(), "Resume reassessment enqueue failed", resume.resume_id, error);
+        result.errors.push({ resume_id: resume.resume_id, message: error instanceof HttpError ? error.message : "Не удалось поставить резюме в очередь." });
+      }
     }
   }
   res.status(202).json(result);

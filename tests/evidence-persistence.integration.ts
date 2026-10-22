@@ -70,7 +70,16 @@ try {
     const saved = await pool.query("SELECT p.*,r.scoring_status FROM profile_ratings p JOIN resumes r ON r.id=p.resume_id WHERE r.file_id=$1", [fileId]);
     assert.equal(saved.rowCount, 1);
     assert.equal(saved.rows[0].scoring_status, "completed");
-    assert.equal(saved.rows[0].details.policy_version, "evidence-v1");
+    assert.equal(saved.rows[0].details.policy_version, fixture.result.clusters[0].profiles[0].details.policy_version);
+    assert.deepEqual(saved.rows[0].details.score_range, fixture.result.clusters[0].profiles[0].details.score_range);
+    if (saved.rows[0].details.policy_version === "evidence-v3") {
+      for (const key of ["score_range", "full_score_range", "range_limit"]) assert.ok(!(key in saved.rows[0].details));
+      assert.doesNotMatch(saved.rows[0].explanation, /диапазон/iu);
+    }
+    if (saved.rows[0].details.policy_version === "evidence-v2") {
+      assert.equal(saved.rows[0].details.range_limit, 20);
+      assert.deepEqual(saved.rows[0].details.full_score_range, fixture.result.clusters[0].profiles[0].details.full_score_range);
+    }
     assert.equal(Number(saved.rows[0].score), fixture.result.clusters[0].profiles[0].score);
     assert.deepEqual(saved.rows[0].matched_keywords, fixture.result.clusters[0].profiles[0].matched_keywords);
     console.log(fixture.name + ": correlated result persisted and retry suppressed");

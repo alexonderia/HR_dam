@@ -60,6 +60,13 @@ EVENT_MESSAGES = {
     "profile_parse_failed":          "⚠️ Не удалось разобрать ответ модели",
     "profile_attempt_failed":        "⚠️ Попытка оценки не удалась",
     "profile_ranking_failed":        "❌ Оценка по профилю не выполнена",
+    "analysis_started":              "📋 Начат анализ профилей",
+    "analysis_completed":            "✅ Все профили обработаны",
+    "analysis_interrupted":          "⏸️ Анализ прерван; готовые части сохранены для повтора",
+    "analysis_plan":                 "📋 Требования объединены для совместного анализа",
+    "analysis_batch_completed":      "✅ Часть совместного анализа проверена",
+    "analysis_batch_restored":       "♻️ Готовая часть совместного анализа восстановлена",
+    "batch_attempt_failed":          "⚠️ Ответ совместного анализа не прошёл проверку",
 
     # Контекст
     "context_overflow_detected":     "⚠️ Запрос не помещается в контекст — резюме будет обрезано",

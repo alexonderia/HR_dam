@@ -31,7 +31,9 @@ class EvidenceScoringTests(unittest.TestCase):
         self.assertEqual(rating["matched_keywords"], [])
         self.assertEqual(rating["triggered_stop_factors"], [])
         self.assertEqual({c["status"] for c in rating["details"]["criteria"]}, {"unknown"})
-        self.assertEqual(rating["details"]["score_range"], {"min": 0, "max": 100})
+        self.assertEqual(rating["score"], 10)
+        self.assertNotIn("score_range", rating["details"])
+        self.assertNotIn("full_score_range", rating["details"])
         self.assertIn("Требует уточнения", rating["explanation"])
         self.assertNotIn("Подтверждённое несоответствие:", rating["explanation"])
 
@@ -57,7 +59,7 @@ class EvidenceScoringTests(unittest.TestCase):
         self.assertEqual(criterion["status"], "unknown")
         self.assertEqual(criterion["credit"], 0)
         self.assertIn("общий стаж 1 год 3 месяца", rating["explanation"])
-        self.assertEqual(rating["details"]["score_range"], {"min": 0, "max": 41.67})
+        self.assertEqual(rating["score"], 10)
 
     def test_quote_must_exist_in_resume_not_just_in_vacancy(self):
         profile = self.profile(education="Высшее техническое образование")
@@ -91,11 +93,61 @@ class EvidenceScoringTests(unittest.TestCase):
         profile = self.profile(keywords=["Python", "SQL"])
         unknown = verify_and_score(response(), "Навыки: SQL.", profile)
         denied = verify_and_score(response(), "Не знаю Python. Навыки: SQL.", profile)
-        self.assertEqual(unknown["score"], denied["score"])
-        self.assertEqual(unknown["details"]["score_range"], {"min": 50, "max": 100})
-        self.assertEqual(denied["details"]["score_range"], {"min": 50, "max": 50})
+        self.assertEqual(unknown["score"], 60)
+        self.assertEqual(denied["score"], 50)
         self.assertEqual(unknown["details"]["coverage"], 50)
         self.assertEqual(denied["details"]["coverage"], 100)
+
+    def test_example_22_87_to_42_87_becomes_one_midpoint_without_inventing_evidence(self):
+        profile = self.profile(experience="1-3 года", keywords=["Postman", "DevTools", "Swagger", "тест-кейсы",
+            "чек-листы", "баг репорты", "отчёты о тестировании", "регресс-тестирование",
+            "тестирования ПО (SDLC/STLC)", "тестовая документация."])
+        rating = verify_and_score(response(), "Postman. DevTools. Swagger. Чек-листы.", profile)
+        self.assertEqual(rating["score"], 32.87)
+        self.assertNotIn("score_range", rating["details"])
+        self.assertNotIn("full_score_range", rating["details"])
+        self.assertNotIn("range_limit", rating["details"])
+        self.assertEqual(rating["details"]["policy_version"], "evidence-v3")
+        self.assertEqual(rating["details"]["coverage"], 22.87)
+        self.assertIn("32.87/100", rating["explanation"])
+        self.assertNotIn("диапазон", rating["explanation"].lower())
+
+    def test_existing_narrow_range_is_not_widened_and_ceiling_is_100(self):
+        profile = self.profile(keywords=["SQL", "Python"], experience="От 3 лет")
+        quote = "Разработчик — 2 года 6 месяцев"
+        rating = verify_and_score(response([assessment("experience:0", quote)]), "SQL. Python. " + quote, profile)
+        self.assertEqual(rating["score"], 92.86)
+        self.assertNotIn("score_range", rating["details"])
+
+    def test_narrow_midpoint_rounds_to_two_decimals_and_empty_evidence_stays_explicit(self):
+        skills = [f"Skill{i}" for i in range(6)]
+        rating = verify_and_score(response(), ". ".join(skills[:5]), self.profile(keywords=skills))
+        self.assertEqual(rating["score"], 91.67)
+        empty = verify_and_score(response(), "Resume", self.profile())
+        self.assertEqual(empty["score"], 10)
+        self.assertEqual(empty["details"]["score_status"], "insufficient_evidence")
+
+    def test_qa_word_forms_and_separate_experience_quotes_reduce_unknowns(self):
+        profile = self.profile(experience="1-3 года", keywords=["баг репорты", "регресс-тестирование", "тестовая документация."])
+        source = "2 года 2 месяца\nQA-инженер. Создавал баг-репорты. Организовал процесс регрессионного тестирования. Вёл тестовую документацию."
+        parsed = response([{"id": "experience:0", "status": "met", "evidence": ["2 года 2 месяца", "QA-инженер"]}])
+        rating = verify_and_score(parsed, source, profile)
+        self.assertEqual(rating["score"], 100)
+        self.assertNotIn("score_range", rating["details"])
+        self.assertEqual(rating["details"]["criteria"][-1]["experience_months"], 26)
+        for criterion in rating["details"]["criteria"]:
+            for quote in criterion["evidence"]:
+                self.assertEqual(source[quote["start"]:quote["end"]], quote["quote"])
+
+    def test_aliases_do_not_invent_reports_or_ignore_negation_and_learning(self):
+        profile = self.profile(keywords=["регресс-тестирование", "тестовая документация", "отчёты о тестировании"])
+        rating = verify_and_score(response(), "Нет опыта регрессионного тестирования. Изучаю тестовую документацию. Работал с Allure.", profile)
+        self.assertEqual([c["status"] for c in rating["details"]["criteria"]], ["not_met", "partial", "unknown"])
+        self.assertNotIn("отчёты о тестировании", rating["matched_keywords"])
+
+    def test_punctuation_only_skill_is_not_a_match(self):
+        rating = verify_and_score(response(), "Опыт продаж.", self.profile(keywords=["."]))
+        self.assertEqual(rating["matched_keywords"], [])
 
     def test_unknown_or_duplicate_criterion_is_rejected(self):
         profile = self.profile(keywords=["SQL"])
@@ -165,8 +217,25 @@ class EvidenceScoringTests(unittest.TestCase):
         bad = response([assessment("invented", "SQL")])
         with patch("app.scoring.ask_ollama_chat", return_value={"response": json.dumps(bad)}) as model:
             with self.assertRaises(ModelResponseError):
-                rank_profile("SQL", self.profile(keywords=["SQL"]))
+                rank_profile("SQL", self.profile(keywords=["SQL"], education="Degree"))
         self.assertEqual(model.call_count, 2)
+
+    def test_ranking_retries_omitted_criteria_instead_of_accepting_empty_assessments(self):
+        profile = self.profile(keywords=["SQL"], experience="От 1 года")
+        quote = "Разработчик — 2 года"
+        complete = response([assessment("experience:0", quote)])
+        with patch("app.scoring.ask_ollama_chat", side_effect=[{"response": json.dumps(response())},
+                   {"response": json.dumps(complete)}]) as model:
+            rating = rank_profile("SQL. " + quote, profile)
+        self.assertEqual(model.call_count, 2)
+        self.assertEqual(rating["score"], 100)
+
+    def test_ranking_rejects_missing_stop_factor_assessments(self):
+        profile = self.profile(keywords=["SQL"], stop_factors=["Отказ от переезда"])
+        incomplete = response()
+        with patch("app.scoring.ask_ollama_chat", return_value={"response": json.dumps(incomplete)}):
+            with self.assertRaises(ModelResponseError):
+                rank_profile("SQL. Готов к переезду.", profile)
 
     def test_requirement_ranges_use_lower_bound(self):
         self.assertEqual(minimum_months("1-3 года"), 12)

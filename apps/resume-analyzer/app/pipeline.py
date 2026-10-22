@@ -31,5 +31,6 @@ def process_document(content: bytes, filename: str, requirements: RequirementsRe
         check_cancelled()
         analysis = result.model_dump()
         validate_analysis_structure(analysis, requirements)
-        duration = min(2147483647, max(0, round((extraction_duration + monotonic() - started) * 1000)))
+        duration = min(2147483647, max(0, round((extraction_duration + monotonic() - started) * 1000)
+                                       + result._restored_duration_ms))
     return RankWithContactsResponse.model_validate({**analysis, **contacts, "analysis_duration_ms": duration})

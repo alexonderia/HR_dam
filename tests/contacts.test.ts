@@ -1,12 +1,22 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { contactsResponseSchema, extractedPersonSchema, rankResponseSchema, type ImportFile } from "@hr/contracts";
-import { emptyPerson, manualContactFields, planContactUpdate } from "../apps/backend/src/contact-policy.js";
+import { emptyPerson, manualContactFields, planContactUpdate, snapshotContactHint } from "../apps/backend/src/contact-policy.js";
 import { contactResult } from "./fixtures/contact-result.js";
 
 const extracted = contactResult({ last_name: "Румянцева", first_name: "Дарья", middle_name: "Константиновна", phone: "+79991234567" });
 const plan = (current: Parameters<typeof planContactUpdate>[0], result = extracted) =>
   planContactUpdate(current, result.candidate, result.contact_details, "file");
+
+test("legacy invalid contacts do not block assessment hints or change stored values", () => {
+  const current = { ...extracted.candidate, phone: "+799912345678" };
+  const hint = snapshotContactHint(current);
+  assert.deepEqual(hint, { ...extracted.candidate, phone: null });
+  assert.equal(extractedPersonSchema.safeParse(current).success, false, "New input must still reject invalid phones");
+  assert.deepEqual(planContactUpdate(current, extracted.candidate, extracted.contact_details, "file", hint).values, current);
+  assert.equal(snapshotContactHint({ ...current, last_name: "Invalid\u0000name" }).last_name, null);
+  assert.deepEqual(snapshotContactHint(extracted.candidate), extracted.candidate);
+});
 
 test("legacy populated contacts are protected and a matching missing patronymic can be filled", () => {
   const result = plan({ ...extracted.candidate, middle_name: null });

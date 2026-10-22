@@ -37,7 +37,7 @@ class EmptyResumeTests(unittest.TestCase):
 
     def test_empty_docx_in_amqp_returns_document_failure_without_model_or_retry(self):
         with patch("app.job_processor.download_document", return_value=self.document), \
-             patch("app.analysis_service.rank_profile") as rank:
+             patch("app.analysis_service.rank_requirements") as rank:
             with self.assertRaises(InsufficientResumeTextError) as raised:
                 process_job(self.job)
 
@@ -72,7 +72,7 @@ class EmptyResumeTests(unittest.TestCase):
     def test_whitespace_and_short_text_are_document_errors_before_model_readiness(self):
         requirements = build_requirements(self.job)
         with patch("app.analysis_service.is_ready") as ready, \
-             patch("app.analysis_service.rank_profile") as rank:
+             patch("app.analysis_service.rank_requirements") as rank:
             for text in ("", " \t\n", "x" * 49):
                 with self.subTest(text_length=len(text)):
                     with self.assertRaises(InsufficientResumeTextError):

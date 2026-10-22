@@ -6,8 +6,8 @@ import {
   scoringLabels,
   matrixColumns,
   clusterScore,
-  clusterScoreRange,
-  ratingScoreText,
+  ratingScore,
+  ratingExplanation,
   formatMoscowDateTime,
   formatAnalysisDuration,
   type Candidate,
@@ -80,8 +80,8 @@ export function matrixRows(
       (fullName(c) || "ФИО не указано") + "\n" + (c.phone || "Телефон не указан") + (c.blacklisted ? "\nЧёрный список" : ""),
       ...columns.map((column) =>
         column.profile
-          ? (() => { const rating = c.ratings.find(r => r.profile_id === column.profile!.id); return rating ? ratingScoreText(rating) : ""; })()
-          : (() => { const range = clusterScoreRange(c, column.cluster); return range ? range.min === range.max ? range.min : `${range.min}–${range.max}` : ""; })(),
+          ? (() => { const rating = c.ratings.find(r => r.profile_id === column.profile!.id); return rating ? ratingScore(rating) : ""; })()
+          : clusterScore(c, column.cluster) ?? "",
       ),
       c.scoring_status === "completed"
         ? statusLabels[c.status]
@@ -112,10 +112,10 @@ export function ratingRows(
                   fullName(c) || "ФИО не указано",
                   cluster.name,
                   p.position_name,
-                  ratingScoreText(r),
+                  ratingScore(r),
                   ...(full
                     ? [
-                        r.explanation || "",
+                        ratingExplanation(r),
                         r.matched_keywords?.join(", ") || "",
                         r.triggered_stop_factors?.join(", ") || "",
                       ]

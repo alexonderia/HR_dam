@@ -19,6 +19,7 @@ from app.pipeline import process_document
 from app.rank_models import RequirementsRequest, RankResponse
 from app.readiness import mark_ready, model_lock
 from app.analysis_service import analyze_resume_text
+from app.analysis_checkpoints import analysis_checkpoints
 from app.runtime import runtime_status, update_runtime
 
 JOB = dict(version=1, job_id="job", batch_id="batch", item_id="item", attempt=1)
@@ -29,10 +30,12 @@ DOCUMENT = ("Resume text " * 10, extract_contacts(""))
 
 class ServiceRuntimeTests(unittest.TestCase):
     def setUp(self):
+        analysis_checkpoints.clear()
         mark_ready(True)
         update_runtime(broker_connected=False, consumer_alive=False, stopping=False, busy=False)
 
     def tearDown(self):
+        analysis_checkpoints.clear()
         mark_ready(False)
         update_runtime(broker_connected=False, consumer_alive=False, stopping=False, busy=False)
         self.assertFalse(model_lock.locked())
@@ -73,6 +76,15 @@ class ServiceRuntimeTests(unittest.TestCase):
             result = process_document(b"file", "resume.txt", REQUIREMENTS, "job", analyze=lambda **_: RATING)
         self.assertEqual(result.analysis_duration_ms, 500)
 
+    def test_duration_includes_successful_work_restored_from_interrupted_analysis(self):
+        restored = RATING.model_copy(deep=True)
+        restored._restored_duration_ms = 2000
+        with patch("app.pipeline.prepare_resume_document", return_value=DOCUMENT), \
+             patch("app.pipeline.monotonic", side_effect=[0, .2, 100.2, 100.5]):
+            result = process_document(b"file", "resume.txt", REQUIREMENTS, "job", analyze=lambda **_: restored)
+        self.assertEqual(result.analysis_duration_ms, 2500)
+        self.assertNotIn("_restored_duration_ms", result.model_dump())
+
     def test_shared_capacity_serializes_concurrent_documents(self):
         entered = threading.Event()
         release = threading.Event()
@@ -106,8 +118,9 @@ class ServiceRuntimeTests(unittest.TestCase):
         self.assertEqual(seen, ["first", "second"])
         self.assertFalse(runtime_status(True)["busy"])
 
-    def test_shutdown_cancels_between_profile_calls(self):
+    def test_shutdown_cancels_after_joint_model_call(self):
         requirements = REQUIREMENTS.model_copy(deep=True)
+        requirements.clusters[0].profiles[0].education = "Degree"
         profile = requirements.clusters[0].profiles[0].model_copy(update={"id": "second"})
         requirements.clusters[0].profiles.append(profile)
         stop = threading.Event()
@@ -118,10 +131,10 @@ class ServiceRuntimeTests(unittest.TestCase):
 
         def rank(*args, **kwargs):
             stop.set()
-            return {"score": 0, "explanation": "Fixture"}
+            return {"response": json.dumps({key: "u" for key in kwargs["json_schema"]["required"]})}
 
         with patch("app.pipeline.prepare_resume_document", return_value=DOCUMENT), \
-             patch("app.analysis_service.rank_profile", side_effect=rank) as model:
+             patch("app.batch_scoring.ask_ollama_chat", side_effect=rank) as model:
             with self.assertRaises(JobCancelled):
                 process_document(b"file", "resume.txt", requirements, "job", cancel, analyze_resume_text)
             self.assertEqual(model.call_count, 1)

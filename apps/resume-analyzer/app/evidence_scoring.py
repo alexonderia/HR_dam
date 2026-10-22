@@ -7,7 +7,8 @@ from fractions import Fraction
 
 from app.rank_models import ProfileRequest
 
-POLICY_VERSION = "evidence-v1"
+POLICY_VERSION = "evidence-v3"
+MAX_RANGE_WIDTH = 20
 CATEGORY_WEIGHTS = {"keyword": 40, "experience": 30, "education": 15, "additional": 15}
 STOP_PENALTY = 10
 MAX_STOP_PENALTY = 30
@@ -16,7 +17,15 @@ NEGATIVE = re.compile(r"\b(?:нет|без|отсутств\w*|отказ\w*|н�
 LEARNING = re.compile(r"\b(?:изучаю|изучает|учусь|планирую|хочу\s+изучить|начальн\w*|базов\w*)\b", re.I)
 YEAR = r"(?:лет|года?|years?)"
 MONTH = r"(?:месяц\w*|months?)"
-ALIASES = {"sql": ["SQL", "MS SQL", "T-SQL", "MSSQL"], "rest api": ["REST API", "RESTful API"]}
+ALIASES = {
+    "sql": ["SQL", "MS SQL", "T-SQL", "MSSQL"],
+    "rest api": ["REST API", "RESTful API"],
+    "тест-кейсы": ["тест-кейсы", "тест-кейс", "тест-кейсов", "тест-кейсами", "тест кейсы", "test cases", "test case"],
+    "баг репорты": ["баг репорты", "баг-репорты", "баг-репортов", "баг-репортами", "багрепорты", "bug reports", "bug report"],
+    "отчеты о тестировании": ["отчеты о тестировании", "отчёты о тестировании", "отчет о тестировании", "отчёт о тестировании", "тестовые отчеты", "тестовые отчёты", "test reports", "test report"],
+    "регресс-тестирование": ["регресс-тестирование", "регресс тестирование", "регрессионное тестирование", "регрессионного тестирования", "регрессионным тестированием", "regression testing"],
+    "тестовая документация": ["тестовая документация", "тестовую документацию", "тестовой документации", "тестовой документацией", "test documentation"],
+}
 
 
 def normalized(text: str) -> str:
@@ -122,7 +131,11 @@ def quote_evidence(source: str, quote: str) -> dict | None:
 
 
 def _skill_evidence(source: str, keyword: str) -> tuple[str, list[dict]]:
-    aliases = ALIASES.get(normalized(keyword), [keyword])
+    term = keyword.strip().rstrip(".;")
+    if not term:
+        return "unknown", []
+    aliases = next((variants for name, variants in ALIASES.items()
+                    if normalized(term) == name or normalized(term) in map(normalized, variants)), [term])
     positive, negative, learning = [], [], []
     for alias in aliases:
         pattern = r"(?<![\w])" + r"\s+".join(re.escape(word) for word in alias.split()) + r"(?![\w])"
@@ -243,7 +256,7 @@ def round_score(value):
     return math.floor(max(0, min(100, value)) * 100 + .5) / 100
 
 
-def _explanation(criteria, stops, score_range, coverage, truncated):
+def _explanation(criteria, stops, score, coverage, truncated):
     groups = {status: [c for c in criteria if c["status"] == status] for status in ("met", "partial", "not_met", "unknown")}
     lines = []
     for status, label in (("met", "Подтверждено"), ("partial", "Частичное соответствие"), ("not_met", "Подтверждённое несоответствие"), ("unknown", "Требует уточнения")):
@@ -271,7 +284,9 @@ def _explanation(criteria, stops, score_range, coverage, truncated):
     unknown_stops = [s["requirement"] for s in stops if s["status"] == "unknown"]
     if unknown_stops:
         lines.append("Стоп-факторы требуют уточнения, штраф не применён: " + "; ".join(unknown_stops) + ".")
-    lines.append(f"Диапазон соответствия по доступным сведениям: {score_range['min']:g}–{score_range['max']:g}/100; охват проверенными критериями — {coverage:g}%. Неизвестные сведения не означают отсутствие компетенции.")
+    lines.append(f"Оценка по данным резюме: {score:g}/100; охват проверенными критериями — {coverage:g}%. Неизвестные сведения не означают отсутствие компетенции.")
+    if not coverage:
+        lines.append("Недостаточно подтверждений для оценки компетенций кандидата.")
     if truncated:
         lines.append("Оценён только фрагмент резюме из-за ограничения контекста; оставшиеся сведения требуют проверки.")
     return "\n".join(lines)
@@ -313,24 +328,27 @@ def verify_and_score(parsed: dict, source: str, profile: ProfileRequest, cluster
     points = sum(c["weight"] * c["credit"] for c in checked) / 100
     unknown = sum(c["weight"] * c["possible_credit"] for c in checked if c["status"] == "unknown") / 100
     coverage = round_score(sum(c["weight"] for c in checked if c["status"] != "unknown") / 100)
-    score_range = {"min": round_score(points - penalty), "max": round_score(points + unknown - penalty)}
+    full_score_range = {"min": round_score(points - penalty), "max": round_score(points + unknown - penalty)}
     if not any(c["weight"] for c in checked):
-        score_range = {"min": 0, "max": 100}
-    details = {"method": "evidence-v1", "policy_version": POLICY_VERSION, "policy_status": "provisional",
+        full_score_range = {"min": 0, "max": 100}
+    score_range = {"min": full_score_range["min"],
+                   "max": min(full_score_range["max"], round_score(full_score_range["min"] + MAX_RANGE_WIDTH))}
+    score = round_score((score_range["min"] + score_range["max"]) / 2)
+    details = {"method": POLICY_VERSION, "policy_version": POLICY_VERSION, "policy_status": "provisional",
                "model": model, "source_text_sha256": hashlib.sha256(source.encode()).hexdigest(),
                "source_text_length": len(source), "context_truncated": context_truncated,
-               "criteria": checked, "stop_factors": stops, "coverage": coverage, "score_range": score_range,
+               "criteria": checked, "stop_factors": stops, "coverage": coverage,
                "stop_penalty": penalty, "score_status": "insufficient_evidence" if not coverage else "evaluated"}
-    return {"score": score_range["min"],
+    return {"score": score,
             "matched_keywords": list(dict.fromkeys(c["requirement"] for c in checked if c["category"] == "keyword" and c["status"] in {"met", "partial"})),
             "triggered_stop_factors": list(dict.fromkeys(s["requirement"] for s in stops if s["status"] == "triggered")),
-            "explanation": _explanation(checked, stops, score_range, coverage, context_truncated), "details": details}
+            "explanation": _explanation(checked, stops, score, coverage, context_truncated), "details": details}
 
 
 def validate_rating_source(rating: dict, resume_text: str) -> None:
     """Повторная проверка границ цитат перед выдачей результата HTTP/AMQP."""
     details = rating.get("details", {})
-    if details.get("method") != "evidence-v1":
+    if details.get("method") not in ("evidence-v1", "evidence-v2", "evidence-v3"):
         return
     size = details["source_text_length"]
     if size > len(resume_text) or details["source_text_sha256"] != hashlib.sha256(resume_text[:size].encode()).hexdigest():
