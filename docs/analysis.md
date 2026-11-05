@@ -220,15 +220,18 @@ node --env-file=.env node_modules/tsx/dist/cli.mjs tests/contact-recovery.integr
 `node node_modules/tsx/dist/cli.mjs tests/contact-recovery.ui.ts`.
 Этот сценарий проверяет десктопный и мобильный размеры с подменённым API.
 
-После проверки кода новая версия применяется к текущей установке с локальной Ollama:
+После проверки кода новая версия применяется к установке с Ollama в Compose:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml --profile broker up -d --build --remove-orphans --wait
+docker compose --profile broker up -d --build --remove-orphans
+docker compose --profile broker up -d --no-build --wait frontend backend worker resume-analyzer
 Invoke-RestMethod http://127.0.0.1:3000/api/analysis/status
 Invoke-RestMethod http://127.0.0.1:3000/api/processing/mode
 ```
 
-В текущем `.env` выбран `ANALYZER_ADAPTER=amqp`, `RABBITMQ_ENABLED=true`,
+Для Ollama на хосте добавьте `-f docker-compose.yml -f docker-compose.local-ollama.yml` к обеим командам Compose. Ожидание ограничено сервисами приложения, чтобы успешное завершение одноразового `ollama-init` не считалось ошибкой запуска.
+
+Для native AMQP в `.env` задайте `ANALYZER_ADAPTER=amqp`, `RABBITMQ_ENABLED=true`,
 `RANK_BRIDGE_ENABLED=false`. При первом обновлении удаляется прежний отдельный
 consumer, заменённый потоком внутри `resume-analyzer`. Для проверки состояния
 при недоступной реальной модели остановите используемый Ollama и дождитесь
