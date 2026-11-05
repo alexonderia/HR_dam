@@ -176,7 +176,7 @@ export function startQueueConsumer(name: string, handler: (body: unknown) => Pro
               try { channel.nack(message, false, true); } catch { /* Connection loss already requeues the delivery. */ }
             }
           })();
-        }, { noAck: false });
+        }, { noAck: false, exclusive: name === queues.analysis });
         if (stopped) await channel.close().catch(() => {});
         await closed;
       } catch { if (!stopped) console.error("Queue consumer disconnected; reconnecting"); }

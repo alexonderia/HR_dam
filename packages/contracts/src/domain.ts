@@ -1,8 +1,15 @@
 import { z } from "zod";
+import { contactDetailsSchema } from "./contacts.js";
 
 export interface AnalysisStatus {
   available: boolean;
   message: string;
+  adapter?: "http" | "amqp";
+  alive?: boolean;
+  broker_connected?: boolean | null;
+  consumer_alive?: boolean | null;
+  model_ready?: boolean;
+  busy?: boolean;
 }
 
 export interface WorkerStatus {
@@ -56,6 +63,38 @@ export const personSchema = z.object({
     .pipe(z.union([z.literal(""), name]))
     .default(""),
 });
+const optionalExtractedName = z.preprocess(
+  value => typeof value === "string" ? normalizeName(value) || null : value,
+  z.string().max(100).regex(/^[^\x00-\x1f]*$/u).nullish().transform(value => value ?? null),
+);
+export const extractedPersonSchema = z.object({
+  last_name: optionalExtractedName, first_name: optionalExtractedName, middle_name: optionalExtractedName,
+  phone: z.preprocess(value => typeof value === "string" && !value.trim() ? null : value,
+    personSchema.shape.phone.nullish().transform(value => value ?? null)),
+});
+export type ExtractedPerson = z.infer<typeof extractedPersonSchema>;
+export const contactsResponseSchema = z.object({ candidate: extractedPersonSchema, contact_details: contactDetailsSchema })
+  .superRefine((value, ctx) => {
+    for (const field of ["last_name", "first_name", "middle_name", "phone"] as const) {
+      if (Boolean(value.candidate[field]) !== Boolean(value.contact_details.fields[field]))
+        ctx.addIssue({ code: "custom", message: "Контакт должен иметь источник.", path: ["candidate", field] });
+      const actual = value.candidate[field], quote = value.contact_details.fields[field]?.quote;
+      if (actual && quote) {
+        const supported = field === "phone"
+          ? /^\+7\d{10}$/.test(actual) && [actual.slice(1), "8" + actual.slice(2)].some(digits => quote.replace(/\D/g, "").includes(digits))
+          : quote.split(/[^\p{L}'-]+/u).some(word => identityKey(word) === identityKey(actual));
+        if (!supported) ctx.addIssue({ code: "custom", message: "Значение отсутствует в цитате.", path: ["candidate", field] });
+      }
+    }
+    if (value.contact_details.text_status === "no_text" && Object.values(value.candidate).some(Boolean))
+      ctx.addIssue({ code: "custom", message: "В пустом тексте не может быть контактов." });
+    const hasName = Boolean(value.candidate.last_name && value.candidate.first_name);
+    if ((value.contact_details.name_status === "extracted") !== hasName ||
+        (!hasName && [value.candidate.last_name, value.candidate.first_name, value.candidate.middle_name].some(Boolean)))
+      ctx.addIssue({ code: "custom", message: "Статус ФИО противоречит найденным полям." });
+    if ((value.contact_details.phone_status === "extracted") !== Boolean(value.candidate.phone))
+      ctx.addIssue({ code: "custom", message: "Статус телефона противоречит найденному номеру." });
+  });
 export const clusterSchema = z.object({
   name: z.string().trim().min(2).max(255),
   track: z.string().trim().min(1).max(20),
@@ -85,9 +124,15 @@ export const ratingSchema = z.object({
   explanation: z.string().optional(),
 });
 export const rankResponseSchema = z.object({
+  analysis_duration_ms: z.number().int().min(0).max(2147483647).optional(),
+  candidate: extractedPersonSchema.optional(),
+  contact_details: contactDetailsSchema.optional(),
   clusters: z.array(
     z.object({ id: z.uuid(), profiles: z.array(ratingSchema) }),
   ),
+}).superRefine((value, ctx) => {
+  if (value.contact_details && !contactsResponseSchema.safeParse(value).success)
+    ctx.addIssue({ code: "custom", message: "Контакты не подтверждены корректным источником." });
 });
 export type Profile = z.infer<typeof profileSchema> & { id: string };
 export type Cluster = z.infer<typeof clusterSchema> & {
@@ -110,6 +155,8 @@ export interface Candidate {
   last_name: string | null;
   first_name: string | null;
   middle_name: string | null;
+  contact_provenance?: import("./contacts.js").ContactProvenance;
+  contact_extraction?: import("./contacts.js").ContactDetails | null;
   resume_id: string;
   file_id: string;
   file_name: string;

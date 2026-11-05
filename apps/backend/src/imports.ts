@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { extractedPersonSchema, importManifestSchema, importAnalysisTiming, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
+import { extractedPersonSchema, contactFields, importManifestSchema, importAnalysisTiming, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
 import { getClusters, enqueueImport, ensureProcessingTransport, brokerQueues, readImportLedger, latestItemEvent, pool, transaction, blacklistMatchSql } from "@hr/data-access";
 import { extractResumeArchive, multipartFileName } from "./archive.js";
 import { validateFile, scanFile, hashFile } from "./files.js";
@@ -31,7 +31,8 @@ export async function acceptResumes(file: Express.Multer.File | undefined, archi
     const itemId = randomUUID(), fileId = randomUUID();
     items.push({ id: itemId, file_id: fileId, source_path: source.sourcePath, file_name: source.filename,
       mime_type: mime, size_bytes: source.buffer.length, sha256: hashFile(source.buffer),
-      bucket: config.bucket, object_key: `resume-imports/${id}/${fileId}/${source.filename}`, candidate_hint: candidate });
+      bucket: config.bucket, object_key: `resume-imports/${id}/${fileId}/${source.filename}`, candidate_hint: candidate,
+      candidate_hint_source: "manual", manual_contact_fields: contactFields.filter(field => candidate[field] !== null) });
     buffers.set(fileId, source.buffer);
   }
   const manifest: ImportManifest = { version: 1, id, archive_name: filename, created_at: new Date().toISOString(),
@@ -141,7 +142,8 @@ export async function enqueueExistingResume(resumeId: string, options: { recover
     const manifest: ImportManifest = { version: 1, id, archive_name: row.file_name, created_at: new Date().toISOString(), requirements, ignored_files: [], items: [{
       id: randomUUID(), file_id: row.file_id, source_path: row.file_name, file_name: row.file_name, mime_type: row.mime_type,
       size_bytes: Number(row.size_bytes), sha256: row.file_sha256, bucket: row.bucket, object_key: row.object_key,
-      candidate_hint: extractedPersonSchema.parse(row), target_resume_id: resumeId, target_updated_at: update.rows[0].lease,
+      candidate_hint: extractedPersonSchema.parse(row), candidate_hint_source: "snapshot", manual_contact_fields: [],
+      target_resume_id: resumeId, target_updated_at: update.rows[0].lease,
       ...(options.clusterIds ? { assessment_cluster_ids: requirements.map(cluster => cluster.id) } : {}),
     }] };
     importManifestSchema.parse(manifest);

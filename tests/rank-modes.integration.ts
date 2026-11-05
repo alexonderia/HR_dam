@@ -26,11 +26,11 @@ const analyzer = createServer(async (req, res) => {
   assert.equal(file.type, "text/plain");
   const text = await file.text();
   assert.match(text, /Python/);
-  assert.equal(file.name, "resume.txt");
+  assert.match(file.name, /\.txt$/);
   const requirements = JSON.parse(String(form.get("requirements"))) as { clusters: Cluster[] };
   assert.equal(requirements.clusters[0].profiles.length, 2);
   if (text.includes("HOLD")) await new Promise<void>(resolve => { held = resolve; });
-  reply(200, { clusters: requirements.clusters.map(cluster => ({ id: cluster.id,
+  reply(200, { analysis_duration_ms: text.includes("HOLD") ? 300 : 7, clusters: requirements.clusters.map(cluster => ({ id: cluster.id,
     profiles: cluster.profiles.map(profile => ({ id: profile.id, score: 87, explanation: "HTTP fixture", matched_keywords: ["Python"] })) })) });
 }).listen(0, "127.0.0.1");
 await new Promise<void>(resolve => analyzer.once("listening", resolve));
@@ -75,7 +75,7 @@ async function upload(name: string, content: Uint8Array, archive = false, hint: 
 }
 const detail = (id: string) => api<ResumeImportDetail>(`/resume-imports/${id}`);
 try {
-  for (const migration of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql", "V5__cluster_assessment_requirements.sql"])
+  for (const migration of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql", "V5__cluster_assessment_requirements.sql", "V6__contact_provenance.sql"])
     await data.pool.query(await readFile(`db/migrations/${migration}`, "utf8"));
   assert.equal((await data.pool.query("SHOW timezone")).rows[0].TimeZone, "Europe/Moscow");
   const lease = await data.pool.query(`SELECT
@@ -106,6 +106,7 @@ try {
   unavailableRequests = 12; // More than five queue retries, with two HTTP attempts per delivery.
   const recovering = await upload("recovering.txt", strToU8("Python infrastructure recovery"));
   const recovered = await waitFor(() => detail(recovering.id), d => d.processed_files === 1, "Temporary /rank outage exhausted document retries");
+  assert.equal(recovered.items[0].analysis_duration_ms, 7, "Infrastructure retries leaked into explicit analyzer timing");
   assert.equal(recovered.failed_files, 0);
   assert.equal(recovered.items[0].attempt, 1);
   assert.ok(rankCalls - beforeOutage >= 13);
@@ -140,6 +141,7 @@ try {
   held(); held = undefined;
   const timed = await waitFor(() => detail(slow.id), d => d.processed_files === 1, "Held request not completed");
   const duration = timed.items[0].analysis_duration_ms!;
+  assert.equal(duration, 300, "Bridge must preserve the analyzer's explicit duration");
   assert.ok(duration >= 250 && duration < 5000, `Unexpected analysis duration: ${duration}`);
   const timedCandidate = (await api<{ candidates: Candidate[] }>("/overview")).candidates.find(c => c.resume_id === timed.items[0].resume_id)!;
   assert.equal(timedCandidate.analysis_duration_ms, duration);

@@ -41,4 +41,5 @@ for (const dep of ['react', 'react-dom', 'vite']) {
   assert.ok(!lock.packages[`node_modules/${dep}`], `frontend dependency hoisted to root: ${dep}`);
 }
 assert.ok(readFileSync('apps/frontend/vite.config.ts', 'utf8').indexOf('../../public') === -1);
-assert.ok(readFileSync('apps/resume-analyzer/Dockerfile', 'utf8').includes('uvicorn'));
+assert.ok(readFileSync('apps/resume-analyzer/Dockerfile', 'utf8').includes('app.server'));
+assert.ok(readFileSync('apps/resume-analyzer/app/server.py', 'utf8').includes('workers=1'));

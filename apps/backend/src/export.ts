@@ -1,5 +1,5 @@
 import type { Candidate, Cluster } from "@hr/contracts";
-import { fullName, scoringLabels, statusLabels, formatMoscowDateTime, formatAnalysisDuration } from "@hr/contracts";
+import { fullName, scoringLabels, statusLabels, formatMoscowDateTime, formatAnalysisDuration, ratingScoreText, clusterScoreRange } from "@hr/contracts";
 
 export const escapeHtml = (value: unknown) =>
   String(value ?? "").replace(
@@ -35,13 +35,11 @@ export function exportCsv(candidates: Candidate[], clusters: Cluster[]) {
       scoringLabels[c.scoring_status],
       c.blacklisted ? "Совпадение" : "",
       ...clusters.map((cluster) => {
-        const values = c.ratings
-          .filter((r) => cluster.profiles.some((p) => p.id === r.profile_id))
-          .map((r) => Number(r.score));
-        return values.length ? Math.max(...values) : "";
+        const range = clusterScoreRange(c, cluster);
+        return range ? range.min === range.max ? range.min : `${range.min}–${range.max}` : "";
       }),
       ...profiles.map(
-        (p) => c.ratings.find((r) => r.profile_id === p.id)?.score ?? "",
+        (p) => { const rating = c.ratings.find(r => r.profile_id === p.id); return rating ? ratingScoreText(rating) : ""; },
       ),
     ]),
   ];
@@ -119,7 +117,7 @@ export function reportContent(
         );
         return rating
           ? [
-              `<tr id="profile-${escapeHtml(profile.id)}" class="report-section"><td>${profile.id === cluster.profiles.find(p => candidate.ratings.some(r => r.profile_id === p.id))?.id ? `<span id="cluster-${escapeHtml(cluster.id)}"></span>` : ""}${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td>${Number(rating.score).toFixed(1)} / 100</td>${tablesOnly ? "" : `<td><p><strong>Обоснование</strong></p><p>${escapeHtml(rating.explanation || "Пояснение не предоставлено").replace(/\n/g, "<br>")}</p><p><strong>Совпадения с требованиями</strong><br>${escapeHtml(rating.matched_keywords?.join(", ") || "Нет совпадений")}</p><p><strong>Стоп-факторы</strong><br>${escapeHtml(rating.triggered_stop_factors?.join(", ") || "Не найдены")}</p></td>`}</tr>`,
+              `<tr id="profile-${escapeHtml(profile.id)}" class="report-section"><td>${profile.id === cluster.profiles.find(p => candidate.ratings.some(r => r.profile_id === p.id))?.id ? `<span id="cluster-${escapeHtml(cluster.id)}"></span>` : ""}${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td>${escapeHtml(ratingScoreText(rating))} / 100</td>${tablesOnly ? "" : `<td><p><strong>Обоснование</strong></p><p>${escapeHtml(rating.explanation || "Пояснение не предоставлено").replace(/\n/g, "<br>")}</p><p><strong>Совпадения с требованиями</strong><br>${escapeHtml(rating.matched_keywords?.join(", ") || "Нет совпадений")}</p><p><strong>Стоп-факторы</strong><br>${escapeHtml(rating.triggered_stop_factors?.join(", ") || "Не найдены")}</p></td>`}</tr>`,
             ]
           : [];
       }),

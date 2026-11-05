@@ -39,7 +39,7 @@ export function BlacklistAction({ candidate }: { candidate: Candidate }) {
                   phone: candidate.phone,
                   last_name: candidate.last_name,
                   first_name: candidate.first_name,
-                  middle_name: candidate.middle_name,
+                  middle_name: candidate.middle_name ?? "",
                   company_name: company,
                   is_active: true,
                 });

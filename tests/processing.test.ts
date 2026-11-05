@@ -46,6 +46,9 @@ test("journal translates internal failure and lifecycle messages into candidate-
   assert.equal(event("status_changed", "Статус изменён на in_process").message, "Кандидат передан в работу.");
   assert.match(event("status_changed", "Статус изменён на historical").message, /архив/);
   assert.match(event("scoring_failed", "Текст не извлечён; нужен OCR").message, /доступным текстом/);
+  const emptyDocument = event("scoring_failed",
+    "Не удалось извлечь достаточно текста из резюме. Загрузите документ с доступным текстом.");
+  assert.equal(emptyDocument.message, "Не удалось прочитать текст резюме. Загрузите документ с доступным текстом.");
   assert.doesNotMatch(event("scoring_failed", 'violates foreign key constraint "profile_ratings_profile_id_fkey"').message, /constraint|profile_ratings/);
   assert.equal(event("scored", "Сохранены оценки 12 профилей").message, "Оценка завершена. Результат доступен в карточке кандидата.");
 });

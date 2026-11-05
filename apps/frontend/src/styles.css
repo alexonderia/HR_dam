@@ -456,6 +456,11 @@ body {
   background: var(--af-color-neutral-100);
   color: var(--af-feedback-default-text);
 }
+.score.uncertain {
+  background: var(--af-color-neutral-100);
+  color: var(--af-feedback-default-text);
+  padding-inline: var(--af-space-8);
+}
 .score i {
   position: absolute;
   height: var(--af-space-2);

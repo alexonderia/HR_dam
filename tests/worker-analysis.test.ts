@@ -7,6 +7,7 @@ import type { ServerResponse } from "node:http";
 import type { Cluster } from "@hr/contracts";
 import { analyzeResume, AnalysisError } from "../apps/worker/src/analysis.js";
 import type { AnalysisEvent } from "../apps/worker/src/analysis.js";
+import { contactResult } from "./fixtures/contact-result.js";
 
 // More than 30 profiles guard against accidentally partitioning the /rank payload.
 const clusters: Cluster[] = Array.from({ length: 3 }, (_, clusterIndex) => {
@@ -83,6 +84,14 @@ test("worker retries complete multipart requests with every cluster/profile and 
   assert.equal(events.at(-1)?.type, "completed");
   assert.ok(events.every(e => e.profiles === 33 && e.clusters === 3));
   assert.doesNotMatch(JSON.stringify(events), /Degree|Experience|Temporary outage|resume\.pdf/);
+});
+test("HTTP analysis preserves extracted contacts and provenance for the result bridge", async () => {
+  const contacts = contactResult({ last_name: "Румянцева", first_name: "Дарья", middle_name: "Константиновна" });
+  await withAnalyzer((_form, response) => json(response, 200, { ...success, ...contacts }), async rankUrl => {
+    const result = await analyzeResume(clusters, file, "resume.pdf", { ...options, rankUrl });
+    assert.deepEqual(result.candidate, contacts.candidate);
+    assert.deepEqual(result.contact_details, contacts.contact_details);
+  });
 });
 
 test("worker stops after its configured retries and does not return partial ratings", async () => {

@@ -46,11 +46,10 @@ class AnalyzerTests(unittest.TestCase):
         buf.seek(0)
         return UploadFile(filename="resume.docx", file=buf)
 
-    def test_parse_rejects_invalid_scores_and_arrays(self):
-        for score in ["80", True, -1, 101, float("nan"), float("inf")]:
-            self.assertIsNone(parse_ranking_response(json.dumps({"score": score, "explanation": "OK"})))
-        self.assertIsNone(parse_ranking_response('{"score":50,"explanation":"OK","matched_keywords":"Python"}'))
-        self.assertEqual(parse_ranking_response('```json\n{"score":80,"explanation":"OK"}\n```')["score"], 80)
+    def test_parse_rejects_legacy_scores_and_invalid_evidence(self):
+        self.assertIsNone(parse_ranking_response('{"score":80,"explanation":"OK"}'))
+        self.assertIsNone(parse_ranking_response('{"assessments":"Python","stop_factors":[]}'))
+        self.assertEqual(parse_ranking_response('```json\n{"assessments":[],"stop_factors":[]}\n```')["assessments"], [])
 
     def test_model_network_failure_and_empty_response_are_errors(self):
         with patch("app.ollama_client.requests.post", side_effect=requests.Timeout):
@@ -146,18 +145,15 @@ class AnalyzerTests(unittest.TestCase):
             with self.assertRaises(ModelResponseError):
                 rank_profile("resume", self.profile)
 
-    def test_stop_factors_preserve_model_rating_and_cluster_requirements(self):
-        rating = {"score": 80, "explanation": "Stop", "triggered_stop_factors": ["stop"]}
+    def test_score_is_computed_from_evidence_and_cluster_requirements_are_sent(self):
+        rating = {"assessments": [], "stop_factors": []}
         with patch("app.scoring.ask_ollama_chat", return_value={"response": json.dumps(rating)}):
-            self.assertEqual(rank_profile("resume", self.profile)["score"], 80)
+            self.assertEqual(rank_profile("Python", self.profile)["score"], 100)
         self.assertIn("РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ", build_ranking_prompt("resume", self.profile, "РћР±С‰РёРµ С‚СЂРµР±РѕРІР°РЅРёСЏ")[1])
 
 
     def test_late_valid_model_response_raises_timeout(self):
-        rating = {
-            "score": 80,
-            "explanation": "Valid response",
-        }
+        rating = {"assessments": [], "stop_factors": []}
 
         def late_response(**kwargs):
             time.sleep(0.05)
@@ -302,7 +298,9 @@ class AnalyzerTests(unittest.TestCase):
             mark_ready(available)
             response = readiness()
             self.assertEqual(response.status_code, 200 if available else 503)
-            self.assertEqual(json.loads(response.body), {"available": available})
+            self.assertEqual(json.loads(response.body)["available"], available)
+            self.assertEqual(json.loads(response.body)["model_ready"], available)
+            self.assertFalse(json.loads(response.body)["busy"])
             self.assertEqual(health_check(), {"ok": True})
 
     
@@ -407,7 +405,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             with patch("app.main.monitor", side_effect=fake_monitor):
                 async with lifespan(app):
                     self.assertTrue(await asyncio.to_thread(started.wait, 1))
-                    self.assertEqual(json.loads(readiness().body), {"available": True})
+                    self.assertTrue(json.loads(readiness().body)["available"])
                 self.assertTrue(await asyncio.to_thread(stopped.wait, 1))
         finally:
             mark_ready(False)

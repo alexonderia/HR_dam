@@ -29,9 +29,10 @@ import { candidateExportNames, createCompleteExport, createExport, exportOptions
 import { presentResumeEvent, queueStatus } from "./processing.js";
 import { acceptResumes, listImports, listImportDetails, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
 import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists, getImportJobState } from "@hr/data-access";
-import { brokerEnabled, rankBridgeEnabled, processingMode, getAnalysisStatus } from "@hr/data-access";
+import { brokerEnabled, rankBridgeEnabled, processingMode, analyzerAdapter, getAnalysisStatus } from "@hr/data-access";
 import { requirementUpdatePlan, initializeAssessmentHistory } from "./requirement-updates.js";
 import type { RequirementReassessmentResult } from "@hr/contracts";
+import { previewResumeContacts, recoverResumeContacts } from "./contact-recovery.js";
 
 export const router = Router();
 const upload = multer({
@@ -48,16 +49,17 @@ router.get("/health", async (_req, res) => {
   res.json({ ok: true });
 });
 router.get("/analysis/status", async (_req, res) => {
-  if (!brokerEnabled) { res.json(await getAnalysisStatus()); return; }
+  const analysis = await getAnalysisStatus();
+  if (!brokerEnabled) { res.json(analysis); return; }
   try {
     const broker = await getBrokerStatus();
-    if (rankBridgeEnabled && broker.analysis_consumers > 0) { res.json(await getAnalysisStatus()); return; }
-    res.json({ available: broker.analysis_consumers > 0, message: broker.analysis_consumers > 0
-      ? "Обработчик резюме подключён."
-      : "Обработчик резюме пока не подключён. Загруженные файлы будут ожидать обработки в очереди." });
-  } catch { res.json({ available: false, message: "Очередь временно недоступна. Принятые задания сохраняются." }); }
+    res.json(broker.analysis_consumers > 0 ? analysis : { ...analysis, available: false,
+      message: "Обработчик резюме пока не подключён. Загруженные файлы будут ожидать обработки в очереди." });
+  } catch { res.json({ ...analysis, available: false, broker_connected: false,
+    message: "Очередь временно недоступна. Принятые задания сохраняются." }); }
 });
-router.get("/processing/mode", (_req, res) => res.json({ mode: processingMode, broker_enabled: brokerEnabled, rank_bridge_enabled: rankBridgeEnabled }));
+router.get("/processing/mode", (_req, res) => res.json({ mode: processingMode, analyzer_adapter: analyzerAdapter,
+  broker_enabled: brokerEnabled, rank_bridge_enabled: rankBridgeEnabled }));
 router.get("/processing/queue", async (_req, res) => res.json(await getBrokerStatus()));
 const archiveUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxArchiveSize, files: 1, fields: 0 } });
 router.post("/resume-imports", archiveUpload.single("archive"), async (req, res) => res.status(202).json(await acceptResumes(req.file, true)));
@@ -149,15 +151,23 @@ router.get("/resumes/:id/processing", async (req, res) => {
   if (!row) throw new HttpError(404, "Резюме не найдено.");
   if (row.scoring_status !== "pending") { res.json({ queue: null }); return; }
   const broker = await getBrokerStatus();
-  const analysis = rankBridgeEnabled ? await getAnalysisStatus() : { available: broker.analysis_consumers > 0 };
+  const analysis = await getAnalysisStatus();
   const analysisQueue = broker.queues[queues.analysis];
   const worker = analysis.available ? { state: "idle" as const, current_resume_id: null } : null;
   res.json({ queue: queueStatus({ queuedAt: new Date(row.updated_at).toISOString(), activeProfiles: row.active_profiles,
-    analysisAvailable: analysis.available, worker, ahead: Math.max(0, (analysisQueue?.ready || 0) - 1), processing: analysisQueue?.processing || 0 }) });
+    analysisAvailable: analysis.available && broker.analysis_consumers > 0, worker,
+    ahead: Math.max(0, (analysisQueue?.ready || 0) - 1), processing: analysisQueue?.processing || 0 }) });
 });
 router.post("/resumes/:id/retry", async (req, res) => {
   const id = z.uuid().parse(req.params.id);
   res.status(202).json(await enqueueExistingResume(id));
+});
+router.post("/resumes/:id/contacts/preview", async (req, res) => {
+  res.json(await previewResumeContacts(z.uuid().parse(req.params.id)));
+});
+router.post("/resumes/:id/contacts/recover", async (req, res) => {
+  const { revision } = z.object({ revision: z.string().regex(/^[a-f0-9]{64}$/) }).strict().parse(req.body);
+  res.json(await recoverResumeContacts(z.uuid().parse(req.params.id), revision));
 });
 router.patch("/resumes/:id/status", async (req, res) => {
   const id = z.uuid().parse(req.params.id),

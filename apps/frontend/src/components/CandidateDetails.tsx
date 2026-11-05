@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   ChevronRight,
 } from "lucide-react";
-import { clusterScore, formatMoscowDateTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
+import { clusterScore, clusterScoreRange, ratingEvidence, formatMoscowDateTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { mutate, reportUrl, openWindow } from "../lib/api";
 import {
@@ -23,6 +23,7 @@ import { ResumePreview } from "./ResumePreview";
 import { ExportDialog } from "./ExportDialog";
 import { BlacklistAction, CandidateWorkflow } from "./CandidateActions";
 import { StopFactorTag } from "./StopFactorTag";
+import { ContactRecovery, ContactSources } from "./ContactRecovery";
 
 export function CandidateDetails({
   candidateId,
@@ -119,6 +120,8 @@ export function CandidateDetails({
             </div>
           </div>
           <ErrorMessage message={error} />
+          {candidate.contact_extraction?.warnings.map(warning => <p key={warning} role="status">{warning}</p>)}
+          <ContactSources candidate={candidate} />
           {candidate.blacklisted && (
             <div className="af-alert af-alert--warning notice">
               <ShieldAlert size={19} />
@@ -131,6 +134,7 @@ export function CandidateDetails({
           <div className="candidate-controls">
             <CandidateWorkflow key={candidate.id} candidate={candidate} />
             <div className="toolbar candidate-management">
+              <ContactRecovery key={candidate.resume_id} resumeId={candidate.resume_id} />
               <Button
                 secondary
                 disabled={busy || !!retryRestriction}
@@ -177,7 +181,7 @@ export function CandidateDetails({
                         Неактивен
                       </span>
                     )}
-                    <Score value={clusterScore(candidate, cluster)} />
+                    <Score value={clusterScore(candidate, cluster)} upperValue={clusterScoreRange(candidate, cluster)?.max} />
                   </h4>
                   {rated.map((p) => {
                     const r = ratingsByProfile.get(p.id)!;
@@ -193,11 +197,16 @@ export function CandidateDetails({
                             {p.position_name}
                             {!p.is_active && <small> · неактивен</small>}
                           </span>
-                          <Score value={Number(r.score)} />
+                          <Score value={Number(r.score)} upperValue={ratingEvidence(r)?.score_range.max} />
                         </summary>
                         <div className="rating-explanation">
                           <section>
                             <h5>Обоснование оценки</h5>
+                            {ratingEvidence(r) && <p className="muted">
+                              Охват проверенными критериями: {ratingEvidence(r)!.coverage}%.
+                              Диапазон отражает сведения, требующие уточнения. Правила оценки предварительные;
+                              качество на разметке рекрутеров ещё не проверено.
+                            </p>}
                             <p className="explanation-text">
                               {r.explanation ||
                                 "Обработчик не предоставил пояснение."}

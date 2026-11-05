@@ -1,16 +1,7 @@
 import { z } from "zod";
-import { normalizeName, personSchema, clusterSchema, profileSchema, rankResponseSchema } from "./domain.js";
-
-const optionalName = z.preprocess(
-  value => typeof value === "string" ? normalizeName(value) || null : value,
-  z.string().max(100).regex(/^[^\x00-\x1f]*$/u).nullish().transform(value => value ?? null),
-);
-export const extractedPersonSchema = z.object({
-  last_name: optionalName, first_name: optionalName, middle_name: optionalName,
-  phone: z.preprocess(value => typeof value === "string" && !value.trim() ? null : value,
-    personSchema.shape.phone.nullish().transform(value => value ?? null)),
-});
-export type ExtractedPerson = z.infer<typeof extractedPersonSchema>;
+import { extractedPersonSchema, clusterSchema, profileSchema, rankResponseSchema, type ExtractedPerson } from "./domain.js";
+import { contactFields, contactDetailsSchema } from "./contacts.js";
+export { extractedPersonSchema, type ExtractedPerson } from "./domain.js";
 export const requirementSchema = clusterSchema.extend({ id: z.uuid(), profiles: z.array(profileSchema.extend({ id: z.uuid() })).min(1) });
 export const importFileSchema = z.object({
   id: z.uuid(), file_id: z.uuid(), source_path: z.string().min(1).max(2048),
@@ -18,6 +9,8 @@ export const importFileSchema = z.object({
   size_bytes: z.number().int().positive().max(50 * 1024 * 1024),
   sha256: z.string().regex(/^[a-f0-9]{64}$/), bucket: z.string().min(1).max(255), object_key: z.string().min(1).max(2048),
   candidate_hint: extractedPersonSchema,
+  candidate_hint_source: z.enum(["manual", "snapshot"]).optional(),
+  manual_contact_fields: z.array(z.enum(contactFields)).max(4).optional(),
   target_resume_id: z.uuid().optional(), target_updated_at: z.string().optional(),
   assessment_cluster_ids: z.array(z.uuid()).min(1).optional(),
 });
@@ -47,7 +40,8 @@ export type AnalysisJob = z.infer<typeof analysisJobSchema>;
 const resultEnvelope = { version: z.literal(1), job_id: z.uuid(), batch_id: z.uuid(), item_id: z.uuid(), attempt: z.number().int().min(1).max(100),
   analysis_duration_ms: z.number().int().min(0).max(2147483647).optional() };
 export const importResultSchema = z.discriminatedUnion("status", [
-  z.object({ ...resultEnvelope, status: z.literal("completed"), candidate: extractedPersonSchema, analysis: rankResponseSchema }).strict(),
+  z.object({ ...resultEnvelope, status: z.literal("completed"), candidate: extractedPersonSchema,
+    contact_details: contactDetailsSchema.optional(), analysis: rankResponseSchema }).strict(),
   z.object({ ...resultEnvelope, status: z.literal("failed"), error: z.object({ code: z.string().min(1).max(100), message: z.string().min(1).max(2000) }).strict() }).strict(),
 ]);
 export type ImportResult = z.infer<typeof importResultSchema>;

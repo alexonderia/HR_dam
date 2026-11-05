@@ -17,17 +17,20 @@ MAX_DOCUMENT_SIZE = 50 * 1024 * 1024
 DOWNLOAD_TIMEOUT = (10, 120)
 REFRESH_TIMEOUT = (10, 20)
 
-
 class DocumentDownloadError(Exception):
     """Ошибка скачивания документа."""
 
+class DownloadLinkError(Exception):
+    """Не удалось обновить ссылку на документ.""" 
+
+class DownloadLinkTemporaryError(DownloadLinkError):
+    """Backend временно недоступен при обновлении ссылки."""
+
+class DocumentTemporaryError(DocumentDownloadError):
+    """Временная ошибка скачивания документа из S3."""    
 
 class DocumentIntegrityError(Exception):
     """Размер или SHA-256 документа не совпадает."""
-
-
-class DownloadLinkError(Exception):
-    """Не удалось обновить ссылку на документ."""
 
 
 def parse_expiration(value: str) -> datetime:
@@ -66,17 +69,40 @@ def refresh_download_url(job: dict) -> tuple[str, str]:
             timeout=REFRESH_TIMEOUT,
         )
 
-        response.raise_for_status()
-        data = response.json()
+    except requests.RequestException as exc:
+        raise DownloadLinkTemporaryError(
+            "Backend недоступен при обновлении ссылки."
+        ) from exc
 
-        return (
-            data["download_url"],
-            data["download_url_expires_at"],
+    if response.status_code in (408, 429) or response.status_code >= 500:
+        raise DownloadLinkTemporaryError(
+            f"Временная ошибка Backend: HTTP {response.status_code}"
         )
 
-    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+    if response.status_code != 200:
         raise DownloadLinkError(
-            "Не удалось обновить ссылку на документ."
+            f"Backend отклонил обновление ссылки: HTTP {response.status_code}"
+        )
+
+    try:
+        data = response.json()
+
+        download_url = data["download_url"]
+        expires_at = data["download_url_expires_at"]
+
+        if not isinstance(download_url, str) or not download_url:
+            raise ValueError("Invalid download_url")
+
+        if not isinstance(expires_at, str) or not expires_at:
+            raise ValueError("Invalid expiration")
+
+        parse_expiration(expires_at)
+
+        return download_url, expires_at
+
+    except (ValueError, KeyError, TypeError) as exc:
+        raise DownloadLinkError(
+            "Backend вернул некорректные данные ссылки."
         ) from exc
 
 
@@ -132,9 +158,23 @@ def download_document(job: dict) -> bytes:
                         "Размер документа превышает ожидаемый."
                     )
 
-    except requests.RequestException as exc:
+    except requests.HTTPError as exc:
+        status_code = exc.response.status_code if exc.response is not None else None
+
+        if status_code in (408, 429) or (
+            status_code is not None and status_code >= 500
+        ):
+            raise DocumentTemporaryError(
+                f"Временная ошибка S3: HTTP {status_code}"
+            ) from exc
+
         raise DocumentDownloadError(
-            "Не удалось скачать документ из S3."
+            f"Ошибка скачивания документа: HTTP {status_code}"
+        ) from exc
+
+    except requests.RequestException as exc:
+        raise DocumentTemporaryError(
+            "Временная ошибка подключения к S3."
         ) from exc
 
     if len(content) != expected_size:
