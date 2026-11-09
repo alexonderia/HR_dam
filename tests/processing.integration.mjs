@@ -62,14 +62,14 @@ function evaluated(targets, score = 80) {
   return { status: "completed", candidate: { last_name:null,first_name:null,middle_name:null,phone:null }, evaluations:targets.map(t=>({target_id:t.id,score,
     criteria:["education","experience","keywords"].map(name=>({name,status:"unknown",explanation:"Synthetic evidence is absent."})),matched_keywords:[],triggered_stop_factors:[],explanation:"Synthetic protocol result."})) };
 }
-async function completeEvaluation(peer, taskId, mode) {
+async function completeEvaluation(peer, taskId, mode, result = evaluated) {
   const cmd = await take(peer, taskId), input = await internal(mode, cmd, "input");
   assert.equal(input.should_process,true);
   const file = await internal(mode, cmd, `files/${input.file.file_id}`);
   assert.equal(hash(file),input.file.sha256);
   await internal(mode, cmd, "progress", {method:"POST",body:JSON.stringify({job_id:cmd.body.job_id,attempt:cmd.body.attempt,status:"processing"})});
   await internal(mode, cmd, "output/forbidden", {method:"PUT"},403);
-  await internal(mode, cmd, "result", {method:"POST",body:JSON.stringify(evaluated(input.requirements.targets))});
+  await internal(mode, cmd, "result", {method:"POST",body:JSON.stringify(result(input.requirements.targets))});
   peer.channel.ack(cmd.m);
   return {cmd,input};
 }
@@ -183,17 +183,71 @@ async function authorized(phase) {
     assert.equal(csrf.status,403);
     await browser.request("/api/guest/queue",{method:"POST",body:"{}"},403);
     await browser.request("/api/app/overview");
-    const cluster=await browser.request("/api/app/clusters",{method:"POST",body:JSON.stringify({name:"Synthetic cluster",track:"test"})},201);
-    await browser.request("/api/app/profiles",{method:"POST",body:JSON.stringify({cluster_id:cluster.id,position_name:"Synthetic profile",keywords:["TypeScript"]})},201);
-    const text=Buffer.from(`Synthetic integration resume ${randomUUID()}\n`),form=new FormData();form.append("resume",new Blob([text]),"synthetic.txt");
+    assert.deepEqual(await browser.request("/api/app/processing/mode"),{mode:"broker",broker_enabled:true,rank_bridge_enabled:false});
+    assert.equal((await browser.request("/api/app/analysis/status")).available,false);
+    const fixture=JSON.parse(await readFile("/tests/fixtures/evidence-ratings.json","utf8")).find(f=>f.name==="unknown_is_not_absent");
+    const profile=fixture.requirements[0].profiles[0],rating=fixture.result.clusters[0].profiles[0];
+    const clusters=[];
+    for(let n=0;n<2;n++) {
+      const cluster=await browser.request("/api/app/clusters",{method:"POST",body:JSON.stringify({name:`Synthetic cluster ${n}`,track:"test"})},201);
+      await browser.request("/api/app/profiles",{method:"POST",body:JSON.stringify({...profile,education:profile.education||"",experience:profile.experience||"",comment:profile.comment||"",cluster_id:cluster.id})},201);
+      clusters.push(cluster);
+    }
+    const taskCount=(await pool.query("SELECT count(*)::int n FROM processing_tasks")).rows[0].n;
+    const invalid=new FormData();invalid.append("archive",new Blob(["Synthetic plain text"]),"not-an-archive.txt");
+    await browser.request("/api/app/resume-imports",{method:"POST",body:invalid},422);
+    assert.equal((await pool.query("SELECT count(*)::int n FROM processing_tasks")).rows[0].n,taskCount);
+    const candidate={last_name:"Тестова",first_name:"Анна",middle_name:null,phone:"+79000000001"};
+    const quote="Тестова Анна +79000000001";
+    const contact_details={version:1,method:"rules-ru-v1",text_status:"present",name_status:"extracted",phone_status:"extracted",
+      fields:Object.fromEntries(Object.keys(candidate).map(k=>[k,candidate[k]?{source:"resume_text",confidence:"high",quote,line_start:1,line_end:1}:null])),warnings:[]};
+    const evidenceResult=targets=>({...evaluated(targets),candidate,contact_details,evaluations:targets.map(t=>({
+      ...evaluated([t]).evaluations[0],score:rating.score,matched_keywords:rating.matched_keywords,
+      triggered_stop_factors:rating.triggered_stop_factors,details:rating.details,
+    }))});
+    const text=Buffer.from(fixture.source+"\n"+quote),form=new FormData();form.append("resume",new Blob([text]),"synthetic.txt");
+    form.append("phone","+79000000002");
     const task=await browser.request("/api/app/candidates",{method:"POST",body:form},202);
     if(phase==="outbox-create"){
       const pending=await pool.query("SELECT count(*)::int AS count FROM processing_outbox WHERE task_id=$1 AND published_at IS NULL",[task.id]);assert.ok(pending.rows[0].count>0);
       await writeFile("/qa/processing-outbox.json",JSON.stringify({task_id:task.id}));console.log("PASS authorized upload accepted transactionally while RabbitMQ is stopped");return;
     }
-    const peer=await consumer("authorized","evaluate");await completeEvaluation(peer,task.id,"authorized");
+    const peer=await consumer("authorized","evaluate");await completeEvaluation(peer,task.id,"authorized",evidenceResult);
     await until(()=>browser.request(`/api/app/resume-imports/${task.id}`),r=>r.pending_files===0);
     const overview=await browser.request("/api/app/overview");assert.ok(overview.candidates.length>0);assert.ok(overview.candidates.some(c=>c.ratings.length>0));
+    const detail=await browser.request(`/api/app/resume-imports/${task.id}`),resumeId=detail.items[0].resume_id;
+    assert.ok(resumeId);
+    const saved=await pool.query("SELECT c.id,c.phone,c.contact_provenance,r.contact_extraction FROM resumes r JOIN candidates c ON c.id=r.candidate_id WHERE r.id=$1",[resumeId]);
+    const person=saved.rows[0]; assert.equal(person.phone,"+79000000002");assert.equal(person.contact_provenance.phone.source,"manual");
+    assert.deepEqual(person.contact_extraction,contact_details);
+    const ratingsBefore=await pool.query("SELECT * FROM profile_ratings WHERE resume_id=$1 ORDER BY profile_id",[resumeId]);
+    assert.equal(ratingsBefore.rows.length,2);assert.deepEqual(ratingsBefore.rows[0].details,rating.details);
+    assert.equal(Number(ratingsBefore.rows[0].score),50);
+    await pool.query("UPDATE candidates SET last_name=NULL,first_name=NULL,contact_provenance=contact_provenance-'last_name'-'first_name' WHERE id=$1",[person.id]);
+    const preview=await browser.request(`/api/app/resumes/${resumeId}/contacts/preview`,{method:"POST"});
+    assert.equal(preview.changes.length,2);assert.ok(preview.protected_fields.includes("phone"));
+    await pool.query("UPDATE candidates SET first_name='Ручное' WHERE id=$1",[person.id]);
+    await browser.request(`/api/app/resumes/${resumeId}/contacts/recover`,{method:"POST",body:JSON.stringify({revision:preview.revision})},409);
+    await pool.query("UPDATE candidates SET first_name=NULL WHERE id=$1",[person.id]);
+    const fresh=await browser.request(`/api/app/resumes/${resumeId}/contacts/preview`,{method:"POST"});
+    await browser.request(`/api/app/resumes/${resumeId}/contacts/recover`,{method:"POST",body:JSON.stringify({revision:fresh.revision})});
+    assert.deepEqual((await pool.query("SELECT * FROM profile_ratings WHERE resume_id=$1 ORDER BY profile_id",[resumeId])).rows,ratingsBefore.rows);
+    const retried=await browser.request(`/api/app/resumes/${resumeId}/retry`,{method:"POST"},202);
+    await completeEvaluation(peer,retried.id,"authorized",evidenceResult);
+    const done=await until(()=>browser.request(`/api/app/resume-imports/${retried.id}`),r=>r.pending_files===0);
+    assert.equal(done.processed_files,1);assert.equal(done.items[0].resume_id,resumeId);
+    assert.equal((await pool.query("SELECT count(*)::int n FROM resumes WHERE id=$1",[resumeId])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT phone FROM candidates WHERE id=$1",[person.id])).rows[0].phone,"+79000000002");
+    const untouched=(await pool.query("SELECT p.* FROM profile_ratings p JOIN profiles f ON f.id=p.profile_id WHERE p.resume_id=$1 AND f.cluster_id=$2",[resumeId,clusters[1].id])).rows;
+    await browser.request(`/api/app/clusters/${clusters[0].id}`,{method:"PUT",body:JSON.stringify({name:"Synthetic updated cluster",track:"test",is_active:true})});
+    const reassessment=await browser.request("/api/app/requirements/reassessment",{method:"POST",body:JSON.stringify({cluster_ids:[clusters[0].id]})},202);
+    assert.equal(reassessment.queued_resumes,1);assert.deepEqual(reassessment.errors,[]);
+    const selected=(await pool.query("SELECT id FROM processing_tasks WHERE state->'files'->0->>'target_resume_id'=$1 ORDER BY created_at DESC LIMIT 1",[resumeId])).rows[0].id;
+    await completeEvaluation(peer,selected,"authorized",evidenceResult);
+    await until(()=>browser.request(`/api/app/resume-imports/${selected}`),r=>r.pending_files===0);
+    assert.deepEqual((await pool.query("SELECT p.* FROM profile_ratings p JOIN profiles f ON f.id=p.profile_id WHERE p.resume_id=$1 AND f.cluster_id=$2",[resumeId,clusters[1].id])).rows,untouched);
+    assert.equal((await pool.query("SELECT count(*)::int n FROM profile_ratings WHERE resume_id=$1",[resumeId])).rows[0].n,2);
+    console.log("PASS evidence/contact persistence, cached recovery, manual field protection, stale preview, retry and selective reassessment");
     await browser.request("/api/auth/refresh",{method:"POST"});
     await pool.query("UPDATE sessions SET revoked_at=now() WHERE user_id=(SELECT id FROM users WHERE login=$1)",[login]);
     await browser.request("/api/app/overview",{},401);assert.equal(browser.cookies.has("hr_session"),false);

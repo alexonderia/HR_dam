@@ -5,11 +5,12 @@ export function booleanSetting(name: string, fallback: boolean) {
   if (value === "false") return false;
   throw new Error(`${name} must be true or false`);
 }
-export const brokerEnabled = booleanSetting("RABBITMQ_ENABLED", false);
-export const analyzerAdapter = process.env.ANALYZER_ADAPTER ||
+const currentTransport = Boolean(process.env.PROCESSING_AMQP_URL);
+export const brokerEnabled = currentTransport || booleanSetting("RABBITMQ_ENABLED", false);
+export const analyzerAdapter = currentTransport ? "amqp" : process.env.ANALYZER_ADAPTER ||
   (brokerEnabled && process.env.RANK_BRIDGE_ENABLED === "false" ? "amqp" : "http");
 if (analyzerAdapter !== "http" && analyzerAdapter !== "amqp") throw new Error("ANALYZER_ADAPTER must be http or amqp");
-export const rankBridgeEnabled = booleanSetting("RANK_BRIDGE_ENABLED", analyzerAdapter === "http");
+export const rankBridgeEnabled = !currentTransport && booleanSetting("RANK_BRIDGE_ENABLED", analyzerAdapter === "http");
 if (analyzerAdapter === "amqp" && (!brokerEnabled || rankBridgeEnabled))
   throw new Error("AMQP analyzer requires RABBITMQ_ENABLED=true and RANK_BRIDGE_ENABLED=false; native and bridge cannot share a queue");
 if (analyzerAdapter === "http" && !rankBridgeEnabled)

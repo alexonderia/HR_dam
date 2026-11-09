@@ -5,11 +5,13 @@ import { AuthorizedTaskStore } from "./processing-store.js";
 import { persistResult, markTargetFailure } from "./import-results.js";
 import type { ImportFile, ImportManifest } from "@hr/contracts";
 import { config } from "./config.js";
+import { HttpError } from "./errors.js";
 
 async function project(task: Task, job: Job) {
   const file = task.files.find(f => f.file_id === job.file_id)!;
   const input: ImportFile = { id: file.file_id, ...file, source_path: file.metadata?.archive_path || file.file_name, bucket: config.bucket,
-    object_key: file.key, candidate_hint: file.candidate_hint || { last_name: null, first_name: null, middle_name: null, phone: null } };
+    object_key: file.key, target_resume_id: file.target_resume_id, target_updated_at: file.target_updated_at,
+    assessment_cluster_ids: file.assessment_cluster_ids, candidate_hint_source: file.target_resume_id ? "snapshot" : "manual", candidate_hint: file.candidate_hint || { last_name: null, first_name: null, middle_name: null, phone: null } };
   const duration = job.started_at ? Math.max(0, Date.now() - Date.parse(job.started_at)) : null;
   if (job.result?.status === "failed") { await markTargetFailure(input, job.job_id, job.result.error.message, duration); return; }
   if (job.operation !== "evaluate" || !job.result || !("evaluations" in job.result)) return;
@@ -17,13 +19,13 @@ async function project(task: Task, job: Job) {
     requirements: task.clusters!, ignored_files: [], items: [input] };
   const result = job.result;
   try { return await persistResult(manifest, input, { version: 1, job_id: job.job_id, batch_id: task.id, item_id: file.file_id, attempt: job.attempt,
-    status: "completed", candidate: result.candidate, analysis: { clusters: task.clusters!.map(cluster => ({ id: cluster.id,
+    status: "completed", candidate: result.candidate, contact_details: result.contact_details, analysis: { clusters: task.clusters!.map(cluster => ({ id: cluster.id,
       profiles: cluster.profiles.map(profile => {
         const evaluation = result.evaluations.find(e => e.target_id === profile.id)!;
         return { id: profile.id, score: evaluation.score, matched_keywords: evaluation.matched_keywords,
-          triggered_stop_factors: evaluation.triggered_stop_factors, details: { criteria: evaluation.criteria }, explanation: evaluation.explanation };
+          triggered_stop_factors: evaluation.triggered_stop_factors, details: evaluation.details || { criteria: evaluation.criteria }, explanation: evaluation.explanation };
       }) })) } }, duration); } catch (error) {
-    if (error instanceof PermanentQueueError) {
+    if (error instanceof PermanentQueueError || error instanceof HttpError && error.status === 409) {
       await markTargetFailure(input, job.job_id, error.message, duration);
       throw new AccessError(409, error.message);
     }

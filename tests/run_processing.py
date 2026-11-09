@@ -52,6 +52,8 @@ def main():
     run("run", "--rm", "--no-deps", "test-runner", "recover")
     run("run", "--rm", "--no-deps", "test-runner", "cleanup")
     subprocess.run(["npx", "tsx", "tests/processing.ui.ts"], cwd=ROOT, shell=os.name == "nt", check=True)
+    subprocess.run(["npx", "tsx", "tests/contact-recovery.ui.ts"], cwd=ROOT, shell=os.name == "nt",
+                   env={**os.environ, "TEST_BASE_URL": "http://localhost:13000"}, check=True)
     print("Processing acceptance checks passed", flush=True)
 
 

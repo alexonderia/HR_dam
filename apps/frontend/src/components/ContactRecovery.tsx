@@ -45,7 +45,7 @@ export function ContactRecovery({ resumeId }: { resumeId: string }) {
   return <>
     <Button secondary disabled={busy} onClick={inspect}><ContactRound size={16} />Восстановить контакты</Button>
     {open && <Modal title="Восстановление контактов" onClose={() => { if (!busy) setOpen(false); }} closeDisabled={busy} wide>
-      <p>ФИО и телефон извлекаются из текущего резюме. Оценки сохраняются.</p>
+      <p>ФИО и телефон восстанавливаются из сохранённых результатов обработки текущего резюме. Оценки сохраняются.</p>
       <p className="muted">Ручные значения и заполненные старые поля с неизвестным источником защищены от замены.</p>
       {busy && <p role="status">Обработка контактов…</p>}
       <ErrorMessage message={error} />

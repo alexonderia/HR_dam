@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { extractedPersonSchema } from "./imports.js";
+import { contactDetailsSchema } from "./contacts.js";
+import { contactsResponseSchema } from "./domain.js";
+import { evidenceDetailsSchema } from "./evidence.js";
 
 export const processingModeSchema = z.enum(["guest", "authorized"]);
 export const operationSchema = z.enum(["prepare", "evaluate"]);
@@ -27,10 +30,12 @@ export const processingTargetSchema = z.object({
   education: z.string().max(10000), experience: z.string().max(10000),
   keywords: z.array(z.string().trim().min(1).max(300)).max(100),
   stop_factors: z.array(z.string().trim().min(1).max(300)).max(100), comment: z.string().max(10000),
+  cluster_comment: z.string().max(10000).optional(),
 }).strict();
-export const guestCriteriaSchema = processingTargetSchema.omit({ id: true }).strict();
+export const guestCriteriaSchema = processingTargetSchema.omit({ id: true, cluster_comment: true }).strict();
 export const evaluationSchema = z.object({
   target_id: z.uuid(), score: z.number().min(0).max(100),
+  details: evidenceDetailsSchema.optional(),
   criteria: z.array(z.object({ name: z.enum(["education", "experience", "keywords"]),
     status: z.enum(["matched", "partial", "not_matched", "unknown"]), explanation: z.string().max(10000),
   }).strict()).length(3).refine(a => new Set(a.map(c => c.name)).size === 3),
@@ -44,8 +49,12 @@ export const prepareResultSchema = z.object({
 }).strict().refine(r => new Set(r.files.map(f => f.file_id)).size === r.files.length);
 export const evaluateResultSchema = z.object({
   status: z.literal("completed"), candidate: extractedPersonSchema.strict(),
+  contact_details: contactDetailsSchema.optional(),
   evaluations: z.array(evaluationSchema).min(1).max(200),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  if (value.contact_details && !contactsResponseSchema.safeParse(value).success)
+    ctx.addIssue({ code: "custom", message: "Контакты не подтверждены источником.", path: ["contact_details"] });
+});
 export const failedResultSchema = z.object({ status: z.literal("failed"), error: processingErrorSchema }).strict();
 export const outputMetadataSchema = z.object({
   file_name: z.string().min(1).max(255).refine(s => !/[\x00-\x1f/\\]/.test(s)),

@@ -47,13 +47,10 @@ docker compose logs flyway s3-init
 
 Для обычного перезапуска без изменения кода достаточно `docker compose restart`.
 После изменения `.env` примените настройки через `docker compose up -d --no-build`.
-При обновлении прежней установки с native consumer (`RABBITMQ_ENABLED=true`,
-`RANK_BRIDGE_ENABLED=false`) добавьте в `.env` `ANALYZER_ADAPTER=amqp`.
-Затем используйте `docker compose --profile broker up -d --build --remove-orphans`,
-после него — `docker compose --profile broker up -d --no-build --wait frontend backend worker resume-analyzer`.
-Это пересоздаст сервисы с новым окружением, удалит прежний
-`resume-analyzer-consumer` и проверит готовность приложения. Без явного адаптера Compose выбирает `http`, что
-несовместимо с отключённым bridge. [Все сочетания режимов и порядок обновления](docs/resume-analyzer-rabbitmq-api.md#режимы-приложения-и-подключение-analyzer).
+Текущий запуск использует отдельные очереди гостевого и авторизованного режимов.
+Старые переключатели `RABBITMQ_ENABLED`, `ANALYZER_ADAPTER`, `RANK_BRIDGE_ENABLED`
+и профиль `broker` к нему не относятся. `worker` и `resume-analyzer` сохранены в исходниках
+для прежней реализации; основной Compose их не запускает.
 Если изменён один сервис, собирайте и пересоздавайте только его, например:
 
 ```powershell

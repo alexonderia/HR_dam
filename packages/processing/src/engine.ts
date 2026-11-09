@@ -1,4 +1,4 @@
-import { processingCommandSchema, processingEventSchema, prepareResultSchema, evaluateResultSchema, failedResultSchema, type ProcessingEvent, type ProcessingMode } from "@hr/contracts";
+import { validateEvidenceRating, processingCommandSchema, processingEventSchema, prepareResultSchema, evaluateResultSchema, failedResultSchema, type ProcessingEvent, type ProcessingMode } from "@hr/contracts";
 import { AccessError, signToken, verifyToken, type Claims } from "@hr/security";
 import { command, assignJob, expireWork, finish, live, mutateTask, stableId, terminal, guestAbsoluteTtlMs } from "./state.js";
 import type { BlobStore, Job, Publication, Publisher, Task, TaskStore, StoredFile } from "./types.js";
@@ -50,7 +50,8 @@ export class ProcessingEngine {
   }
   input(task: Task, job: Job, base: string) {
     const file = task.files.find(f => f.file_id === job.file_id)!;
-    const { key: _key, candidate_hint: _hint, ...description } = file;
+    const { file_id, file_name, mime_type, size_bytes, sha256, metadata } = file;
+    const description = { file_id, file_name, mime_type, size_bytes, sha256, ...(metadata ? { metadata } : {}) };
     return { job_id: job.job_id, attempt: job.attempt, should_process: !job.confirmed && !job.applied && !terminal(task),
       file: { ...description, download_path: `${base}/jobs/${job.job_id}/files/${file.file_id}` },
       ...(job.operation === "evaluate" ? { requirements: { targets: task.requirements } } : {}),
@@ -77,7 +78,9 @@ export class ProcessingEngine {
       }
       if (task.files.length >= 400 || task.files.filter(f => f.source_file_id === job.file_id).length >= 200 ||
         task.files.filter(f => f.source_file_id === job.file_id).reduce((n, f) => n + f.size_bytes, file.size_bytes) > 262144000) throw new AccessError(422, "Превышен лимит выделенных файлов.");
-      selected = file; task.files.push(file);
+      const source = task.files.find(f => f.file_id === job.file_id)!;
+      selected = { ...file, ...(source.candidate_hint ? { candidate_hint: source.candidate_hint } : {}) };
+      task.files.push(selected);
     });
     return selected!;
   }
@@ -95,6 +98,15 @@ export class ProcessingEngine {
         if (result.status === "completed" && "evaluations" in result) {
           const ids = result.evaluations.map(e => e.target_id);
           if (ids.length !== task.requirements.length || new Set(ids).size !== ids.length || ids.some(id => !task.requirements.some(t => t.id === id))) throw new AccessError(422, "Набор целей не соответствует заданию.");
+          for (const evaluation of result.evaluations) {
+            const target = task.requirements.find(t => t.id === evaluation.target_id)!;
+            if (evaluation.triggered_stop_factors.some(stop => !target.stop_factors.includes(stop)))
+              throw new AccessError(422, "Стоп-фактор отсутствует в требованиях задания.");
+            if (evaluation.details) {
+              try { validateEvidenceRating(evaluation, target, target.cluster_comment || ""); }
+              catch { throw new AccessError(422, "Некорректное обоснование оценки."); }
+            }
+          }
         }
         job.result = result; job.result_id = stableId(`${job.job_id}:result`); job.event_id = stableId(`${job.job_id}:event`);
       }

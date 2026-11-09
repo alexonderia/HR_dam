@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { contactResult } from "./fixtures/contact-result.js";
 import { Readable } from "node:stream";
 import { signToken, AccessError } from "@hr/security";
 import { ProcessingEngine, newTask, mutateTask, expireWork, type Task, type TaskStore, type Publication, type Job } from "@hr/processing";
@@ -153,4 +155,43 @@ test("prepare cannot register a result referencing a file outside its job", asyn
   await assert.rejects(r.engine.result(auth.claims, { status: "completed", files: [{ file_id: randomUUID() }], errors: [] }),
     (e: unknown) => e instanceof AccessError && e.status === 422);
   assert.equal((await r.store.read(r.task.id))!.task.jobs[0].result, undefined);
+});
+
+
+test("processing accepts contact provenance and evidence ratings, rejecting forged scores before saving", async () => {
+  const fixtures = JSON.parse(readFileSync(new URL("./fixtures/evidence-ratings.json", import.meta.url), "utf8"));
+  for (const fixture of fixtures) {
+    const r = await setup();
+    await mutateTask(r.store, r.task.id, task => {
+      task.requirements = fixture.requirements.flatMap((c: any) => c.profiles.map((p: any) => ({
+        id: p.id, name: p.position_name || "Test", education: p.education || "", experience: p.experience || "",
+        keywords: p.keywords || [], stop_factors: p.stop_factors || [], comment: p.comment || "", cluster_comment: c.comment || "",
+      })));
+    });
+    const job = r.task.jobs[0], auth = await r.engine.authorize(`Bearer ${r.engine.token(job)}`, job.job_id, "result:write");
+    const contacts = contactResult({ last_name: "Тестова", first_name: "Анна", phone: "+79000000001" });
+    const result = { ...evaluation(r.task), ...contacts, evaluations: fixture.result.clusters.flatMap((c: any) => c.profiles.map((p: any) => ({
+      target_id: p.id, score: p.score, details: p.details, criteria: evaluation(r.task).evaluations[0].criteria,
+      matched_keywords: p.matched_keywords || [], triggered_stop_factors: p.triggered_stop_factors || [], explanation: p.explanation || "",
+    }))) };
+    const forged = structuredClone(result); forged.evaluations[0].score = result.evaluations[0].score === 99 ? 98 : 99;
+    await assert.rejects(r.engine.result(auth.claims, forged), (e: unknown) => e instanceof AccessError && e.status === 422);
+    assert.equal((await r.store.read(r.task.id))!.task.jobs[0].result, undefined);
+    await r.engine.result(auth.claims, result);
+    const saved: any = (await r.store.read(r.task.id))!.task.jobs[0].result;
+    assert.deepEqual(saved.contact_details, contacts.contact_details);
+    assert.deepEqual(saved.evaluations[0].details, result.evaluations[0].details);
+  }
+});
+
+test("prepare outputs inherit manual contacts while internal input hides storage keys and retry leases", async () => {
+  const r = await setup("application/zip", "authorized"), job = r.task.jobs[0];
+  const candidate = { last_name: "Тестова", first_name: "Анна", middle_name: null, phone: "+79000000001" };
+  await mutateTask(r.store, r.task.id, task => { Object.assign(task.files[0], { candidate_hint: candidate, target_updated_at: "internal-lease" }); });
+  const auth = await r.engine.authorize(`Bearer ${r.engine.token(job)}`, job.job_id, "output:write");
+  const output = await r.engine.registerOutput(auth.claims, { file_id: randomUUID(), source_file_id: job.file_id,
+    file_name: "prepared.pdf", mime_type: "application/pdf", size_bytes: 5, sha256: "b".repeat(64), key: "secret-storage-key", output_key: "resume-1" });
+  assert.deepEqual(output.candidate_hint, candidate);
+  const task = (await r.store.read(r.task.id))!.task, input = r.engine.input(task, task.jobs[0], "/internal");
+  for (const key of ["key", "candidate_hint", "target_updated_at", "output_key"]) assert.ok(!(key in input.file), key);
 });

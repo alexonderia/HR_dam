@@ -19,6 +19,7 @@
     "test:queue": "npm run build:packages && python tests/run_queue_integration.py",
     "test:rank-modes": "npm run build:packages && python tests/run_rank_modes.py",
     "test:architecture": "node tests/architecture.mjs",
+    "test:compose": "node tests/compose-architecture.mjs",
     "test:service-outage": "tsx --env-file=.env tests/service-outage.ts",
     "keys": "node scripts/generate-keys.mjs",
     "user:create": "docker compose run --rm --no-deps -e HR_USER_LOGIN -e HR_USER_NAME -e HR_USER_PASSWORD backend node apps/backend/dist/create-user.js",
