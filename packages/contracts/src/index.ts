@@ -4,3 +4,4 @@ export * from "./matrix.js";
 export * from "./imports.js";
 export * from "./time.js";
 export * from "./requirements.js";
+export * from "./processing.js";

@@ -25,9 +25,8 @@ def restore_backup(project, directory):
                 if project.metadata()["tables"] != manifest["source"]["tables"]:
                     raise RuntimeError("Post-restore database row counts differ from the snapshot")
                 project.s3("verify", directory)
-                # Jobs held by the old worker can safely be claimed on this installation.
-                project.sql("UPDATE public.resumes SET scoring_status='pending',updated_at=now() "
-                            "WHERE scoring_status='processing';")
+                # Keep task IDs, outbox intentions and resume leases intact. The
+                # authorized API republishes committed pending messages after startup.
             except BaseException:
                 if not committed:
                     # A lost pg_restore connection can make commit status ambiguous.

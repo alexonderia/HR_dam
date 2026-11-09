@@ -21,6 +21,7 @@ import { Blacklist } from "./pages/Blacklist";
 import { Help } from "./pages/Help";
 import { RequirementUpdatesNotice } from "./components/RequirementUpdatesNotice";
 import { formatMoscowTime } from "@hr/contracts";
+import { SessionGate } from "./components/SessionGate";
 
 const navigation = [
   { path: "/", label: "Кандидаты", title: "Распределение кандидатов", mobileLabel: "Подбор", icon: UsersRound, secondary: false },
@@ -98,7 +99,7 @@ function Navigation({ pending }: { pending: number }) {
     </>
   );
 }
-function Shell() {
+function Shell({ logout }: { logout: () => void }) {
   const { candidates, clusters, analysis, error, loading, refresh, refreshedAt, resumeImports } =
       useData(),
     location = useLocation();
@@ -117,13 +118,9 @@ function Shell() {
         <Navigation pending={pending} />
         <div className="sidebar-bottom">
           <div className="connection" role="status" aria-live="polite">
-            <i className={error ? "offline" : loading ? "connecting" : ""} aria-hidden="true" />
+            <i className={analysis.available ? "" : "offline"} aria-hidden="true" />
             <span>
-              {error
-                ? "Нет связи"
-                : loading
-                  ? "Подключение…"
-                  : "Подключено"}
+              {analysis.available ? "Анализ доступен" : "Анализ недоступен"}
             </span>
           </div>
         </div>
@@ -150,10 +147,10 @@ function Shell() {
               <RefreshCw size={16} className={loading ? "spin" : ""} />
             </button>
             <span className="avatar compact">HR</span>
+            <Button secondary onClick={logout}>Выйти</Button>
           </div>
         </header>
         <main>
-          {!analysis.available && <div className="af-alert af-alert--warning notice" role="status">{analysis.message}</div>}
           {error && (
             <div className="af-alert af-alert--danger notice" role="alert">
               <span>Не удалось подключиться к API. {error}</span>
@@ -194,8 +191,6 @@ function Shell() {
 }
 export function App() {
   return (
-    <DataProvider>
-      <Shell />
-    </DataProvider>
+    <SessionGate>{logout => <DataProvider><Shell logout={logout} /></DataProvider>}</SessionGate>
   );
 }

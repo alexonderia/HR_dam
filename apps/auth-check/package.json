@@ -1,0 +1,1 @@
+{"name":"@hr/auth-check","version":"1.0.0","private":true,"type":"module","scripts":{"build":"tsc -p tsconfig.json","start":"node dist/index.js"},"dependencies":{"@hr/security":"1.0.0","express":"^5.3.0"},"devDependencies":{"@types/express":"^5.0.6","@types/node":"^26.6.5"}}

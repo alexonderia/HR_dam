@@ -69,6 +69,7 @@ export function importAnalysisTiming(events: ImportEvent[], event: ImportEvent |
 export type ImportItemStatus = ImportEvent["stage"];
 export interface ResumeImportSummary {
   id: string; archive_name: string; created_at: string; total_files: number;
+  source_files?: number; candidate_files?: number;
   processed_files: number; failed_files: number; pending_files: number;
   uploading_files: number; processing_files: number; ignored_files: string[];
 }

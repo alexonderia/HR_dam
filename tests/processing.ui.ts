@@ -1,0 +1,31 @@
+import { chromium } from "@playwright/test";
+import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
+const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || "chrome", headless: true });
+try {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage(), requested: string[] = [], errors: string[] = [];
+  page.on("request", request => requested.push(new URL(request.url()).pathname));
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("http://localhost:13000");
+  await page.getByRole("heading", { name: "Оценка резюме", exact: true }).waitFor();
+  assert.ok(requested.includes("/api/session"));
+  assert.equal(requested.some(path => path.startsWith("/api/app/")), false);
+  await mkdir(".qa/processing", { recursive: true });
+  await page.screenshot({ path: ".qa/processing/guest-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  await page.screenshot({ path: ".qa/processing/guest-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Вход для сотрудников" }).click();
+  await page.getByLabel("Логин", { exact: true }).fill("synthetic-integration");
+  await page.getByLabel("Пароль", { exact: true }).fill("synthetic-integration-password-only");
+  const overviewResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/api/app/overview" && response.status() === 200);
+  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await page.getByRole("button", { name: "Выйти", exact: true }).waitFor();
+  await overviewResponse;
+  await page.screenshot({ path: ".qa/processing/authorized-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Выйти", exact: true }).click();
+  await page.getByRole("heading", { name: "Оценка резюме", exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+  console.log("PASS browser guest isolation, login/logout, mobile layout and no runtime errors");
+} finally { await browser.close(); }

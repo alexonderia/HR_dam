@@ -1,0 +1,108 @@
+services:
+  frontend:
+    container_name: hr-dam-processing-qa-frontend
+    image: hr-dam-processing-qa-frontend:local
+    ports: !override
+    - 127.0.0.1:13000:8080
+  auth-check:
+    container_name: hr-dam-processing-qa-auth-check
+    image: hr-dam-processing-qa-auth-check:local
+    environment:
+      APP_ORIGIN: http://localhost:13000
+  guest-api:
+    container_name: hr-dam-processing-qa-guest-api
+    image: hr-dam-processing-qa-guest-api:local
+    environment:
+      APP_ORIGIN: http://localhost:13000
+  backend:
+    container_name: hr-dam-processing-qa-backend
+    image: hr-dam-processing-qa-backend:local
+    environment:
+      APP_ORIGIN: http://localhost:13000
+  rabbitmq:
+    container_name: hr-dam-processing-qa-rabbitmq
+  rabbitmq-init:
+    container_name: hr-dam-processing-qa-rabbitmq-init
+  postgres:
+    container_name: hr-dam-processing-qa-postgres
+  flyway:
+    container_name: hr-dam-processing-qa-flyway
+  seaweedfs:
+    container_name: hr-dam-processing-qa-seaweedfs
+  s3-init:
+    container_name: hr-dam-processing-qa-s3-init
+  clamav:
+    container_name: hr-dam-processing-qa-clamav
+    image: python:3.12-slim
+    entrypoint:
+    - python
+    - /tests/clam_stub.py
+    volumes:
+    - ./tests/fixtures/processing/clam_stub.py:/tests/clam_stub.py:ro
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import socket; socket.create_connection(('localhost',3310),2).close()
+      interval: 2s
+      timeout: 3s
+      retries: 10
+  test-runner:
+    profiles:
+    - test
+    image: hr-dam-processing-qa-backend:local
+    entrypoint:
+    - node
+    - /tests/processing.integration.mjs
+    environment:
+      TZ: Europe/Moscow
+      PORT: 3002
+      APP_ORIGIN: http://localhost:13000
+      PGHOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      S3_ENDPOINT: ${S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
+      CLAMAV_HOST: clamav
+      PROCESSING_AMQP_URL: amqp://hr_guest:${GUEST_AMQP_PASSWORD:?Run npm run prepare:environment}@rabbitmq:5672/hr-guest
+      PROCESSING_MANAGEMENT_URL: http://rabbitmq:15672
+      AUTH_PRIVATE_KEY_FILE: /run/secrets/auth-private
+      AUTH_PUBLIC_KEY_FILE: /run/secrets/auth-public
+      AUTHORIZED_JOB_PRIVATE_KEY_FILE: /run/secrets/authorized-job-private
+      AUTHORIZED_JOB_PUBLIC_KEY_FILE: /run/secrets/authorized-job-public
+      GUEST_S3_ENDPOINT: http://seaweedfs:8333
+      GUEST_S3_REGION: ${S3_REGION:-us-east-1}
+      GUEST_S3_ACCESS_KEY: ${GUEST_S3_ACCESS_KEY:?Run npm run prepare:environment}
+      GUEST_S3_SECRET_KEY: ${GUEST_S3_SECRET_KEY:?Run npm run prepare:environment}
+      GUEST_JOB_PRIVATE_KEY_FILE: /run/secrets/guest-job-private
+      GUEST_JOB_PUBLIC_KEY_FILE: /run/secrets/guest-job-public
+      GUEST_COOKIE_PRIVATE_KEY_FILE: /run/secrets/guest-cookie-private
+      GUEST_COOKIE_PUBLIC_KEY_FILE: /run/secrets/guest-cookie-public
+      GUEST_AMQP_PASSWORD: ${GUEST_AMQP_PASSWORD}
+      PREPARE_AMQP_PASSWORD: ${PREPARE_AMQP_PASSWORD}
+      EVALUATE_AMQP_PASSWORD: ${EVALUATE_AMQP_PASSWORD}
+    volumes:
+    - ./tests:/tests:ro
+    - ./.qa:/qa
+    secrets:
+    - auth-public
+    - guest-job-private
+    - guest-job-public
+    - authorized-job-private
+    - authorized-job-public
+    - guest-cookie-private
+    - guest-cookie-public
+    networks:
+    - frontend-guest
+    - guest-jobs
+    - authorized-jobs
+    - processor-broker
+    - guest-store
+    - authorized-store
+    - database

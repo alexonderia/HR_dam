@@ -1,7 +1,7 @@
 import { Router } from "express";
-import multer from "multer";
+import { receiveUpload } from "@hr/processing";
+import { processingBrokerStatus } from "./processing-service.js";
 import { randomUUID } from "node:crypto";
-import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import {
   clusterSchema,
@@ -12,13 +12,9 @@ import {
   inProcessRestriction,
   identityKey,
   fullName,
-  importResultSchema,
-  importEventSchema,
-  importJobIdentitySchema,
 } from "@hr/contracts";
 import { pool, transaction } from "@hr/data-access";
 import { blacklistMatchSql, otherInProcessResumeSql } from "@hr/data-access";
-import { config } from "./config.js";
 import { HttpError } from "./errors.js";
 import { submitCandidate } from "./submission.js";
 import { getCandidates, getClusters } from "@hr/data-access";
@@ -28,71 +24,29 @@ import { extractDocumentText } from "@hr/documents";
 import { candidateExportNames, createCompleteExport, createExport, exportOptionsSchema } from "./export-options.js";
 import { presentResumeEvent, queueStatus } from "./processing.js";
 import { acceptResumes, listImports, listImportDetails, importDetail, retryImport, enqueueExistingResume } from "./imports.js";
-import { getBrokerStatus, readImportLedger, fileDownloadUrl, publishQueue, queues, storedFileExists, getImportJobState } from "@hr/data-access";
-import { brokerEnabled, rankBridgeEnabled, processingMode, getAnalysisStatus } from "@hr/data-access";
 import { requirementUpdatePlan, initializeAssessmentHistory } from "./requirement-updates.js";
 import type { RequirementReassessmentResult } from "@hr/contracts";
 
 export const router = Router();
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: config.maxFileSize,
-    files: 1,
-    fields: 6,
-    fieldSize: 1000,
-  },
-});
 router.get("/health", async (_req, res) => {
   await pool.query("SELECT 1");
   res.json({ ok: true });
 });
 router.get("/analysis/status", async (_req, res) => {
-  if (!brokerEnabled) { res.json(await getAnalysisStatus()); return; }
-  try {
-    const broker = await getBrokerStatus();
-    if (rankBridgeEnabled && broker.analysis_consumers > 0) { res.json(await getAnalysisStatus()); return; }
-    res.json({ available: broker.analysis_consumers > 0, message: broker.analysis_consumers > 0
-      ? "Обработчик резюме подключён."
-      : "Обработчик резюме пока не подключён. Загруженные файлы будут ожидать обработки в очереди." });
-  } catch { res.json({ available: false, message: "Очередь временно недоступна. Принятые задания сохраняются." }); }
+  const broker = await processingBrokerStatus();
+  res.json({ available: broker.analysis_consumers > 0, message: broker.analysis_consumers > 0 ? "Обработчик подключён." : "Резюме приняты и ожидают оценщика." });
 });
-router.get("/processing/mode", (_req, res) => res.json({ mode: processingMode, broker_enabled: brokerEnabled, rank_bridge_enabled: rankBridgeEnabled }));
-router.get("/processing/queue", async (_req, res) => res.json(await getBrokerStatus()));
-const archiveUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxArchiveSize, files: 1, fields: 0 } });
-router.post("/resume-imports", archiveUpload.single("archive"), async (req, res) => res.status(202).json(await acceptResumes(req.file, true)));
+router.get("/processing/mode", (_req, res) => res.json({ mode: "broker", broker_enabled: true, rank_bridge_enabled: false }));
+router.get("/processing/queue", async (_req, res) => res.json(await processingBrokerStatus()));
+router.post("/resume-imports", async (req, res) => {
+  const upload = await receiveUpload(req, res, "archive", 1);
+  try { res.status(202).json(await acceptResumes(upload.files[0], true)); } finally { await upload.dispose(); }
+});
 router.get("/resume-imports", async (_req, res) => res.json(await listImports()));
 router.get("/resume-imports/status", async (_req, res) => res.json(await listImportDetails()));
 router.get("/resume-imports/:id", async (req, res) => res.json(await importDetail(z.uuid().parse(req.params.id))));
 router.post("/resume-imports/:id/items/:item/retry", async (req, res) =>
   res.status(202).json(await retryImport(z.uuid().parse(req.params.id), z.uuid().parse(req.params.item))));
-router.use("/internal", (req, _res, next) => {
-  const expected = Buffer.from(`Bearer ${config.analyzerToken}`), actual = Buffer.from(req.header("authorization") || "");
-  if (!config.analyzerToken || expected.length !== actual.length || !timingSafeEqual(expected, actual))
-    throw new HttpError(401, "Требуется авторизация обработчика.");
-  next();
-});
-router.post("/internal/resume-jobs/status", async (req, res) => {
-  res.json(await getImportJobState(importJobIdentitySchema.parse(req.body)));
-});
-router.post("/internal/resume-imports/:id/items/:item/download-url", async (req, res) => {
-  const { manifest } = await readImportLedger(z.uuid().parse(req.params.id));
-  const file = manifest.items.find(i => i.id === z.uuid().parse(req.params.item));
-  if (!file) throw new HttpError(404, "Файл не найден.");
-  if (!await storedFileExists(file.bucket, file.object_key)) throw new HttpError(409, "Файл ещё сохраняется.");
-  res.json(await fileDownloadUrl(file.bucket, file.object_key));
-});
-router.post("/internal/resume-results", async (req, res) => {
-  const result = importResultSchema.parse(req.body);
-  await publishQueue(queues.results, result, result.job_id);
-  res.status(202).json({ accepted: true });
-});
-router.post("/internal/resume-progress", async (req, res) => {
-  const event = importEventSchema.parse(req.body);
-  if (event.stage !== "processing") throw new HttpError(422, "Допустим только статус processing.");
-  await publishQueue(queues.progress, event, `${event.job_id}:processing`);
-  res.status(202).json({ accepted: true });
-});
 router.get("/overview", async (_req, res) => {
   const [clusters, candidates, blacklist] = await Promise.all([
     getClusters(),
@@ -126,9 +80,9 @@ router.post("/requirements/reassessment", async (req, res) => {
   }
   res.status(202).json(result);
 });
-router.post("/candidates", upload.single("resume"), async (req, res) => {
-  const result = await submitCandidate(req.body, req.file);
-  res.status(202).json(result);
+router.post("/candidates", async (req, res) => {
+  const upload = await receiveUpload(req, res, "resume", 1);
+  try { res.status(202).json(await submitCandidate(req.body, upload.files[0])); } finally { await upload.dispose(); }
 });
 router.get("/resumes/:id/events", async (req, res) => {
   const id = z.uuid().parse(req.params.id);
@@ -148,9 +102,9 @@ router.get("/resumes/:id/processing", async (req, res) => {
   const row = result.rows[0];
   if (!row) throw new HttpError(404, "Резюме не найдено.");
   if (row.scoring_status !== "pending") { res.json({ queue: null }); return; }
-  const broker = await getBrokerStatus();
-  const analysis = rankBridgeEnabled ? await getAnalysisStatus() : { available: broker.analysis_consumers > 0 };
-  const analysisQueue = broker.queues[queues.analysis];
+  const broker = await processingBrokerStatus();
+  const analysis = { available: broker.analysis_consumers > 0 };
+  const analysisQueue = broker.queues["hr.authorized.evaluate"];
   const worker = analysis.available ? { state: "idle" as const, current_resume_id: null } : null;
   res.json({ queue: queueStatus({ queuedAt: new Date(row.updated_at).toISOString(), activeProfiles: row.active_profiles,
     analysisAvailable: analysis.available, worker, ahead: Math.max(0, (analysisQueue?.ready || 0) - 1), processing: analysisQueue?.processing || 0 }) });

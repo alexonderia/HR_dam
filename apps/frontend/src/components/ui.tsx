@@ -4,6 +4,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -23,14 +24,14 @@ declare global {
     };
   }
 }
-export function Framework({ children }: { children: ReactNode }) {
+export function Framework({ children, className = "app" }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const cleanup = window.Alabuga?.initComponents(ref.current!);
     return () => cleanup?.();
   }, []);
   return (
-    <div className="af app" ref={ref}>
+    <div className={`af ${className}`} ref={ref}>
       {children}
     </div>
   );
@@ -49,6 +50,50 @@ export function Button({
       {children}
     </button>
   );
+}
+export function InfoHint({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  const trigger = useRef<HTMLButtonElement>(null), popup = useRef<HTMLSpanElement>(null);
+  const pinned = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [open, setOpen] = useState(false);
+  const cancelHide = () => clearTimeout(timer.current);
+  const hide = () => {
+    cancelHide();
+    if (popup.current?.matches(":popover-open")) popup.current.hidePopover();
+  };
+  const show = () => {
+    cancelHide();
+    const tip = popup.current, button = trigger.current;
+    if (!tip || !button) return;
+    if (!tip.matches(":popover-open")) tip.showPopover();
+    const anchor = button.getBoundingClientRect(), box = tip.getBoundingClientRect();
+    tip.style.left = `${Math.max(16, Math.min(anchor.left, innerWidth - box.width - 16))}px`;
+    tip.style.top = `${anchor.bottom + 8 + box.height <= innerHeight - 16 ? anchor.bottom + 8 : Math.max(16, anchor.top - box.height - 8)}px`;
+  };
+  const leave = () => {
+    cancelHide();
+    if (!pinned.current && document.activeElement !== trigger.current) timer.current = setTimeout(hide, 150);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => hide();
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => { window.removeEventListener("resize", close); window.removeEventListener("scroll", close, true); };
+  }, [open]);
+  return <span className="field-info" onMouseEnter={show} onMouseLeave={leave}>
+    <button ref={trigger} type="button" className="af-btn af-btn--clear af-btn--icon af-btn--sm af-btn--round"
+      aria-label={`Подсказка: ${label}`} aria-describedby={id} aria-controls={id} aria-expanded={open}
+      onFocus={show} onBlur={() => { if (!pinned.current) hide(); }}
+      onClick={() => { if (pinned.current) { pinned.current = false; hide(); } else { pinned.current = true; show(); } }}>
+      <span className="af-btn__icon af-btn__icon--info" aria-hidden="true" />
+    </button>
+    <span ref={popup} id={id} role="tooltip" popover="auto" className="af af-card af-card--inner af-body af-body--md field-tooltip"
+      onMouseEnter={cancelHide} onMouseLeave={leave}
+      onToggle={event => { const visible = event.currentTarget.matches(":popover-open"); setOpen(visible); if (!visible) pinned.current = false; }}>
+      {children}
+    </span>
+  </span>;
 }
 export function Field({
   label,
@@ -130,7 +175,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={`af-dialog app-dialog ${wide ? "wide" : ""} ${className}`}
+      className={`af af-dialog app-dialog ${wide ? "wide" : ""} ${className}`}
       aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
@@ -140,10 +185,10 @@ export function Modal({
         if (e.target === e.currentTarget && !closeDisabled) onClose();
       }}
     >
-      <div className="dialog-header">
-        <h2 className="af-title" id={titleId}>{title}</h2>
-        <button type="button" className="af-btn af-btn--clear icon-button" onClick={onClose} disabled={closeDisabled} aria-label="Закрыть">
-          <X size={20} />
+      <div className="af-dialog__header dialog-header">
+        <h2 className="af-title af-dialog__title" id={titleId}>{title}</h2>
+        <button type="button" className="af-btn af-btn--clear af-btn--icon" onClick={onClose} disabled={closeDisabled} aria-label="Закрыть">
+          <X className="af-btn__icon" size={20} aria-hidden="true" />
         </button>
       </div>
       <div className="dialog-body">{children}</div>

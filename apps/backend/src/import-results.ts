@@ -15,7 +15,7 @@ async function trustedJob(result: Pick<ImportResult, "batch_id" | "item_id" | "j
   if (!latest || latest.attempt !== result.attempt || latest.job_id !== result.job_id) return null;
   return { manifest, file, latest, events };
 }
-async function persistResult(manifest: ImportManifest, file: ImportFile, result: Extract<ImportResult, { status: "completed" }>, analysisDurationMs: number | null) {
+export async function persistResult(manifest: ImportManifest, file: ImportFile, result: Extract<ImportResult, { status: "completed" }>, analysisDurationMs: number | null) {
   const rank = validateRankResponse(result.analysis, manifest.requirements);
   const person = { ...result.candidate };
   for (const key of ["last_name", "first_name", "middle_name", "phone"] as const)
@@ -127,7 +127,7 @@ export async function processImportResult(input: unknown) {
   }
   await publishImportEvent({ ...timedCommon, stage: "completed", ...receipt });
 }
-async function markTargetFailure(file: ImportFile, jobId: string, message: string, analysisDurationMs: number | null) {
+export async function markTargetFailure(file: ImportFile, jobId: string, message: string, analysisDurationMs: number | null) {
   if (!file.target_resume_id) return;
   await transaction(async client => {
     const updated = await client.query(`UPDATE resumes SET scoring_status='failed' WHERE id=$1 AND file_id=$2

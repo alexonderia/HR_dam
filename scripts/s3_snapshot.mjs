@@ -11,6 +11,7 @@ const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, Dele
 const client = new S3Client({ endpoint: process.env.S3_ENDPOINT, region: process.env.S3_REGION || "us-east-1",
   forcePathStyle: true, credentials: { accessKeyId: process.env.S3_ACCESS_KEY, secretAccessKey: process.env.S3_SECRET_KEY } });
 const Bucket = process.env.S3_BUCKET;
+if (!Bucket || Bucket === "guest-temporary") throw new Error("Backup requires a permanent S3_BUCKET");
 const root = "/snapshot/archive";
 const state = "/snapshot/state/uploaded.json";
 const metadataFields = ["ContentType", "ContentEncoding", "ContentDisposition", "CacheControl", "ContentLanguage", "Metadata"];

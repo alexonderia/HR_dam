@@ -1,6 +1,8 @@
 # Alabuga Framework: краткое руководство для агента
 
-Версия библиотеки: **0.6.0**. Версия документа: **3**.
+Версия библиотеки: **1.3.1** (подготовленный кандидат выпуска). Поддерживаемые версии документа: **1–5**.
+
+Обновлено 9 ноября 2026 из проверенных локальных материалов `alabuga-framework/artifacts/release-1.3.1/standalone`. Версия выбрана пользователем; опубликованность на сайте не подтверждена: `https://framework.acom-offer-desk.ru/` недоступен из среды проверки из-за DNS. Источник и SHA-256 файлов записаны в `apps/frontend/public/alabuga/release.json`.
 
 Этот файл можно скопировать в другой репозиторий вместе с библиотекой. Он описывает использование готовой браузерной сборки и не требует доступа к исходному монорепозиторию. Это справочник интеграции, а не файл AGENTS.md с правилами всего проекта.
 
@@ -30,7 +32,7 @@ apps/frontend/public/
     ...
 ```
 
-В исходном репозитории команда `npm run build:framework` создаёт JS/CSS в `packages/framework/dist/`. В этом проекте материалы находятся в `apps/frontend/public/assets/`. Шрифты уже встроены в собранный CSS. Для документов без фирменных изображений достаточно двух файлов JS/CSS.
+В отдельном репозитории `alabuga-framework` команда `npm run build` создаёт JS/CSS в `dist/`, автономная поставка находится в `dist/standalone/`. В этом проекте материалы находятся в `apps/frontend/public/assets/`. Шрифты и компонентные SVG встроены в собранный CSS. Для интерфейса без фирменных изображений достаточно двух файлов JS/CSS. Фирменные материалы, используемые HR_dam, совпадают с поставкой 1.3.1 и не требуют замены.
 
 Если приложение размещено под префиксом, например `/portal/`, добавь его к адресам JS, CSS и материалов. Открывай страницу через сервер принимающего проекта.
 
@@ -43,11 +45,11 @@ apps/frontend/public/
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Пример Alabuga Framework</title>
-  <link rel="stylesheet" href="/alabuga/alabuga.css">
+  <link rel="stylesheet" href="/alabuga/alabuga.css?v=1.3.1">
 </head>
 <body>
   <main id="document"></main>
-  <script src="/alabuga/alabuga.iife.js"></script>
+  <script src="/alabuga/alabuga.iife.js?v=1.3.1"></script>
   <script>
     // Пути в заводских композициях имеют вид ../assets/...
     // Заменяем их адресами материалов в принимающем проекте.
@@ -86,7 +88,7 @@ apps/frontend/public/
       throw new Error(result.issues.map(i => i.path + ': ' + i.message).join('; '));
     }
     const controller = Alabuga.renderDocument(
-      document.getElementById('document'), result.data
+      document.getElementById('document'), result.data, { assetsBaseUrl: assetBase }
     );
   </script>
 </body>
@@ -115,10 +117,14 @@ apps/frontend/public/
 | `measureSlide(section, options?)` | Асинхронное измерение; возвращает массив замечаний |
 | `slideBackgrounds` | Каталог фирменных фонов |
 | `showcase(kind)` | Полный демонстрационный документ |
+| `renderCalendar(host, date, options?)` | Календарь с выбором даты или диапазона |
+| `resolveAssetUrl(src, options?)`, `isBuiltinAsset(src)` | Разрешение путей фирменных материалов |
+| `exportHTML(doc, options?)` | Асинхронный экспорт автономного HTML |
+| `DOCUMENT_SCHEMA_VERSION`, `SUPPORTED_DOCUMENT_SCHEMA_VERSIONS` | Текущая версия 5 и список поддерживаемых версий 1–5 |
 
 Также экспортируются `compositions`, `layoutVariants`, `semanticSlots`.
 
-`renderDocument()` принимает `{editing?: boolean, resolveAsset?: (id) => string | undefined}`. Режим `editing` отключает запуск авторских действий и скрытие шагов, но сам не добавляет интерфейс редактирования.
+`renderDocument()` принимает `{editing?: boolean, assetsBaseUrl?: string, slideOffset?: number, slideCount?: number, resolveAsset?: (id) => string | undefined}`. Для материалов этого проекта передавай `assetsBaseUrl: '/assets/'`: по умолчанию IIFE ищет материалы рядом с JS в `/alabuga/assets/`. Режим `editing` отключает запуск авторских действий и скрытие шагов, но сам не добавляет интерфейс редактирования.
 
 Контроллер предоставляет `update(doc)`, `getDocument()`, `destroy()`, `checkOverflow()`, `goToSlide(index)`, `next()`, `previous()`. Индекс слайда начинается с нуля. `synchronize(doc)` доступен только в режиме редактирования, когда внешний редактор уже обновил DOM.
 
@@ -136,7 +142,9 @@ controller.destroy();
 
 ## Документ и виджеты
 
-`{schemaVersion: 3, kind: 'page' | 'presentation', title, pages, modals?}`.
+`{schemaVersion: 3 | 4 | 5, kind: 'page' | 'presentation', title, pages, modals?}`. Старые документы версий 1–3 поддерживаются. `validateDocument()` нормализует документы без новых полей в версию 3; наличие `widget.responsive` требует версии 4, `page.chrome` — версии 5. Явно заданные версии 4/5 сохраняются.
+
+`widget.responsive` задаёт независимые `tablet`/`mobile` размеры `{width?: 1..100, minHeight?: 0..3200}`; порядок задаётся `tabletOrder`/`mobileOrder`. `page.chrome.header` управляет подписью слайда, `page.chrome.number` — видимостью, значением, форматом, положением, фоном и цветом номера. Документы с этими полями требуют соответствующей новой версии читателя.
 
 В режиме `page` массив `pages` содержит **секции одной веб-страницы**, а в `presentation` — слайды. Это не маршруты многостраничного сайта.
 
@@ -187,14 +195,18 @@ controller.destroy();
 
 `Alabuga.initComponents(root)` обслуживает `dialog.af-dialog`, атрибуты `data-af-dialog-open`, `data-af-dialog-close`, `data-af-dismiss` и формы `form[data-af-validate]`. Валидная форма создаёт событие `af:submit` с `FormData` в `event.detail`; отправку и хранение реализует принимающее приложение. Перед удалением HTML вызови возвращённую функцию очистки. JSON-renderer подключает своё поведение сам.
 
+В 1.3.1 инициализатор также усиливает одиночные `select.af-select`, поля даты и счётчики текста. Нативное значение формы и события сохраняются. Для явно нативного списка используй `data-af-select-native`. Поведение подключается к существующим на момент вызова элементам; React управляет своим жизненным циклом и вызывает cleanup перед удалением корня. Не изменяй сгенерированную разметку компонентов вручную.
+
+Усиленный Select помещается в `.af-select-box`. Размеры и расположение, заданные приложением на исходном `select`, нужно также учитывать на обёртке; в HR_dam это сделано для фильтров и кода страны телефона. Диалог, находящийся вне основного `.af`, получает собственный класс `.af`, чтобы поля наследовали шрифты и `box-sizing`.
+
 ## Ограничения переноса
 
-1. IIFE и ESM-сборка `alabuga.js` содержат публичный API корневого модуля. `exportHTML`, `embedLocalImage`, `brandAssets` и `demoDocument` в этот API не входят. Не вызывай несуществующий `Alabuga.exportHTML()`.
+1. IIFE содержит публичный API корневого модуля, включая `exportHTML`. `embedLocalImage`, `brandAssets` и `demoDocument` не входят в корневой API; для них нужны отдельные ESM-точки входа npm-пакета.
 2. `asset:<sha256>` — ссылка на материал приложения. В чужом репозитории исходная IndexedDB отсутствует: нужен свой синхронный `resolveAsset(id)` либо замена ссылок на доступные URL/data до отображения.
 3. Готовая IIFE — браузерный скрипт, не API для SSR. Измерение слайдов и отображение требуют DOM.
 4. CSS использует глобальные переменные `--af-*` на `:root` и правило `@page` для презентаций. Встраивание не создаёт Shadow DOM: учитывай общие стили и печать принимающего приложения.
-5. Наличие двух файлов не предоставляет конструктор, сохранение проектов, ИИ, HTML-экспорт или публикацию сайта. Эти возможности относятся к отдельным модулям/приложениям исходного репозитория.
-6. Исходный npm workspace пока не упакован как самостоятельный JS-пакет: exports ведут на `.ts`, сборка использует корень монорепозитория, обычный `npm pack` не включает игнорируемый `dist`. Импорты `@alabuga/framework/...` не появятся от копирования JS/CSS.
+5. Наличие двух файлов не предоставляет конструктор, сохранение проектов, ИИ или публикацию сайта. Эти возможности относятся к отдельным приложениям; `exportHTML` доступен в библиотеке.
+6. Библиотека выделена в самостоятельный npm-пакет `@alabuga/framework` с ESM, декларациями типов и автономной поставкой. Версия 1.3.1 подготовлена локально и ещё не опубликована. Копирование JS/CSS не устанавливает npm-пакет и не добавляет импорты `@alabuga/framework/...` в HR_dam.
 
 ## Проверка интеграции и задание агенту
 
@@ -204,4 +216,4 @@ controller.destroy();
 
 > Прочитай FRAMEWORK_AGENT_GUIDE.md. Подключи локальные файлы Alabuga Framework из apps/frontend/public/alabuga. Собери страницу из штатных композиций с моим содержанием. Используй материалы из apps/frontend/public/assets, настрой их URL под базовый путь нашего приложения. Валидируй JSON, проверь адаптивность и очистку контроллера. Используй API готовой сборки; не добавляй конструктор или ИИ-сервер.
 
-При обновлении библиотеки замени JS/CSS и необходимые материалы, сопоставь `Alabuga.VERSION` с версией этого руководства. Если доступен исходный репозиторий, точные контракты находятся в `packages/framework/src/schema.ts`, публичные экспорты сборки — в `packages/framework/src/index.ts`, дополнительные модульные точки входа — в `packages/framework/package.json`.
+При обновлении библиотеки замени JS/CSS и необходимые материалы, обнови `release.json` и версию в URL обоих файлов в `apps/frontend/index.html`, сопоставь `Alabuga.VERSION` с версией этого руководства. В отдельном репозитории `alabuga-framework` точные контракты находятся в `src/schema.ts`, публичные экспорты сборки — в `src/index.ts`, дополнительные модульные точки входа — в `package.json`.

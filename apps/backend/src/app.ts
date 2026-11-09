@@ -3,6 +3,10 @@ import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import { ZodError } from "zod";
 import multer from "multer";
+import { authRouter, requireSession } from "./auth.js";
+import { AccessError } from "@hr/security";
+import { internalRouter } from "@hr/processing";
+import { authorizedProcessing } from "./processing-service.js";
 import { router } from "./routes.js";
 import { HttpError } from "./errors.js";
 import { MissingImportError, isInfrastructureError } from "@hr/data-access";
@@ -32,7 +36,7 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 app.use(
-  "/api/candidates",
+  "/api/app/candidates",
   rateLimit({
     windowMs: 60000,
     limit: 20,
@@ -40,7 +44,14 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "2mb" }));
-app.use("/api", router);
+app.get("/health", (_req, res) => res.json({ ok: true }));
+app.use("/api/auth", authRouter);
+let jobsRouter: ReturnType<typeof internalRouter> | undefined;
+app.use("/internal/app", (req, res, next) => {
+  jobsRouter ||= internalRouter(authorizedProcessing().engine, "/internal/app");
+  jobsRouter(req, res, next);
+});
+app.use("/api/app", requireSession, router);
 app.use("/api", (_req, res) =>
   res.status(404).json({ error: "Метод API не найден." }),
 );
@@ -52,12 +63,12 @@ app.use(
     res: express.Response,
     _next: express.NextFunction,
   ) => {
-    if (error instanceof ZodError) {
+    if (error instanceof ZodError || (error as { name?: string })?.name === "ZodError") {
       res
         .status(422)
         .json({
           error: "Проверьте заполнение полей.",
-          fields: error.flatten().fieldErrors,
+          fields: (error as ZodError).flatten().fieldErrors,
         });
       return;
     }
@@ -69,7 +80,7 @@ app.use(
       res.status(503).json({ error: "Обработка временно недоступна. Повторите запрос после восстановления сервисов." });
       return;
     }
-    if (error instanceof HttpError) {
+    if (error instanceof HttpError || error instanceof AccessError) {
       res.status(error.status).json({ error: error.message });
       return;
     }

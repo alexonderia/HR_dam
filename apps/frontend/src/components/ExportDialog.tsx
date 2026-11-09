@@ -60,7 +60,7 @@ export function ExportDialog({
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/export", {
+      const response = await fetch("/api/app/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -78,6 +78,7 @@ export function ExportDialog({
         }),
       });
       if (!response.ok) {
+        if (response.status === 401) window.dispatchEvent(new Event("hr:session-expired"));
         const details = await response.json().catch(() => null);
         throw new Error(details?.error || "Не удалось сформировать экспорт. Повторите попытку.");
       }

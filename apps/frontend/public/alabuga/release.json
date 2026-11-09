@@ -1,0 +1,26 @@
+{
+  "name": "@alabuga/framework",
+  "version": "1.3.1",
+  "status": "prepared-candidate",
+  "updated_at": "2026-11-09",
+  "reference_site": "https://framework.acom-offer-desk.ru/",
+  "source": {
+    "repository": "https://github.com/alexonderia/alabuga-framework",
+    "commit": "4f2a74cc191b22682b9bc7f61de4ee9ecb7cecb9",
+    "artifact": "artifacts/release-1.3.1/standalone",
+    "delivery": "local-release-artifact",
+    "website_verification": "unavailable: DNS ERR_NAME_NOT_RESOLVED"
+  },
+  "files": [
+    {
+      "path": "alabuga.css",
+      "bytes": 505119,
+      "sha256": "28b4fe3fd67e9058ce708b3c5cf7215e31335ac8d7fa04fed68677d0f2d5948e"
+    },
+    {
+      "path": "alabuga.iife.js",
+      "bytes": 540213,
+      "sha256": "7e49a0be31f3b083396d6cb72161100048e9c202306debb6b0d6d1b102d44f22"
+    }
+  ]
+}

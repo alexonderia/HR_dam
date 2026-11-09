@@ -2,8 +2,9 @@ export async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const headers = new Headers(options?.headers);
   if (options?.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
-  const response = await fetch("/api" + url, { ...options, headers });
+  const response = await fetch("/api/app" + url, { ...options, headers, cache: "no-store" });
   if (!response.ok) {
+    if (response.status === 401) window.dispatchEvent(new Event("hr:session-expired"));
     const body = await response
       .json()
       .catch(() => ({ error: "Сервис недоступен." }));
@@ -22,11 +23,11 @@ export const fileUrl = (
   id: string,
   mode: "preview" | "download" | "print" = "preview",
 ) =>
-  `/api/files/${id}?${mode === "download" ? "download=true" : mode === "print" ? "preview=true&print=true" : "preview=true"}`;
+  `/api/app/files/${id}?${mode === "download" ? "download=true" : mode === "print" ? "preview=true&print=true" : "preview=true"}`;
 export const reportUrl = (
   id: string,
   mode: "preview" | "download" | "print" = "preview",
-) => `/api/resumes/${id}/report?${mode}=true`;
+) => `/api/app/resumes/${id}/report?${mode}=true`;
 export function openWindow(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }

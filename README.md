@@ -1,21 +1,29 @@
 # HR DAM — распределение кандидатов по кластерам
 
 Веб-приложение на React + TypeScript с Alabuga Framework, API, фоновой обработкой,
-антивирусом, PostgreSQL и S3. Запуск: `docker compose up -d --build`,
+антивирусом, PostgreSQL и S3. После подготовки окружения — `docker compose up -d --build`,
 интерфейс: http://localhost:3000.
+
+[Карта документации: где и что описано](docs/README.md).
 
 [Памятка пользователя: функции и порядок работы](apps/frontend/src/content/user-guide.md).
 В приложении: «Памятка пользователя» в меню или http://localhost:3000/help;
 доступны оглавление, скачивание Markdown и печать / сохранение PDF.
 
 [Описание приложения, сценарии, правила и разработка](docs/application.md).
-[Разделение frontend, backend, worker и resume-analyzer](docs/architecture.md).
+[Состав приложений и история предыдущего протокола](docs/architecture.md).
 [Подключение агента Ollama, Compose и проверка отказов модели](docs/analysis.md).
+
+Подготовка гостевого и авторизованного режимов реализована. Разборщик и оценщик поставляются из другой ветки; до подключения их образов задания ожидают обработчиков. Документы:
+[целевая архитектура](docs/target-architecture.md),
+[временное хранение и удаление гостевых данных](docs/guest-task-lifecycle.md),
+[контракты разборщика и оценщика](docs/processing-services-contract.md),
+[план реализации](docs/implementation-plan.md).
 
 ## PostgreSQL + Flyway + SeaweedFS
 
 Минимальная инфраструктура по [спецификации](docs/candidate_matching_architecture.md):
-8 прикладных таблиц, служебная `flyway_schema_history`, S3 bucket для резюме.
+Бизнес-схема V1–V6, авторизация и задачи обработки V7; постоянный и временный S3 bucket.
 Образы закреплены: PostgreSQL `16.13-alpine3.23`, Flyway `12.1.0`, SeaweedFS
 `4.29`, AWS CLI `2.27.49` (только одноразовая инициализация bucket), pgAdmin `9.18`.
 
@@ -23,13 +31,15 @@
 
 В новом окружении скопируйте `.env.example` в `.env` и заполните
 `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `PGADMIN_PASSWORD`,
-`RABBITMQ_PASSWORD` (для режима с брокером)
+ключи режимов и брокера (их создаёт `npm run prepare:environment`)
 уникальными значениями; задайте `PGADMIN_EMAIL` для входа в админку.
 В текущем рабочем каталоге `.env` уже создан со случайными учётными данными;
 он исключён из Git. Значения в `.env.example` не содержат секретов.
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+
+npm run prepare:environment
 docker compose up -d --build
 docker compose ps -a
 docker compose logs flyway s3-init
@@ -44,16 +54,26 @@ docker compose build backend
 docker compose up -d --no-build --no-deps backend
 ```
 
-У frontend, backend и worker отдельные npm-кэши, поэтому параллельные сборки
-не ждут освобождения общего кэша. Backend и worker устанавливают зависимости
-один раз, затем удаляют пакеты разработки из копии для рабочего образа.
-Изменение общего `package-lock.json` по-прежнему обновляет слой зависимостей
-всех трёх сервисов; при первой сборке новые кэши потребуется заполнить.
+Frontend запускается независимо от backend и PostgreSQL. Auth-check проверяет
+сессию по открытому ключу, guest-api использует отдельные S3/AMQP credentials.
+Единственный опубликованный прикладной порт — 3000.
+[Порядок включения обработки и подключения обработчиков](docs/preparation.md).
 
-Для Ollama, установленной на хосте вне Docker, используйте отдельный режим:
+Учётную запись сотрудника создают после миграций:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up -d --build
+$env:HR_USER_LOGIN = "hr-admin"
+$env:HR_USER_NAME = "Администратор"
+$hrPassword = Read-Host "Пароль (минимум 12 символов)" -AsSecureString
+$env:HR_USER_PASSWORD = [Net.NetworkCredential]::new("", $hrPassword).Password
+npm run user:create
+Remove-Item Env:HR_USER_PASSWORD
+```
+
+После поставки образа оценщика для Ollama на хосте используйте профиль обработки:
+
+```powershell
+docker compose --profile processing -f docker-compose.yml -f docker-compose.local-ollama.yml up -d --build
 ```
 
 Он подключается к `http://host.docker.internal:11434` и не запускает контейнеры
@@ -75,21 +95,19 @@ bucket ждёт healthcheck SeaweedFS и проверяет подписанны
 
 | Параметр | С хоста | В сети Compose |
 | --- | --- | --- |
-| PostgreSQL | `127.0.0.1:5432` | `postgres:5432` |
+| PostgreSQL | Не опубликован | `postgres:5432` |
 | База / пользователь | `POSTGRES_DB` / `POSTGRES_USER` из `.env` | те же |
 | Пароль PostgreSQL | `POSTGRES_PASSWORD` из `.env` | тот же |
-| S3 endpoint | `S3_ENDPOINT`, по умолчанию `http://127.0.0.1:8333` | `S3_INTERNAL_ENDPOINT`, по умолчанию `http://seaweedfs:8333` |
+| S3 endpoint | Не опубликован | `S3_INTERNAL_ENDPOINT`, по умолчанию `http://seaweedfs:8333` |
 | Bucket / регион | `S3_BUCKET=resumes` / `S3_REGION=us-east-1` | те же |
 | Ключи S3 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` из `.env` | те же |
 
-S3 клиент должен использовать path-style адресацию. Порты задаются через
-`POSTGRES_PORT` и `S3_PORT`; при изменении S3 порта обновите `S3_ENDPOINT`.
-Сервисы по умолчанию опубликованы только на `BIND_ADDRESS=127.0.0.1`.
-Внутренние порты master/filer/volume на хост не публикуются.
+S3 клиент использует path-style адресацию. PostgreSQL, S3 и RabbitMQ доступны
+только во внутренних сетях Compose. Для pgAdmin включите профиль `administration`.
 
 ## Админка PostgreSQL
 
-Откройте [pgAdmin](http://127.0.0.1:5050). Логин — `PGADMIN_EMAIL`, пароль —
+После `docker compose --profile administration up -d pgadmin` откройте [pgAdmin](http://127.0.0.1:5050). Логин — `PGADMIN_EMAIL`, пароль —
 `PGADMIN_PASSWORD` из `.env`. Порт задаётся через `PGADMIN_PORT`.
 В текущем окружении логин — `admin@example.com`, пароль сгенерирован случайно.
 
@@ -129,24 +147,23 @@ filer хранит внутреннюю структуру S3; метаданн�
 
 ## Миграции и проверка
 
-Первичная схема: `db/migrations/V1__initial_schema.sql`. Применённые миграции
-не редактировать; добавлять только новые файлы, например
-`db/migrations/V2__description.sql`, без сброса схемы и удаления данных.
+Первичная схема: `db/migrations/V1__initial_schema.sql`. Миграции V1–V6
+сохранены в исходном виде. Изменения авторизации и обработки от 9 ноября
+объединены в `V7__authentication_and_processing.sql`; таблицы сотрудников
+называются `users` и `sessions`. Следующие изменения добавлять отдельными
+миграциями, без сброса схемы и удаления данных.
 
 ```powershell
 docker compose up -d --build
 docker compose run --rm flyway info
 docker compose run --rm flyway validate
-python scripts/verify.py
+npm run test:processing
 ```
 
-Проверка требует Python 3 и работающего Docker, дополнительных Python-пакетов
-нет. Она сверяет все столбцы с исходным Markdown, проверяет ограничения,
-индексы, историю и повторный запуск миграций, авторизацию S3, загрузку,
-чтение и удаление объекта. Для проверки сохранности создаёт одну временную
-запись `files` и один объект с уникальным ключом, перезапускает контейнеры
-PostgreSQL/SeaweedFS и повторяет `up`. В конце удаляет только эти тестовые
-артефакты. При аварийном прерывании процесса они могут остаться.
+Актуальная сквозная проверка — `npm run test:processing`: отдельный Compose
+project, реальные S3 CAS и RabbitMQ retries/DLQ, синтетические документы,
+авторизация и рестарты outbox. Исторический `scripts/verify.py` проверяет исходную
+схему V1 и не используется для текущей схемы.
 
 ## Недостающие сведения
 
@@ -161,19 +178,21 @@ CHECK. После уточнения значения следует закре�
 [встроенного filer](https://github.com/seaweedfs/seaweedfs/wiki/Filer-Stores) и
 [запрета Flyway clean](https://documentation.red-gate.com/fd/flyway-clean-disabled-setting-277578981.html).
 
-## ZIP и очередь обработки резюме
+## Обработка
 
-В «Приёме резюме» доступны одиночный файл и ZIP без заполнения кандидата.
-Оба варианта проходят через worker → S3 → `/rank` → backend → БД; транспорт заданий выбирается настройкой.
-Временный адаптер вызывает текущий `/rank`. `RABBITMQ_ENABLED=false` включает обработку без RabbitMQ;
-`true` — через брокер (запуск с `--profile broker`). `RANK_BRIDGE_ENABLED=true` включает адаптер в режиме брокера.
-[Контракт сообщений и новые API для resume-analyzer](docs/resume-analyzer-rabbitmq-api.md).
+ZIP/PDF направляются в prepare, готовые документы — в evaluate. Команды и события
+используют фиксированные quorum queues в `hr-guest` и `hr-authorized`, mandatory
+и publisher confirms. Guest API хранит состояние только в `guest-temporary`;
+backend сохраняет задачи и outbox в PostgreSQL. В новом Compose нет worker и rank bridge.
 
-RabbitMQ: AMQP `127.0.0.1:5672`, панель `http://127.0.0.1:15672`; учётные данные из `.env`.
-Постоянные тома `rabbitmq_data` и `resume_spool` хранят очередь и ещё не сохранённые в S3 файлы.
-Миграция `V3__optional_candidate_identity.sql` снимает только NOT NULL с телефона, фамилии и имени;
-новые таблицы и поля не добавляются. Отчество уже nullable.
+Для подключения образов из другой ветки задайте `PREPARE_IMAGE` / `EVALUATE_IMAGE`
+и запустите `docker compose --profile processing up -d`.
+[Контракт подключения и переход с v1](docs/preparation.md).
 
-Проверка нового потока: `npm run test:queue` (отдельные тестовая БД и vhost, без изменения основной БД).
-Существующий backup БД/S3 сохраняет завершённые результаты; для восстановления ожидающих заданий
-также сохраняйте тома RabbitMQ и spool при остановленных обработчиках.
+Проверки: `npm run build`, `npm test`, `npm run test:architecture`,
+`npm run test:processing`. Последняя команда использует отдельный Compose
+project, синтетические файлы и тестовых обработчиков протокола. Прежние
+`test:workflow`, `test:queue`, `test:rank-modes` относятся к v1.
+
+Backup сохраняет постоянный bucket и PostgreSQL, включая outbox. Временный bucket,
+буферы Nginx и `.secrets` не копируются. Ключи и настройки окружения хранят отдельно.
