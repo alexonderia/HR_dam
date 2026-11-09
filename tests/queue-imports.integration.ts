@@ -1,18 +1,27 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import { readFile, rm } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { zipSync, strToU8 } from "fflate";
 import { analysisJobSchema, type AnalysisJob, type ImportJobState, type ResumeImportDetail, type RequirementUpdates, type RequirementReassessmentResult, type Cluster, type Profile } from "@hr/contracts";
 import { pool, connectBroker, closeBroker, startQueueConsumer, publishQueue, queues, readImportLedger, deleteFile,
-  stagedFilePath, spoolRoot, flushImportOutbox, restoreClusterAssessmentHistory, type config } from "@hr/data-access";
+  stagedFilePath, spoolRoot, flushImportOutbox, restoreClusterAssessmentHistory, analysisConfig, getAnalysisStatus, type config } from "@hr/data-access";
 
 assert.match(process.env.POSTGRES_DB || "", /^hr_dam_queue_test_[a-f0-9]+$/);
 assert.equal(process.env.RABBITMQ_VHOST, process.env.POSTGRES_DB);
 const batchIds: string[] = [], stops: (() => Promise<void>)[] = [];
 let releaseCompletion: (() => void) | undefined;
 let infected = false;
+let modelReady = false;
+const control = createHttpServer((_req, res) => {
+  res.writeHead(modelReady ? 200 : 503, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ available: modelReady, adapter: "amqp", alive: true, model_ready: modelReady,
+    broker_connected: true, consumer_alive: true, busy: false }));
+}).listen(0, "127.0.0.1");
+await new Promise<void>(resolve => control.once("listening", resolve));
+analysisConfig.readyUrl = `http://127.0.0.1:${(control.address() as { port: number }).port}/ready`;
 const scanner = createServer(socket => {
   let content = Buffer.alloc(0);
   socket.on("data", chunk => {
@@ -53,13 +62,22 @@ async function upload(name: string, content: Uint8Array, archive = true) {
 }
 const accepted: AnalysisJob[] = [];
 try {
-  for (const name of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql", "V5__cluster_assessment_requirements.sql"])
+  for (const name of ["V1__initial_schema.sql", "V2__normalized_candidate_identity.sql", "V3__optional_candidate_identity.sql", "V4__analysis_duration.sql", "V5__cluster_assessment_requirements.sql", "V6__contact_provenance.sql"])
     await pool.query(await readFile(`db/migrations/${name}`, "utf8"));
   const cluster = randomUUID(), profile = randomUUID();
   await pool.query("INSERT INTO clusters(id,name,track) VALUES($1,'Integration','test')", [cluster]);
   await pool.query("INSERT INTO profiles(id,cluster_id,position_name) VALUES($1,$2,'Developer')", [profile, cluster]);
   await pool.query("INSERT INTO candidate_blacklist(id,phone,last_name,first_name,company_name) VALUES($1,'+79991234567','Тестов','Иван','Test')", [randomUUID()]);
   await connectBroker();
+  const statusConnection = await (await connectBroker()).connection.createChannel();
+  const statusConsumer = await statusConnection.consume(queues.analysis, () => {}, { exclusive: true });
+  try {
+    await getAnalysisStatus(true);
+    assert.equal((await request<{ available: boolean }>("/analysis/status")).available, false,
+      "A consumer in the queue must not hide an unavailable model");
+    modelReady = true; await getAnalysisStatus(true);
+    assert.equal((await request<{ available: boolean }>("/analysis/status")).available, true);
+  } finally { await statusConnection.cancel(statusConsumer.consumerTag); await statusConnection.close(); }
   stops.push(startResultConsumers());
   const stopStorage = startQueueConsumer(queues.storage, storeResume, failStorageJob);
   stops.push(stopStorage);
@@ -320,6 +338,7 @@ try {
   await closeBroker(); await pool.end();
   await new Promise<void>(resolve => server.close(() => resolve()));
   await new Promise<void>(resolve => scanner.close(() => resolve()));
+  control.closeAllConnections(); await new Promise<void>(resolve => control.close(() => resolve()));
   assert.ok(spoolRoot.includes(process.env.POSTGRES_DB!));
   await rm(spoolRoot, { recursive: true, force: true });
 }

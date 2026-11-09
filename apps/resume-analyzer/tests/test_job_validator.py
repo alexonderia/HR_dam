@@ -64,6 +64,13 @@ def make_valid_job():
 
 
 class JobValidatorTests(unittest.TestCase):
+    def test_envelope_does_not_coerce_booleans_or_fractional_attempts(self):
+        for field, value in (("version", True), ("attempt", True), ("attempt", 1.0)):
+            job = make_valid_job()
+            job[field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                validate_analysis_job(job)
+
 
     def setUp(self):
         self.job = make_valid_job()

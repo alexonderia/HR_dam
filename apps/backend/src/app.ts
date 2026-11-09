@@ -106,7 +106,7 @@ app.use(
     console.error(
       moscowTimestamp(),
       "Request failed",
-      error instanceof Error ? error.name : "UnknownError",
+      error,
     );
     res
       .status(500)

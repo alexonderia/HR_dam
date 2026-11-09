@@ -47,6 +47,7 @@ try:
         rabbit('PUT', 'permissions/' + name + '/' + quote(user, safe=''),
                {'configure': '.*', 'write': '.*', 'read': '.*'})
     env.update(POSTGRES_DB=name, RABBITMQ_VHOST=name,
+               ANALYZER_ADAPTER='http' if bridge_mode else 'amqp',
                RABBITMQ_ENABLED='true' if uses_broker else 'false',
                RANK_BRIDGE_ENABLED='true' if bridge_mode else 'false',
                RABBITMQ_URL='amqp://' + quote(user, safe='') + ':' + quote(password, safe='')

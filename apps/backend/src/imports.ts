@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { extractedPersonSchema, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ResumeImportDetail } from "@hr/contracts";
-import { getClusters, transaction } from "@hr/data-access";
-import { newTask, mutateTask, expireWork, command, inspectUpload, type IncomingFile } from "@hr/processing";
-import { authorizedProcessing } from "./processing-service.js";
+import { extractedPersonSchema, contactFields, importManifestSchema, importAnalysisTiming, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ImportFile, type ImportManifest, type ResumeImportDetail, type StorageJob } from "@hr/contracts";
+import { getClusters, enqueueImport, ensureProcessingTransport, brokerQueues, readImportLedger, latestItemEvent, pool, transaction, blacklistMatchSql } from "@hr/data-access";
+import { extractResumeArchive, multipartFileName } from "./archive.js";
+import { validateFile, scanFile, hashFile } from "./files.js";
+import { config } from "./config.js";
 import { HttpError } from "./errors.js";
 
 export async function activeRequirements() {
@@ -13,9 +13,34 @@ export async function activeRequirements() {
   if (Buffer.byteLength(JSON.stringify(clusters)) > 512 * 1024) throw new HttpError(422, "Набор требований превышает допустимый размер задания.");
   return clusters;
 }
-function targets(clusters: Cluster[]) {
-  return clusters.flatMap(c => c.profiles.map(p => ({ id: p.id, name: p.position_name, education: p.education || "",
-    experience: p.experience || "", keywords: p.keywords || [], stop_factors: p.stop_factors || [], comment: [c.comment, p.comment].filter(Boolean).join("\n") })));
+export async function acceptResumes(file: Express.Multer.File | undefined, archive: boolean, hint: unknown = {}) {
+  if (!file) throw new HttpError(422, archive ? "Прикрепите ZIP с резюме." : "Прикрепите резюме.");
+  const candidate = extractedPersonSchema.parse(hint);
+  const filename = multipartFileName(file.originalname);
+  if (archive && !/\.zip$/i.test(filename)) throw new HttpError(422, "Выберите ZIP-архив.");
+  try { await ensureProcessingTransport(); } catch { throw new HttpError(503, "Обработка временно недоступна. Повторите загрузку позже."); }
+  const requirements = await activeRequirements();
+  const unpacked = archive ? extractResumeArchive(file.buffer) : {
+    files: [{ sourcePath: filename, filename, buffer: file.buffer }], ignored: [] as string[],
+  };
+  const id = randomUUID(), items: ImportFile[] = [], buffers = new Map<string, Buffer>();
+  // Validate the entire archive before publishing a single task.
+  for (const source of unpacked.files) {
+    const mime = await validateFile(source.buffer, source.filename);
+    await scanFile(source.buffer);
+    const itemId = randomUUID(), fileId = randomUUID();
+    items.push({ id: itemId, file_id: fileId, source_path: source.sourcePath, file_name: source.filename,
+      mime_type: mime, size_bytes: source.buffer.length, sha256: hashFile(source.buffer),
+      bucket: config.bucket, object_key: `resume-imports/${id}/${fileId}/${source.filename}`, candidate_hint: candidate,
+      candidate_hint_source: "manual", manual_contact_fields: contactFields.filter(field => candidate[field] !== null) });
+    buffers.set(fileId, source.buffer);
+  }
+  const manifest: ImportManifest = { version: 1, id, archive_name: filename, created_at: new Date().toISOString(),
+    requirements, items, ignored_files: unpacked.ignored };
+  importManifestSchema.parse(manifest);
+  if (Buffer.byteLength(JSON.stringify(manifest)) > 1500 * 1024) throw new HttpError(422, "Список файлов архива слишком большой.");
+  const queued = await enqueueImport(manifest, buffers);
+  return { ...initialImportDetail(manifest), queued };
 }
 export async function acceptResumes(file: IncomingFile | undefined, archive: boolean, hint: unknown = {}) {
   if (!file) throw new HttpError(422, "Прикрепите файл резюме или ZIP.");
@@ -101,12 +126,17 @@ export async function enqueueExistingResume(resumeId: string, options: { recover
       requirements = requirements.filter(c => keys.get(c.id) !== clusterRequirementsKey(c)); if (!requirements.length) return;
     }
     const update = await client.query("UPDATE resumes SET scoring_status='pending',updated_at=now() WHERE id=$1 RETURNING updated_at::text AS lease", [resumeId]);
-    task.requirements = targets(requirements); task.clusters = requirements; task.name = row.file_name;
-    task.files = [{ file_id: row.file_id, file_name: row.file_name, mime_type: row.mime_type, size_bytes: Number(row.size_bytes), sha256: row.file_sha256,
-      key: row.object_key, candidate_hint: extractedPersonSchema.parse(row), target_resume_id: resumeId, target_updated_at: update.rows[0].lease,
-      ...(options.clusterIds ? { assessment_cluster_ids: requirements.map(c => c.id) } : {}) }]; task.source_ids = [row.file_id]; task.status = "queued";
-    await client.query("INSERT INTO processing_tasks(id,state) VALUES($1,$2)", [task.id, JSON.stringify(task)]);
-    await store.outbox(client, task, [{ kind: "event", body: { event_id: task.accepted_event_id, event_type: "task.accepted", task_id: task.id, mode: "authorized", deadline: task.deadline } }]);
+    const id = randomUUID();
+    const manifest: ImportManifest = { version: 1, id, archive_name: row.file_name, created_at: new Date().toISOString(), requirements, ignored_files: [], items: [{
+      id: randomUUID(), file_id: row.file_id, source_path: row.file_name, file_name: row.file_name, mime_type: row.mime_type,
+      size_bytes: Number(row.size_bytes), sha256: row.file_sha256, bucket: row.bucket, object_key: row.object_key,
+      candidate_hint: extractedPersonSchema.parse(row), candidate_hint_source: "snapshot", manual_contact_fields: [],
+      target_resume_id: resumeId, target_updated_at: update.rows[0].lease,
+      ...(options.clusterIds ? { assessment_cluster_ids: requirements.map(cluster => cluster.id) } : {}),
+    }] };
+    importManifestSchema.parse(manifest);
+    await enqueueImport(manifest, new Map());
+    return initialImportDetail(manifest);
   });
   return task.requirements.length ? importDetail(task.id) : null;
 }

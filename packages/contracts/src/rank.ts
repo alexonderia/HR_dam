@@ -1,8 +1,9 @@
 import { rankResponseSchema } from "./domain.js";
+import { validateEvidenceRating, explainEvidenceRating } from "./evidence.js";
 
 export function validateRankResponse(
   input: unknown,
-  expected: { id: string; profiles: { id: string }[] }[],
+  expected: { id: string; comment?: string | null; profiles: { id: string; keywords?: string[]; experience?: string | null; education?: string | null; comment?: string | null; stop_factors?: string[] }[] }[],
 ) {
   const result = rankResponseSchema.parse(input);
   const expectedPairs = expected.flatMap((c) =>
@@ -21,5 +22,17 @@ export function validateRankResponse(
     throw new Error(
       "Обработчик вернул неполный или некорректный набор профилей.",
     );
+  for (const cluster of result.clusters) {
+    const input = expected.find(c => c.id === cluster.id)!;
+    for (const rating of cluster.profiles) {
+      const profile = input.profiles.find(p => p.id === rating.id)!;
+      if ((rating.details as { method?: string } | undefined)?.method === "evidence-v1") {
+        const evidence = validateEvidenceRating(rating, profile, input.comment || "");
+        rating.explanation = explainEvidenceRating(evidence);
+      }
+      if (profile.stop_factors && rating.triggered_stop_factors?.some(stop => !profile.stop_factors!.includes(stop)))
+        throw new Error("Обработчик вернул стоп-фактор вне требований задания.");
+    }
+  }
   return result;
 }
