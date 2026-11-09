@@ -19,6 +19,7 @@ until s3 list-buckets >/dev/null; do
     sleep 2
 done
 
+for S3_BUCKET in "$S3_BUCKET" guest-temporary; do
 if s3 head-bucket --bucket "$S3_BUCKET" 2>/tmp/bucket-error; then
     echo "S3 bucket already exists: $S3_BUCKET"
 else
@@ -36,3 +37,5 @@ else
     s3 head-bucket --bucket "$S3_BUCKET"
     echo "S3 bucket created: $S3_BUCKET"
 fi
+
+done

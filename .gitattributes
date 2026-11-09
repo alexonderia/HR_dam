@@ -2,3 +2,5 @@
 *.sql text eol=lf
 *.toml text eol=lf
 *.yml text eol=lf
+apps/frontend/public/alabuga/alabuga.css text eol=lf
+apps/frontend/public/alabuga/alabuga.iife.js text eol=lf

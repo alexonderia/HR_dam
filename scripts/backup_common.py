@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-WRITERS = ("frontend", "backend", "worker", "pgadmin")
+WRITERS = ("frontend", "backend", "pgadmin")
 
 
 def sha256(path):

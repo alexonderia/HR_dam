@@ -3,8 +3,8 @@ import { chromium, expect } from "@playwright/test";
 import { type Candidate, type ContactRecoveryPreview } from "@hr/contracts";
 import { contactResult } from "./fixtures/contact-result.js";
 
-const base = process.env.TEST_BASE_URL || "http://127.0.0.1:5173";
-const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL });
+const base = process.env.TEST_BASE_URL || "http://localhost:3000";
+const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || "chrome" });
 try {
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
     const page = await browser.newPage({ viewport });
@@ -22,6 +22,8 @@ try {
     let failApply = true, previews = 0, applications = 0, scoringCalls = 0;
     await page.route("**/api/**", async route => {
       const path = new URL(route.request().url()).pathname;
+      if (path === "/api/session") return route.fulfill({ json: { mode: "authorized", user: { id: "a0000000-0000-4000-8000-000000000001", name: "Synthetic HR" }, expires_at: new Date(Date.now() + 600000).toISOString() } });
+      if (path.endsWith("/processing/mode")) return route.fulfill({ json: { mode: "broker", broker_enabled: true, rank_bridge_enabled: false } });
       if (path.endsWith("/overview")) return route.fulfill({ json: { candidates: [candidate], clusters: [], blacklist: [], resumeImports: [] } });
       if (path.endsWith("/analysis/status")) return route.fulfill({ json: { available: false, message: "Модель недоступна" } });
       if (path.endsWith("/contacts/preview")) { previews++; return route.fulfill({ json: preview }); }

@@ -47,7 +47,7 @@ export function BulkResumeUpload() {
     <p className="muted">Каждое резюме проходит проверку. Служебные и неподдерживаемые файлы пропускаются. Кандидаты появятся в базе по мере получения результатов анализа.</p>
     <ErrorMessage message={error} />
     {result && <div className="af-alert af-alert--success notice" role="status">
-      <strong>Архив «{result.archive_name}» принят: {result.total_files} резюме.</strong>
+      <strong>Архив «{result.archive_name}» принят. Источников: {result.source_files ?? 1}. Найдено резюме: {result.candidate_files ?? result.total_files}.</strong>
       <p>Обработано: {result.processed_files}. В обработке: {result.pending_files}. Ошибок: {result.failed_files}.</p>
       {!!result.ignored_files.length && <p>Пропущено файлов: {result.ignored_files.length}.</p>}
       <Link className="af-link" to="/processing">Следить за массовой обработкой</Link>

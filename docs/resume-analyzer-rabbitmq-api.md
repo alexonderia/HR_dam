@@ -208,14 +208,19 @@ Authorization: Bearer <RESUME_ANALYZER_CALLBACK_TOKEN>
 
 Native + bridge и AMQP без брокера отклоняются при старте. Consumer очереди анализа эксклюзивный в обоих адаптерах: второй потребитель не подключится даже при разном окружении контейнеров. В режиме `amqp` HTTP `/rank` отключён с 409, `/health`, `/status`, `/ready` и `/contacts` остаются доступны.
 
+При обновлении прежнего native consumer явно добавьте `ANALYZER_ADAPTER=amqp` в существующий `.env`, сохранив `RABBITMQ_ENABLED=true` и `RANK_BRIDGE_ENABLED=false`. Compose по умолчанию подставляет `http`; без новой настройки backend, worker и analyzer будут завершаться с ошибкой `HTTP analyzer requires RANK_BRIDGE_ENABLED=true`. Копировать `.env.example` поверх существующего `.env` не нужно.
+
 После изменения переменных остановите backend/worker и пересоздайте контейнеры:
 
 ```powershell
 docker compose stop backend worker
-docker compose --profile broker up -d --build --remove-orphans --wait
+docker compose --profile broker up -d --build --remove-orphans
+docker compose --profile broker up -d --no-build --wait frontend backend worker resume-analyzer
 ```
 
-Для режима без брокера вторую команду замените на `docker compose up -d --build --wait`, затем остановите RabbitMQ: `docker compose stop rabbitmq`. Обычный `restart` не обновляет окружение. Незавершённые задания между режимами автоматически не переносятся; сначала завершите их в исходном режиме.
+Ожидание выполняется отдельно для сервисов приложения: общий `up --wait` в некоторых версиях Compose считает успешное завершение одноразового `ollama-init` ошибкой запуска. Flyway и инициализация S3 проверяются как зависимости backend/worker, а готовность модели — через `/api/analysis/status`.
+
+Для режима без брокера уберите `--profile broker` из обеих команд `up`, затем остановите RabbitMQ: `docker compose stop rabbitmq`. Обычный `restart` не обновляет окружение. Незавершённые задания между режимами автоматически не переносятся; сначала завершите их в исходном режиме.
 
 Нативный consumer запускается в lifespan единственного `resume-analyzer` при `ANALYZER_ADAPTER=amqp`; отдельный сервис `resume-analyzer-consumer` удалён. При первом обновлении `--remove-orphans` удаляет прежний контейнер consumer. Для локальной Ollama используйте те же параметры `-f docker-compose.yml -f docker-compose.local-ollama.yml`, что и при исходном запуске. HTTP и AMQP используют один pipeline и возвращают одинаковые контакты, оценки и безопасные ошибки. Успешный результат явно содержит `analysis_duration_ms` без времени ожидания и инфраструктурных повторов. Оба адаптера используют одну модель, таймауты, часовой пояс Москвы и настройку логирования.
 

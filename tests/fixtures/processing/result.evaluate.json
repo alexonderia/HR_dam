@@ -1,0 +1,16 @@
+{
+  "status": "completed",
+  "candidate": {"last_name": null, "first_name": null, "middle_name": null, "phone": null},
+  "evaluations": [{
+    "target_id": "50000000-0000-4000-8000-000000000001",
+    "score": 80,
+    "criteria": [
+      {"name": "education", "status": "unknown", "explanation": "Образование не указано."},
+      {"name": "experience", "status": "matched", "explanation": "Указан соответствующий опыт."},
+      {"name": "keywords", "status": "matched", "explanation": "TypeScript указан в навыках."}
+    ],
+    "matched_keywords": ["TypeScript"],
+    "triggered_stop_factors": [],
+    "explanation": "Синтетический пример ответа; формулу оценки реализует оценщик."
+  }]
+}

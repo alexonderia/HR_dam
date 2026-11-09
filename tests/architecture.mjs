@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, relative, join } from 'node:path';
 
-const apps = ['frontend', 'backend', 'worker'];
+const apps = ['frontend', 'backend', 'worker', 'auth-check', 'guest-api'];
 const manifests = Object.fromEntries(apps.map(name => [name, JSON.parse(readFileSync(`apps/${name}/package.json`, 'utf8'))]));
-const common = ['contracts', 'documents', 'data-access'];
+const common = ['contracts', 'documents', 'data-access', 'security', 'processing'];
 const sources = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? sources(join(directory, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(directory, entry.name)] : []);
 for (const name of [...apps, ...common]) {
   const directory = resolve(apps.includes(name) ? `apps/${name}` : `packages/${name}`);
@@ -31,7 +31,14 @@ for (const name of [...apps, ...common]) {
 assert.deepEqual(Object.keys(manifests.frontend.dependencies).filter(name => name.startsWith('@hr/')), ['@hr/contracts']);
 for (const name of ['pg', '@aws-sdk/client-s3', 'express', 'multer', 'pdfjs-dist']) assert.ok(!(name in manifests.frontend.dependencies), `frontend contains ${name}`);
 assert.equal(Object.keys(JSON.parse(readFileSync('package.json','utf8')).dependencies || {}).length, 0);
-for (const app of apps) assert.ok(readFileSync(`apps/${app}/Dockerfile`, 'utf8').includes(`apps/${app}`));
+for (const app of ['frontend', 'backend', 'worker']) assert.ok(readFileSync(`apps/${app}/Dockerfile`, 'utf8').includes(`apps/${app}`));
+for (const name of ['auth-check', 'guest-api', 'security', 'processing']) {
+  const manifest = JSON.parse(readFileSync(`${apps.includes(name) ? 'apps' : 'packages'}/${name}/package.json`, 'utf8'));
+  assert.ok(!manifest.dependencies?.pg && !manifest.dependencies?.['@hr/data-access'], `${name}: database dependency`);
+  for (const file of sources(`${apps.includes(name) ? 'apps' : 'packages'}/${name}/src`)) {
+    assert.ok(!readFileSync(file, 'utf8').includes('@hr/data-access'), `${file}: business repository import`);
+  }
+}
 assert.ok(!readFileSync('apps/backend/src/index.ts', 'utf8').includes('express.static'));
 console.log('Architecture: isolated application imports, declared dependencies, browser-only frontend and separate Dockerfiles passed');
 assert.ok(readFileSync('.npmrc', 'utf8').includes('install-strategy=nested'));

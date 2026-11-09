@@ -169,7 +169,8 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
     <div className="panel-heading import-heading">
       <div className="import-heading-title"><span className="import-heading-icon"><FolderOpen size={22} /></span><div>
         <h2 className="af-title">Общий статус проверок</h2>
-        <p>{lastHourOnly ? "Загрузки за последний час" : "Все загрузки"}</p>
+        <p>{lastHourOnly ? "Загрузки за последний час" : "Все загрузки"}{batches.some(b => b.source_files !== undefined) &&
+          ` · источников: ${batches.reduce((n, b) => n + (b.source_files ?? b.total_files), 0)}, найдено резюме: ${batches.reduce((n, b) => n + (b.candidate_files ?? b.total_files), 0)}`}</p>
       </div></div>
       <div className="toolbar"><span className="af-badge badge badge--neutral">Всего в обработке: {remaining}</span>
         <Button secondary disabled={!!busy} onClick={() => { setReload(value => value + 1); void refresh(); }}><RefreshCw size={16} />Обновить</Button></div>

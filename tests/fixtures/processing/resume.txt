@@ -1,0 +1,5 @@
+Synthetic resume fixture.
+Skills: TypeScript.
+Experience: three years writing synthetic examples.
+Education: unspecified.
+This fixture contains no personal information.

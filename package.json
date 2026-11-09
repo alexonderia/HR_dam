@@ -8,18 +8,23 @@
     "packages/*"
   ],
   "scripts": {
-    "build:packages": "npm run build -w @hr/contracts && npm run build -w @hr/documents && npm run build -w @hr/data-access",
-    "build": "npm run build:packages && npm run build -w @hr/backend && npm run build -w @hr/worker && npm run build -w @hr/frontend && tsc --noEmit",
+    "build:packages": "npm run build -w @hr/contracts && npm run build -w @hr/security && npm run build -w @hr/documents && npm run build -w @hr/processing && npm run build -w @hr/data-access",
+    "build": "npm run build:packages && npm run build -w @hr/auth-check && npm run build -w @hr/guest-api && npm run build -w @hr/backend && npm run build -w @hr/worker && npm run build -w @hr/frontend && tsc --noEmit",
     "dev": "npm run build -w @hr/contracts && npm run dev -w @hr/frontend",
     "api": "npm run build:packages && npm run dev -w @hr/backend",
     "worker": "npm run build:packages && npm run dev -w @hr/worker",
     "test": "npm run build:packages && tsx --test tests/*.test.ts",
-    "test:integration": "npm run build:packages && tsx --env-file=.env tests/integration.ts",
+    "test:integration": "npm run test:processing",
     "test:workflow": "npm run build:packages && tsx --env-file=.env tests/workflow.integration.ts",
     "test:queue": "npm run build:packages && python tests/run_queue_integration.py",
     "test:rank-modes": "npm run build:packages && python tests/run_rank_modes.py",
     "test:architecture": "node tests/architecture.mjs",
-    "test:service-outage": "tsx --env-file=.env tests/service-outage.ts"
+    "test:compose": "node tests/compose-architecture.mjs",
+    "test:service-outage": "tsx --env-file=.env tests/service-outage.ts",
+    "keys": "node scripts/generate-keys.mjs",
+    "user:create": "docker compose run --rm --no-deps -e HR_USER_LOGIN -e HR_USER_NAME -e HR_USER_PASSWORD backend node apps/backend/dist/create-user.js",
+    "prepare:environment": "node scripts/prepare-environment.mjs",
+    "test:processing": "npm run build:packages && python tests/run_processing.py"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

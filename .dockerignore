@@ -13,3 +13,5 @@ playwright-report
 docs/*.docx
 **/__pycache__
 **/.venv
+.secrets
+logs
