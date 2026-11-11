@@ -1,0 +1,3 @@
+services:
+  clamav:
+    platform: linux/amd64

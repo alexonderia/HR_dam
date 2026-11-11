@@ -146,6 +146,10 @@ services:
   resume-parser:
     <<: *processor
     image: ${PREPARE_IMAGE:-hr-dam-resume-parser:local}
+    build:
+      context: .
+      dockerfile: infra/processing/Dockerfile
+      args: {OPERATION: prepare}
     environment:
       <<: *processor-env
       PORT: 8001
@@ -154,9 +158,19 @@ services:
   resume-evaluator:
     <<: *processor
     image: ${EVALUATE_IMAGE:-hr-dam-resume-evaluator:local}
+    build:
+      context: .
+      dockerfile: infra/processing/Dockerfile
+      args: {OPERATION: evaluate}
     environment:
       <<: *processor-env
       PORT: 8002
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:4b-q4_K_M}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-180}
+      RANK_TIMEOUT_SECONDS: ${RANK_TIMEOUT_SECONDS:-840}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-16384}
+      OLLAMA_MAX_TOKENS: ${OLLAMA_MAX_TOKENS:-8192}
       GUEST_AMQP_URL: amqp://hr_evaluate:${EVALUATE_AMQP_PASSWORD:?Run npm run prepare:environment}@rabbitmq:5672/hr-guest
       AUTHORIZED_AMQP_URL: amqp://hr_evaluate:${EVALUATE_AMQP_PASSWORD:?Run npm run prepare:environment}@rabbitmq:5672/hr-authorized
   postgres:

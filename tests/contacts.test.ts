@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { contactsResponseSchema, extractedPersonSchema, rankResponseSchema, type ImportFile } from "@hr/contracts";
+import { contactsResponseSchema, extractedPersonSchema, rankResponseSchema, evaluateResultSchema, type ImportFile } from "@hr/contracts";
 import { emptyPerson, manualContactFields, planContactUpdate } from "../apps/backend/src/contact-policy.js";
 import { contactResult } from "./fixtures/contact-result.js";
 
@@ -79,4 +79,32 @@ test("unsubstantiated contacts, international automatic numbers and no-text clai
   const missing = structuredClone(extracted);
   missing.contact_details.fields.middle_name = null;
   assert.equal(contactsResponseSchema.safeParse(missing).success, false);
+});
+
+test("compound patronymics are supported by consecutive words in the source quote", () => {
+  const result = contactResult({ last_name: "Ахметов", first_name: "Дамир", middle_name: "Рашид Оглы" });
+  for (const field of ["last_name", "first_name", "middle_name"] as const) {
+    result.contact_details.fields[field]!.quote = "АХМЕТОВ ДАМИР РАШИД\nОГЛЫ";
+    result.contact_details.fields[field]!.line_end = 2;
+  }
+  assert.equal(contactsResponseSchema.safeParse(result).success, true);
+  assert.equal(evaluateResultSchema.safeParse({ status: "completed", ...result, evaluations: [{
+    target_id: "50000000-0000-4000-8000-000000000001", score: 0,
+    criteria: ["education", "experience", "keywords"].map(name => ({ name, status: "unknown", explanation: "Нет сведений." })),
+    matched_keywords: [], triggered_stop_factors: [], explanation: "Недостаточно сведений.",
+  }] }).success, true);
+});
+
+test("compound name evidence must preserve word order and adjacency", () => {
+  for (const quote of ["Ахметов Дамир Оглы Рашид", "Ахметов Дамир Рашид другой текст Оглы"]) {
+    const result = contactResult({ last_name: "Ахметов", first_name: "Дамир", middle_name: "Рашид Оглы" });
+    result.contact_details.fields.middle_name!.quote = quote;
+    assert.equal(contactsResponseSchema.safeParse(result).success, false);
+  }
+});
+
+test("name evidence never accepts a partial word", () => {
+  const result = contactResult({ last_name: "Ахметов", first_name: "Дамир", middle_name: "Рашид Оглы" });
+  result.contact_details.fields.first_name!.quote = "Ахметов Дамирбек Рашид Оглы";
+  assert.equal(contactsResponseSchema.safeParse(result).success, false);
 });
