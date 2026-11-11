@@ -73,6 +73,12 @@ export const extractedPersonSchema = z.object({
     personSchema.shape.phone.nullish().transform(value => value ?? null)),
 });
 export type ExtractedPerson = z.infer<typeof extractedPersonSchema>;
+function nameSupportedByQuote(actual: string, quote: string) {
+  const words = (value: string) => value.split(/[^\p{L}'-]+/u).filter(Boolean).map(identityKey);
+  const expected = words(actual), source = words(quote);
+  return expected.length > 0 && source.some((_, index) =>
+    expected.every((word, offset) => source[index + offset] === word));
+}
 export const contactsResponseSchema = z.object({ candidate: extractedPersonSchema, contact_details: contactDetailsSchema })
   .superRefine((value, ctx) => {
     for (const field of ["last_name", "first_name", "middle_name", "phone"] as const) {
@@ -82,7 +88,7 @@ export const contactsResponseSchema = z.object({ candidate: extractedPersonSchem
       if (actual && quote) {
         const supported = field === "phone"
           ? /^\+7\d{10}$/.test(actual) && [actual.slice(1), "8" + actual.slice(2)].some(digits => quote.replace(/\D/g, "").includes(digits))
-          : quote.split(/[^\p{L}'-]+/u).some(word => identityKey(word) === identityKey(actual));
+          : nameSupportedByQuote(actual, quote);
         if (!supported) ctx.addIssue({ code: "custom", message: "Значение отсутствует в цитате.", path: ["candidate", field] });
       }
     }

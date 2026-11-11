@@ -1,0 +1,67 @@
+# Apply after docker-compose.yml and tests/compose.processing.yml, with project
+# hr-dam-processors-qa. Every fixed name and volume is separate from the app/QA.
+services:
+  frontend:
+    container_name: hr-dam-processors-qa-frontend
+    ports: !override ['127.0.0.1:13100:8080']
+  auth-check:
+    container_name: hr-dam-processors-qa-auth-check
+    environment: {APP_ORIGIN: 'http://localhost:13100'}
+  guest-api:
+    container_name: hr-dam-processors-qa-guest-api
+    environment: {APP_ORIGIN: 'http://localhost:13100'}
+  backend:
+    container_name: hr-dam-processors-qa-backend
+    environment: {APP_ORIGIN: 'http://localhost:13100'}
+  rabbitmq:
+    container_name: hr-dam-processors-qa-rabbitmq
+  rabbitmq-init:
+    container_name: hr-dam-processors-qa-rabbitmq-init
+  postgres:
+    container_name: hr-dam-processors-qa-postgres
+  flyway:
+    container_name: hr-dam-processors-qa-flyway
+  seaweedfs:
+    container_name: hr-dam-processors-qa-seaweedfs
+  s3-init:
+    container_name: hr-dam-processors-qa-s3-init
+  clamav:
+    container_name: hr-dam-processors-qa-clamav
+  resume-parser:
+    container_name: hr-dam-processors-qa-parser
+  resume-evaluator:
+    container_name: hr-dam-processors-qa-evaluator
+    environment:
+      OLLAMA_BASE_URL: http://model-stub:11434
+      OLLAMA_MODEL: synthetic-model:latest
+  model-stub:
+    image: python:3.12-slim
+    entrypoint: [python, /tests/model_stub.py]
+    volumes: ['./tests/fixtures/processing/model_stub.py:/tests/model_stub.py:ro']
+    networks: [model]
+  processor-tests:
+    profiles: [test]
+    image: hr-dam-resume-evaluator:local
+    entrypoint: [python, /tests/processors.integration.py]
+    volumes: ['./tests:/tests:ro']
+    networks: [edge, model]
+
+# A full application and this isolated stack otherwise exhaust Docker Desktop's
+# default address pools. These small subnets belong only to the QA project.
+# Override PROCESSOR_QA_SUBNET_PREFIX if this range is used on another host.
+networks:
+  frontend-guest: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.0/28'}]}}
+  frontend-app: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.16/28'}]}}
+  frontend-auth: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.32/28'}]}}
+  database: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.48/28'}]}}
+  guest-store: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.64/28'}]}}
+  authorized-store: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.80/28'}]}}
+  guest-broker: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.96/28'}]}}
+  authorized-broker: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.112/28'}]}}
+  processor-broker: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.128/28'}]}}
+  guest-jobs: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.144/28'}]}}
+  authorized-jobs: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.160/28'}]}}
+  guest-antivirus: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.176/28'}]}}
+  authorized-antivirus: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.192/28'}]}}
+  model: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.208/28'}]}}
+  edge: {ipam: {config: [{subnet: '${PROCESSOR_QA_SUBNET_PREFIX:-10.254.240}.224/28'}]}}

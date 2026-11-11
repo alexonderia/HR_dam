@@ -38,11 +38,20 @@ def model_capacity(check_cancelled=None):
     if getattr(_owner, "active", False):
         yield
         return
-    if not is_ready():
-        raise ModelUnavailable("Модель временно недоступна.")
     if not model_lock.acquire(timeout=PROBE_TIMEOUT + 5):
         raise ModelBusy("Модель занята.")
     try:
+        # The monitor cannot probe while inference owns this lock. A long job
+        # therefore expires its last probe even when inference succeeds. Check
+        # freshness explicitly: is_ready() tolerates age while the lock is held.
+        with _state_lock:
+            stale = time.monotonic() - _checked_at >= INTERVAL + PROBE_TIMEOUT + 10
+        if stale:
+            if check_cancelled:
+                check_cancelled()
+            _refresh_model_readiness()
+            if check_cancelled:
+                check_cancelled()
         if not is_ready():
             raise ModelUnavailable("Модель временно недоступна.")
         _owner.active = True
@@ -99,13 +108,18 @@ def _probe_model() -> bool:
     )
 
 
+def _refresh_model_readiness():
+    try:
+        mark_ready(_probe_model())
+    except (requests.RequestException, ValueError):
+        mark_ready(False)
+
+
 def monitor(stop: threading.Event):
     while not stop.is_set():
         if model_lock.acquire(blocking=False):
             try:
-                mark_ready(_probe_model())
-            except (requests.RequestException, ValueError):
-                mark_ready(False)
+                _refresh_model_readiness()
             finally:
                 model_lock.release()
 

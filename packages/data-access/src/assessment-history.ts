@@ -11,7 +11,9 @@ export async function restoreClusterAssessmentHistory() {
     WHERE e.event_type='scored' AND a.resume_id IS NULL`);
   const receipts = new Set<string>(missing.rows.map(row => row.id));
   let restored = 0, baselined = 0;
-  if (receipts.size) {
+  // Scoped current-protocol credentials cannot inspect v1 queues. Explicit
+  // initialization before a requirements edit uses the DB baseline below.
+  if (receipts.size && !process.env.PROCESSING_AMQP_URL) {
     for (const queue of await brokerQueues()) {
       if (!/^hr\.resume\.batch\.[a-f0-9-]{36}$/.test(queue.name)) continue;
       const { manifest, events } = await readImportLedger(queue.name.slice("hr.resume.batch.".length));

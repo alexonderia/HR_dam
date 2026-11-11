@@ -27,9 +27,12 @@ HEADINGS = set("""
 мужчина женщина достижения обязанности сертификаты курсы водительские права
 настоящее время место город портфолио аналитик инженер разработчик менеджер
 специалист руководитель директор ведущий старший младший проектная деятельность
+знание владение
 """.split())
 NAME_LABEL = re.compile(r"^\s*(?:фио|ф[.\s]*и[.\s]*о[.]?|имя|кандидат)\s*[:：]\s*", re.I)
 PATRONYMIC = re.compile(r"(?:ович|евич|ич|овна|евна|ична)$", re.I)
+SURNAME = re.compile(r"(?:ов|ев|ёв|ин|ын|ова|ева|ёва|ина|ына|ский|ская|цкий|цкая|енко|ян|дзе|швили)$", re.I)
+COMPOUND_PATRONYMIC = {"оглы", "кызы", "улы", "уулу"}
 PHONE_PATTERN = re.compile(r"(?<![\w+])\+?\d(?:[ \t\u00a0\u202f()\-‐‑‒–—]*\d){2,15}(?!\d)")
 PHONE_LABEL = re.compile(
     r"(?<!\w)(?:тел(?:ефон)?\.?|моб(?:ильный)?\.?|phone|контакты|контактный\s+номер)"
@@ -46,17 +49,34 @@ def _source(lines: list[str], start: int, end: int, confidence: str) -> dict:
             "line_start": start + 1, "line_end": end + 1}
 
 
-def _parse_name(words: list[str], labelled: bool) -> tuple[dict, str] | None:
-    if len(words) not in (2, 3) or any(len(w) > 100 or not NAME_PATTERN.fullmatch(w) for w in words):
+def _parse_name(words: list[str], labelled: bool, *, header: bool = False) -> tuple[dict, str] | None:
+    if len(words) not in (2, 3, 4) or any(len(w) > 100 or not NAME_PATTERN.fullmatch(w) for w in words):
         return None
     if any(_key(w) in HEADINGS for w in words):
         return None
+    if len(words) == 4:
+        if not (header and SURNAME.search(words[0]) and _key(words[3]) in COMPOUND_PATRONYMIC):
+            return None
+        return ({"last_name": words[0].title(), "first_name": words[1].title(),
+                 "middle_name": " ".join(words[2:]).title()}, "high")
     if len(words) == 3 and not PATRONYMIC.search(words[2]):
-        if PATRONYMIC.search(words[1]) and _key(words[0]) in FIRST_NAMES:
+        if PATRONYMIC.search(words[1]) and (_key(words[0]) in FIRST_NAMES or
+                (header and SURNAME.search(words[2]) and not SURNAME.search(words[0]))):
             words = [words[2], words[0], words[1]]
         else:
             return None
     first_known, second_known = (_key(w) in FIRST_NAMES for w in words[:2])
+    if header and not first_known and not second_known:
+        # Layout has already established a prominent PDF name heading. The
+        # dictionary is not exhaustive; infer order only from name structure.
+        if SURNAME.search(words[0]) and (len(words) == 3 or not SURNAME.search(words[1])):
+            first, last = words[1], words[0]
+        elif len(words) == 2 and SURNAME.search(words[1]) and not SURNAME.search(words[0]):
+            first, last = words[0], words[1]
+        else:
+            return None
+        return ({"last_name": last.title(), "first_name": first.title(),
+                 "middle_name": words[2].title() if len(words) == 3 else None}, "high")
     if first_known == second_known and not labelled:
         return None
     # Both name orders occur in resumes; never manufacture the patronymic.
@@ -68,7 +88,7 @@ def _parse_name(words: list[str], labelled: bool) -> tuple[dict, str] | None:
             "high" if first_known != second_known else "medium")
 
 
-def _name(text: str) -> tuple[dict, dict, str]:
+def _name(text: str, name_header: str | None = None) -> tuple[dict, dict, str]:
     lines = text.splitlines()
     nonempty = [i for i, line in enumerate(lines[:40]) if line.strip()][:20]
     options = []
@@ -85,9 +105,10 @@ def _name(text: str) -> tuple[dict, dict, str]:
                 if end - nonempty[end_offset - 1] > 2:
                     break
                 words += lines[end].strip().split()
-            if len(words) > 3:
+            if len(words) > (4 if name_header else 3):
                 break
-            parsed = _parse_name(words, labelled)
+            header = bool(name_header and " ".join(lines[start:end + 1]).split() == name_header.split())
+            parsed = _parse_name(words, labelled, header=header)
             if parsed:
                 person, confidence = parsed
                 options.append((person, _source(lines, start, end, confidence), labelled))
@@ -146,9 +167,9 @@ def _phone(text: str) -> tuple[str | None, dict | None, str]:
     return None, None, "unsupported" if unsupported else "not_found"
 
 
-def extract_contacts(text: str) -> dict:
+def extract_contacts(text: str, *, name_header: str | None = None) -> dict:
     """Return values and provenance separately; empty/unsupported data stays null."""
-    candidate, sources, name_status = _name(text)
+    candidate, sources, name_status = _name(text, name_header)
     phone, source, phone_status = _phone(text)
     candidate["phone"] = phone
     sources["phone"] = source

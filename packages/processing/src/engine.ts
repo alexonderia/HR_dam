@@ -53,6 +53,9 @@ export class ProcessingEngine {
     const { file_id, file_name, mime_type, size_bytes, sha256, metadata } = file;
     const description = { file_id, file_name, mime_type, size_bytes, sha256, ...(metadata ? { metadata } : {}) };
     return { job_id: job.job_id, attempt: job.attempt, should_process: !job.confirmed && !job.applied && !terminal(task),
+      // A result can be durable while its broker confirm/HTTP reply is lost.
+      // A redelivered parser must replay that result, not upload outputs again.
+      ...(job.result ? { saved_result: job.result } : {}),
       file: { ...description, download_path: `${base}/jobs/${job.job_id}/files/${file.file_id}` },
       ...(job.operation === "evaluate" ? { requirements: { targets: task.requirements } } : {}),
       limits: { max_file_bytes: 52428800, max_expanded_bytes: 262144000, max_files: 200 } };

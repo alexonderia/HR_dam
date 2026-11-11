@@ -59,6 +59,7 @@ test("lost result confirm retains first result and keeps work processable until 
   r.failure(true); await assert.rejects(r.engine.result(auth.claims, evaluation(r.task)));
   let saved = (await r.store.read(r.task.id))!.task;
   assert.equal(r.engine.input(saved, saved.jobs[0], "/internal").should_process, true);
+  assert.deepEqual(r.engine.input(saved, saved.jobs[0], "/internal").saved_result, evaluation(r.task));
   r.failure(false);
   const changed = evaluation(r.task); changed.evaluations[0].score = 1;
   await r.engine.result(auth.claims, changed);
@@ -67,6 +68,22 @@ test("lost result confirm retains first result and keeps work processable until 
   assert.equal((saved.jobs[0].result as ReturnType<typeof evaluation>).evaluations[0].score, 80);
   await r.engine.event(r.sent.at(-1)!.body);
   assert.equal((await r.store.read(r.task.id))!.task.status, "completed");
+});
+test("a parser can recover its durable result without uploading outputs again after a lost confirm", async () => {
+  const r = await setup("application/pdf"), job = r.task.jobs[0];
+  const auth = await r.engine.authorize(`Bearer ${r.engine.token(job)}`, job.job_id, "result:write");
+  const result = { status: "completed" as const, files: [{ file_id: job.file_id }], errors: [] };
+  r.failure(true);
+  await assert.rejects(r.engine.result(auth.claims, result));
+  const saved = (await r.store.read(r.task.id))!.task;
+  const input = r.engine.input(saved, saved.jobs[0], "/internal");
+  assert.equal(input.should_process, true);
+  assert.deepEqual(input.saved_result, result);
+  r.failure(false);
+  await r.engine.result(auth.claims, input.saved_result);
+  const confirmed = (await r.store.read(r.task.id))!.task;
+  assert.equal(confirmed.jobs[0].confirmed, true);
+  assert.deepEqual(confirmed.jobs[0].result, result);
 });
 test("prepare fan-out is idempotent after publication failure", async () => {
   const r = await setup("application/pdf"), job = r.task.jobs[0];
