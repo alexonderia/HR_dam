@@ -1,8 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { FileText, Paperclip, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronRight, Download, FileText, LoaderCircle, Paperclip, X } from "lucide-react";
 import { guestCriteriaSchema, type ProcessingResult } from "@hr/contracts";
-import { Button, ErrorMessage, Framework, InfoHint } from "../components/ui";
+import { Button, ErrorMessage, Framework, InfoHint, Score } from "../components/ui";
+import { RatingAnalysis } from "../components/RatingAnalysis";
 import { sessionApi } from "../lib/session-api";
+import { downloadReport } from "../lib/report-download";
 
 interface Report { task_id: string; status: string; source_count: number; candidate_count: number; completed_count: number; expires_at: string;
   results: ({ file_id: string } & Extract<ProcessingResult, { evaluations: unknown }> )[];
@@ -10,8 +12,16 @@ interface Report { task_id: string; status: string; source_count: number; candid
 interface Ticket { id: string; status: "waiting" | "admitted"; position: number }
 const complete = (status: string) => ["completed", "partially_completed", "failed"].includes(status);
 const statusLabel: Record<string, string> = { uploading: "Загрузка не завершена", queued: "В очереди на обработку", processing: "Обработка", completed: "Готово", partially_completed: "Готова часть отчёта", failed: "Обработка завершилась ошибкой" };
-const criteriaLabels: Record<string, string> = { education: "Образование", experience: "Опыт", keywords: "Навыки" };
-const matchLabels: Record<string, string> = { matched: "Соответствует", partial: "Частично", not_matched: "Не соответствует", unknown: "Нет сведений" };
+const statusDescription: Record<string, string> = {
+  uploading: "Загрузка файлов ещё не завершена.",
+  queued: "Ожидаем начала обработки. Результаты появятся здесь автоматически.",
+  processing: "Резюме обрабатываются. Готовые оценки добавляются автоматически.",
+  completed: "Обработка завершена. Все готовые оценки представлены ниже.",
+  partially_completed: "Обработка завершена с ошибками. Готовые оценки доступны ниже.",
+  failed: "Можно отправить файлы на обработку заново.",
+};
+const bestScore = (result: Report["results"][number]) => Math.max(-1, ...result.evaluations.map(evaluation => evaluation.score));
+const plural = (count: number, forms: [string, string, string]) => forms[count % 100 >= 11 && count % 100 <= 14 ? 2 : count % 10 === 1 ? 0 : count % 10 >= 2 && count % 10 <= 4 ? 1 : 2];
 const guestFields = [
   { key: "name", label: "Название подбора", hint: "Укажите название вакансии или подбора. Например, «Python-разработчик»." },
   { key: "education", label: "Образование", hint: "Требования к уровню и направлению образования. Например, «Высшее техническое»." },
@@ -23,13 +33,31 @@ const guestFields = [
 const fileSize = (bytes: number) => bytes < 1024 ? `${bytes} Б` : `${(bytes / (bytes >= 1048576 ? 1048576 : 1024)).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} ${bytes >= 1048576 ? "МБ" : "КБ"}`;
 export function Guest({ onLogin }: { onLogin: () => void }) {
   const [report, setReport] = useState<Report>(), [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [expandedCandidates, setExpandedCandidates] = useState<Record<string, boolean>>({});
+  const [visibleCandidates, setVisibleCandidates] = useState(4);
   const [stage, setStage] = useState(""), [files, setFiles] = useState<File[]>([]);
   const [values, setValues] = useState({ name: "Подбор кандидатов", education: "", experience: "", keywords: "", stop_factors: "", comment: "" });
   const [taskId, setTaskId] = useState(() => localStorage.getItem("hr_guest_task") || "");
   const mounted = useRef(true), attempt = useRef<{ fingerprint: string; key: string } | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null), attachmentsId = useId();
+  const reportElement = useRef<HTMLElement>(null);
+  const rankedResults = report ? [...report.results].sort((a, b) => bestScore(b) - bestScore(a)) : [];
+  const statusTone = report?.status === "completed" ? "success" : report?.status === "failed" ? "danger" : report?.status === "partially_completed" ? "warning" : "active";
+  const shownCandidates = rankedResults.reduce((count, result, index) => expandedCandidates[result.file_id] ? Math.max(count, index + 1) : count, visibleCandidates);
+  const saveReport = async () => {
+    if (!report) return;
+    setDownloading(true); setError("");
+    try {
+      await sessionApi(`/guest/tasks/${report.task_id}/report`);
+      if (reportElement.current) downloadReport(reportElement.current);
+    } catch (e) { setError((e as Error).message); }
+    finally { setDownloading(false); }
+  };
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
+    setExpandedCandidates({});
+    setVisibleCandidates(4);
     if (!taskId) return;
     let active = true, timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
@@ -70,11 +98,15 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
     } catch (e) { if (mounted.current) setError((e as Error).message); }
     finally { if (mounted.current) setBusy(false); }
   };
-  return <Framework className="guest-app"><div className="guest-page">
-    <header className="guest-header"><img src="/assets/brand/brand-54ddb68464f478e321f2.webp" alt="Алабуга" /><Button secondary onClick={onLogin}>Вход для сотрудников</Button></header>
-    <main className="guest-main"><div className="guest-intro"><h1 className="af-heading">Оценка резюме</h1>
-      <p className="af-body">Задайте критерии и загрузите резюме. Отчёт будет доступен до двух часов после обработки, но не более суток с отправки.</p></div>
-      {!report && <form className="af-card af-card--outer guest-form" onSubmit={e => { e.preventDefault(); void submit(); }}>
+  return <Framework className="guest-app"><div className={`guest-page ${report ? "guest-page--report" : ""}`}>
+    <header className="guest-header"><img src="/assets/brand/brand-54ddb68464f478e321f2.webp" alt="Алабуга" />
+      {report ? <><div className="guest-report-title"><h1 className="af-heading">Результаты оценки</h1><p>Доступно до {new Date(report.expires_at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })} МСК</p></div>
+        <Button className="guest-download" disabled={downloading} aria-busy={downloading} onClick={() => void saveReport()}><Download size={20} aria-hidden="true" />Скачать отчёт</Button></>
+        : <Button secondary onClick={onLogin}>Вход для сотрудников</Button>}
+    </header>
+    <main className="guest-main">{!report && <div className="guest-intro"><h1 className="af-heading">Оценка резюме</h1>
+      <p className="af-body">Задайте критерии и загрузите резюме. Отчёт будет доступен до двух часов после обработки, но не более суток с отправки.</p></div>}
+      {!report && !taskId && <form className="af-card af-card--outer guest-form" onSubmit={e => { e.preventDefault(); void submit(); }}>
         <div className="guest-fields">{guestFields.map(({ key, label, hint }) => <div className={`af-field ${key === "name" || key === "comment" ? "guest-field--wide" : ""}`} key={key}>
           <div className="guest-field-heading"><label className="af-label" htmlFor={`${attachmentsId}-${key}`} id={`${attachmentsId}-${key}-label`}>{label}</label>
             <InfoHint id={`${attachmentsId}-${key}-help`} label={label}>{hint}</InfoHint></div>
@@ -100,17 +132,38 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
         {stage && <p role="status" aria-live="polite">{stage}</p>}<div className="guest-form-actions"><Button className="af-btn--lg" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Отправка…" : "Оценить резюме"}</Button></div>
       </form>}
       <ErrorMessage message={error} />
-      {report && <section className="af-card af-card--outer guest-report" aria-live="polite"><h2 className="af-title">{statusLabel[report.status] || report.status}</h2>
-        <p>Источников: {report.source_count}. Найдено кандидатов: {report.candidate_count}. Готово оценок: {report.completed_count}.</p>
-        <p>Доступно до {new Date(report.expires_at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })} МСК.</p>
-        {report.results.map(result => <article key={result.file_id} className="guest-candidate"><h3>{[result.candidate.last_name, result.candidate.first_name, result.candidate.middle_name].filter(Boolean).join(" ") || "Имя не указано"}</h3>
-          {result.evaluations.map(evaluation => <div key={evaluation.target_id}><strong>{evaluation.score} из 100</strong><dl>{evaluation.criteria.map(c => <div key={c.name}><dt>{criteriaLabels[c.name]} · {matchLabels[c.status]}</dt><dd>{c.explanation}</dd></div>)}</dl>
-            {!!evaluation.triggered_stop_factors.length && <p>Стоп-факторы: {evaluation.triggered_stop_factors.join(", ")}</p>}<p>{evaluation.explanation}</p></div>)}</article>)}
+      {!report && taskId && <section className="af-card af-card--outer guest-report-loading" role="status"><LoaderCircle className="guest-processing-spinner" size={20} aria-hidden="true" /><span>Получаем статус обработки…</span></section>}
+      {report && <section ref={reportElement} className="guest-report" aria-label="Результаты оценки">
+        <div className={`guest-processing guest-processing--${statusTone}`} role="status" aria-live="polite" aria-atomic="true">
+          <div className="guest-processing-heading"><span>Статус обработки</span><span className="guest-processing-badge">
+            {!complete(report.status) ? <LoaderCircle className="guest-processing-spinner" size={16} aria-hidden="true" /> : report.status === "completed" ? <CheckCircle2 size={16} aria-hidden="true" /> : <AlertCircle size={16} aria-hidden="true" />}
+            {statusLabel[report.status] || "Статус не указан"}
+          </span></div>
+          <dl className="guest-processing-counts"><div><dt>{plural(report.source_count, ["источник", "источника", "источников"])}</dt><dd>{report.source_count}</dd></div><div><dt>{plural(report.candidate_count, ["кандидат", "кандидата", "кандидатов"])}</dt><dd>{report.candidate_count}</dd></div><div><dt>оценок</dt><dd>{report.candidate_count ? `${report.completed_count} из ${report.candidate_count}` : report.completed_count}</dd></div></dl>
+          {report.status !== "completed" && <p>{statusDescription[report.status]}</p>}
+        </div>
+        {!!rankedResults.length && <p className="af-caption guest-results-order">По убыванию основного балла{rankedResults.some(result => result.evaluations.length > 1) ? " · по наибольшей оценке кандидата" : ""}</p>}
+        <h2 className="sr-only">Оценки кандидатов</h2>
+        <div className="guest-candidates">{rankedResults.map((result, index) => <details key={result.file_id} className="guest-candidate" hidden={index >= shownCandidates} open={expandedCandidates[result.file_id] ?? index === 0}
+          onToggle={event => { const open = event.currentTarget.open; setExpandedCandidates(current => current[result.file_id] === open ? current : { ...current, [result.file_id]: open }); }}>
+          <summary className="guest-candidate-heading">
+            <ChevronRight className="guest-candidate-chevron" size={22} aria-hidden="true" />
+            <div className="guest-candidate-name"><h3>{[result.candidate.last_name, result.candidate.first_name, result.candidate.middle_name].filter(Boolean).join(" ") || "Имя не указано"}</h3>
+            </div>
+            <div className="guest-candidate-score"><span className="sr-only">{result.evaluations.length > 1 ? "Оценки" : "Основная оценка"}</span>
+              {result.evaluations.map(evaluation => <span className="guest-score-value" key={evaluation.target_id}><Score value={evaluation.score} /><span className="guest-score-scale">из 100</span></span>)}
+            </div>
+          </summary>
+          <div className="guest-candidate-body">{result.evaluations.map(evaluation => <div key={evaluation.target_id}>
+            {result.evaluations.length > 1 && <div className="guest-rating-score"><span>Основная оценка</span><Score value={evaluation.score} /><span>из 100</span></div>}
+            <RatingAnalysis rating={evaluation} compact />
+          </div>)}</div></details>)}</div>
+        {rankedResults.length > shownCandidates && <Button secondary className="af-btn--clear guest-show-more" onClick={() => setVisibleCandidates(rankedResults.length)}>Ещё {rankedResults.length - shownCandidates} {plural(rankedResults.length - shownCandidates, ["кандидат", "кандидата", "кандидатов"])}<ChevronRight size={18} aria-hidden="true" /></Button>}
         {report.errors.map((item, i) => <p className="af-alert af-alert--warning" key={i}>{item.message}</p>)}
         {complete(report.status) && report.status !== "completed" && <p>Сохранённая часть отчёта доступна для скачивания. Для новой обработки отправьте файлы заново.</p>}
-        <div className="guest-actions"><a className="af-btn" href={`/api/guest/tasks/${report.task_id}/download`} download>Скачать отчёт</a>
-          <Button secondary onClick={() => { attempt.current = undefined; setTaskId(""); setReport(undefined); setFiles([]); localStorage.removeItem("hr_guest_task"); }}>Новая отправка</Button>
-          <Button secondary onClick={async () => { try { await sessionApi(`/guest/tasks/${report.task_id}`, { method: "DELETE" }); localStorage.removeItem("hr_guest_task"); setTaskId(""); setReport(undefined); setFiles([]); } catch (e) { setError((e as Error).message); } }}>Удалить данные</Button></div>
+        <div className="guest-actions"><Button secondary onClick={() => { attempt.current = undefined; setTaskId(""); setReport(undefined); setFiles([]); localStorage.removeItem("hr_guest_task"); }}>Новая отправка</Button>
+          <Button secondary onClick={async () => { try { await sessionApi(`/guest/tasks/${report.task_id}`, { method: "DELETE" }); localStorage.removeItem("hr_guest_task"); setTaskId(""); setReport(undefined); setFiles([]); } catch (e) { setError((e as Error).message); } }}>Удалить данные</Button>
+          <Button secondary className="af-btn--clear guest-report-login" onClick={onLogin}>Вход для сотрудников</Button></div>
       </section>}
       {!report && taskId && <Button secondary onClick={() => { setTaskId(""); localStorage.removeItem("hr_guest_task"); setError(""); }}>Новая отправка</Button>}
     </main>

@@ -6,8 +6,10 @@ import {
   scoringLabels,
   matrixColumns,
   clusterScore,
-  clusterScoreRange,
-  ratingScoreText,
+  ratingRangeText,
+  ratingAnalysis,
+  ratingAnalysisText,
+  ratingGroupLabels,
   formatMoscowDateTime,
   formatAnalysisDuration,
   type Candidate,
@@ -80,8 +82,8 @@ export function matrixRows(
       (fullName(c) || "ФИО не указано") + "\n" + (c.phone || "Телефон не указан") + (c.blacklisted ? "\nЧёрный список" : ""),
       ...columns.map((column) =>
         column.profile
-          ? (() => { const rating = c.ratings.find(r => r.profile_id === column.profile!.id); return rating ? ratingScoreText(rating) : ""; })()
-          : (() => { const range = clusterScoreRange(c, column.cluster); return range ? range.min === range.max ? range.min : `${range.min}–${range.max}` : ""; })(),
+          ? (() => { const rating = c.ratings.find(r => r.profile_id === column.profile!.id); return rating ? Number(rating.score) : ""; })()
+          : clusterScore(c, column.cluster) ?? "",
       ),
       c.scoring_status === "completed"
         ? statusLabels[c.status]
@@ -99,25 +101,31 @@ export function ratingRows(
       "Кандидат",
       "Кластер",
       "Профиль",
-      "Рейтинг",
-      ...(full ? ["Обоснование", "Ключевые слова", "Стоп-факторы"] : []),
+      "Основная оценка",
+      "Диапазон по доступным сведениям",
+      "Охват критериев, %",
+      ...(full ? [...Object.values(ratingGroupLabels), "Стоп-факторы", "Ключевые слова", "Обоснование"] : []),
     ],
     ...candidates.flatMap((c) =>
       clusters.flatMap((cluster) =>
         cluster.profiles.flatMap((p) => {
           const r = c.ratings.find((r) => r.profile_id === p.id);
+          const analysis = r ? ratingAnalysisText(r) : undefined;
           return r
             ? [
                 [
                   fullName(c) || "ФИО не указано",
                   cluster.name,
                   p.position_name,
-                  ratingScoreText(r),
+                  Number(r.score),
+                  ratingRangeText(r),
+                  ratingAnalysis(r).evidence?.coverage ?? "",
                   ...(full
                     ? [
-                        r.explanation || "",
+                        ...analysis!.groups.map(group => group.text),
+                        analysis!.stops,
                         r.matched_keywords?.join(", ") || "",
-                        r.triggered_stop_factors?.join(", ") || "",
+                        analysis!.explanation,
                       ]
                     : []),
                 ],
@@ -262,12 +270,12 @@ export function createExport(
         ? `Отчёт · ${candidates.map(fullName).join(", ")}`
         : "Распределение кандидатов",
       options.candidateReport
-        ? candidates.map((c) => reportContent(c, clusters, !full)).join("")
+        ? candidates.map((c) => reportContent(c, clusters, !full, candidates.length > 1 ? `${c.id}-` : "")).join("")
         : table(rows) +
             (full
-              ? `<h2>Обоснования оценок</h2>${table(ratingRows(candidates, clusters, true))}`
+              ? `<h2>Обоснования оценок</h2>${candidates.map(c => `<section><h2>${h(fullName(c) || "ФИО не указано")}</h2>${reportContent(c, clusters, false, `${c.id}-`)}</section>`).join("")}`
               : "") +
-            (options.print && options.individual && !options.candidateReport
+            (options.print && options.individual && !options.candidateReport && !full
               ? candidates
                   .map(
                     (c) =>

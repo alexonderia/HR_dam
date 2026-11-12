@@ -1,0 +1,160 @@
+import assert from "node:assert/strict";
+import { readFile, mkdir } from "node:fs/promises";
+import { chromium, expect } from "@playwright/test";
+import { guestReport } from "../apps/guest-api/src/service.js";
+import { newTask } from "@hr/processing";
+import { evaluateResultSchema } from "@hr/contracts";
+import { randomUUID } from "node:crypto";
+
+const fixtures = JSON.parse(await readFile(new URL("./fixtures/evidence-ratings.json", import.meta.url), "utf8"));
+const fixture = fixtures.find((f: { name: string }) => f.name === "unknown_is_not_absent");
+const { id: _id, ...rating } = fixture.result.clusters[0].profiles[0];
+const task = newTask("guest", "synthetic-owner", "Synthetic browser report", []);
+const fileId = randomUUID();
+task.status = "completed";
+task.source_ids = [fileId];
+task.jobs.push({ job_id: randomUUID(), task_id: task.id, file_id: fileId, operation: "evaluate", mode: "guest", attempt: 1,
+  created_at: task.created_at, deadline: task.deadline, applied: true,
+  result: evaluateResultSchema.parse({ status: "completed", candidate: { last_name: "Тестовый", first_name: "Кандидат", middle_name: null, phone: null },
+    evaluations: [{ target_id: randomUUID(), ...rating, explanation: "Untrusted evaluator explanation",
+      criteria: ["education", "experience", "keywords"].map(name => ({ name, status: "unknown", explanation: "Python: unknown; SQL: met" })) }] }),
+});
+const report = guestReport(task);
+const expectedExplanation = report.results[0].evaluations[0].explanation;
+const legacyExplanation = "Опыт работы и навыки указаны в резюме.\nСведения об образовании не указаны.";
+report.results.push({ file_id: randomUUID(), ...evaluateResultSchema.parse({ status: "completed",
+  candidate: { last_name: "Второй", first_name: "Кандидат", middle_name: null, phone: null },
+  evaluations: [{ target_id: randomUUID(), score: 82, explanation: legacyExplanation, matched_keywords: ["SQL"], triggered_stop_factors: [],
+    criteria: ["education", "experience", "keywords"].map(name => ({ name, status: "unknown", explanation: "Не указано" })) }] }) });
+report.candidate_count = 2;
+report.completed_count = 2;
+const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || "chrome", headless: true });
+try {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  await context.addInitScript(id => localStorage.setItem("hr_guest_task", id), task.id);
+  const page = await context.newPage(), errors: string[] = [], appRequests: string[] = [];
+  let allowDownload = true, downloads = 0;
+  page.on("download", () => downloads++);
+  page.on("pageerror", error => errors.push(error.message));
+  await page.route("**/api/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/report") && !allowDownload) {
+      await route.fulfill({ status: 410, contentType: "application/json", body: JSON.stringify({ error: "Срок доступа к данным завершён." }) }); return;
+    }
+    if (path.startsWith("/api/app/")) appRequests.push(path);
+    const body = path === "/api/session" ? { mode: "guest" } : report;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+  await page.goto(process.env.TEST_BASE_URL || "http://localhost:3000");
+  const candidates = page.locator("details.guest-candidate"), first = candidates.nth(1), second = candidates.nth(0);
+  await expect(candidates).toHaveCount(2);
+  await expect(candidates.locator("summary .score")).toHaveText(["82", "50"]);
+  await expect(page.locator(".guest-results-order")).toHaveText("По убыванию основного балла");
+  await expect(page.locator(".guest-processing-badge")).toHaveText("Готово");
+  await expect(page.locator(".guest-processing-counts dd")).toHaveText(["1", "2", "2 из 2"]);
+  await expect(first).not.toHaveAttribute("open", "");
+  await expect(second).toHaveAttribute("open", "");
+  await first.locator("summary.guest-candidate-heading").click();
+  await second.locator("summary.guest-candidate-heading").click();
+  await expect(first).toHaveAttribute("open", "");
+  await expect(second).not.toHaveAttribute("open", "");
+  await expect(first.locator("summary .score")).toHaveText("50");
+  await expect(second.locator("summary .score")).toHaveText("82");
+  await expect(second.locator("summary .score")).toBeVisible();
+  await expect(second.locator(".rating-rationale")).not.toBeVisible();
+  await expect(first.locator(".rating-skill-group--met .tag")).toBeVisible();
+  await expect(first.locator(".rating-rationale .explanation-text")).toHaveText(expectedExplanation);
+  await expect(first.locator(".rating-metrics").getByText("50–100 из 100", { exact: true })).toBeVisible();
+  await expect(first.locator(".rating-metrics").getByText("50%", { exact: true })).toBeVisible();
+  await expect(first.locator(".rating-skill-group--met .tag")).toHaveText("SQL");
+  await expect(first.locator(".rating-highlight-quote > blockquote")).toHaveText("SQL");
+  await expect(first.locator(".rating-missing dt")).toHaveText("Навыки");
+  await expect(first.locator(".rating-missing dd")).toHaveText("Не указано");
+  await expect(first.getByRole("heading", { name: "Стоп-факторы", exact: true })).toBeVisible();
+  await second.locator("summary.guest-candidate-heading").focus();
+  await page.keyboard.press("Enter");
+  await expect(second.locator(".rating-rationale .explanation-text")).toBeVisible();
+  await expect(second.locator(".rating-rationale .explanation-text")).toHaveText(legacyExplanation);
+  await page.keyboard.press("Space");
+  await expect(second.locator(".rating-rationale")).not.toBeVisible();
+  await first.locator("summary.guest-candidate-heading").click();
+  await expect(first.locator(".rating-rationale")).not.toBeVisible();
+  await expect(first.locator("summary .score")).toBeVisible();
+  await first.locator("summary.guest-candidate-heading").click();
+  assert.doesNotMatch(await page.locator(".guest-report").innerText(), /unknown|Python|Неизвестные сведения|Однозначное соответствие|SQL: met|Untrusted evaluator explanation/);
+  await mkdir(".qa/guest-report", { recursive: true });
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Скачать отчёт", exact: true }).click();
+  const download = await downloading;
+  assert.equal(download.suggestedFilename(), "resume-report.html");
+  await download.saveAs(".qa/guest-report/report.html");
+  const downloadedHtml = await readFile(".qa/guest-report/report.html", "utf8");
+  assert.match(downloadedHtml, /Основная оценка/);
+  assert.match(downloadedHtml, /Диапазон оценки/);
+  assert.match(downloadedHtml, /50–100 из 100/);
+  assert.match(downloadedHtml, /Обоснование оценки/);
+  assert.doesNotMatch(downloadedHtml, /<script|<button|Untrusted evaluator explanation/);
+  const standalone = await context.newPage();
+  await standalone.setContent(downloadedHtml);
+  await expect(standalone.locator(".guest-candidate-score .score")).toHaveText(["82", "50"]);
+  await expect(standalone.locator(".guest-processing-badge")).toHaveText("Готово");
+  await expect(standalone.locator(".rating-missing dd")).toHaveText("Не указано");
+  await expect(standalone.locator(".rating-rationale .explanation-text").nth(0)).toBeVisible();
+  await expect(standalone.locator(".rating-rationale .explanation-text").nth(0)).toHaveText(legacyExplanation);
+  assert.equal(await standalone.locator("details.guest-candidate[open]").count(), 2, "downloaded candidates must all be expanded");
+  assert.equal(await standalone.locator("button, script").count(), 0);
+  assert.equal(await standalone.locator(".guest-actions").count(), 0);
+  await standalone.pdf({ path: ".qa/guest-report/report.pdf", format: "A4", printBackground: true });
+  await standalone.close();
+  await page.screenshot({ path: ".qa/guest-report/desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "guest report must fit the mobile viewport");
+  await page.screenshot({ path: ".qa/guest-report/mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 320, height: 844 });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "guest report must fit a narrow mobile viewport");
+  const processingPage = await context.newPage();
+  processingPage.on("pageerror", error => errors.push(error.message));
+  let liveReport = { ...report, status: "queued", candidate_count: 0, completed_count: 0, results: [] as typeof report.results };
+  let releaseInitialStatus!: () => void;
+  const initialStatus = new Promise<void>(resolve => { releaseInitialStatus = resolve; });
+  await processingPage.route("**/api/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.startsWith("/api/app/")) appRequests.push(path);
+    if (path !== "/api/session") await initialStatus;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(path === "/api/session" ? { mode: "guest" } : liveReport) });
+  });
+  await processingPage.goto(process.env.TEST_BASE_URL || "http://localhost:3000");
+  await expect(processingPage.getByRole("status").filter({ hasText: "Получаем статус обработки…" })).toBeVisible();
+  releaseInitialStatus();
+  await expect(processingPage.locator(".guest-processing-badge")).toHaveText("В очереди на обработку");
+  await expect(processingPage.locator(".guest-candidate")).toHaveCount(0);
+  liveReport = { ...report, status: "processing", completed_count: 1, results: [report.results[0]] };
+  await expect(processingPage.locator(".guest-processing-badge")).toHaveText("Обработка", { timeout: 6000 });
+  await expect(processingPage.locator(".guest-processing-counts dd")).toHaveText(["1", "2", "1 из 2"]);
+  const retained = processingPage.locator(".guest-candidate").filter({ hasText: "Тестовый Кандидат" });
+  await expect(retained).toHaveAttribute("open", "");
+  await retained.locator("summary.guest-candidate-heading").click();
+  liveReport = { ...report, status: "processing" };
+  await expect(processingPage.locator(".guest-candidate-score .score")).toHaveText(["82", "50"], { timeout: 6000 });
+  await expect(retained).not.toHaveAttribute("open", "");
+  await processingPage.screenshot({ path: ".qa/guest-report/processing-desktop.png", fullPage: true });
+  await processingPage.setViewportSize({ width: 320, height: 844 });
+  assert.ok(await processingPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "active processing status must fit a narrow mobile viewport");
+  await processingPage.screenshot({ path: ".qa/guest-report/processing-mobile.png", fullPage: true });
+  liveReport = { ...report, status: "partially_completed", errors: [{ file_id: randomUUID(), code: "TEXT_EXTRACTION_FAILED", message: "Не удалось обработать один файл." }] };
+  await expect(processingPage.locator(".guest-processing-badge")).toHaveText("Готова часть отчёта", { timeout: 6000 });
+  await expect(processingPage.getByText("Не удалось обработать один файл.", { exact: true })).toBeVisible();
+  await expect(processingPage.locator(".guest-processing-spinner")).toHaveCount(0);
+  liveReport = { ...report, status: "failed", completed_count: 0, results: [] };
+  await processingPage.reload();
+  await expect(processingPage.locator(".guest-processing-badge")).toHaveText("Обработка завершилась ошибкой");
+  assert.ok(await processingPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "failed processing status must fit a narrow mobile viewport");
+  await processingPage.close();
+  allowDownload = false;
+  await page.getByRole("button", { name: "Скачать отчёт", exact: true }).click();
+  await expect(page.getByText("Срок доступа к данным завершён.", { exact: true })).toBeVisible();
+  assert.equal(downloads, 1, "an expired task must not produce another download");
+  assert.deepEqual(errors, []);
+  assert.deepEqual(appRequests, [], "guest report must not access the authorized API");
+  console.log("PASS guest report: descending primary scores, live processing states and counts, retained disclosure state after reordering, keyboard controls, explanation, sorted download, mobile layout and guest isolation");
+} finally { await browser.close(); }

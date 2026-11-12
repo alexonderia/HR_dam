@@ -1,5 +1,5 @@
 import type { Candidate, Cluster } from "@hr/contracts";
-import { fullName, scoringLabels, statusLabels, formatMoscowDateTime, formatAnalysisDuration, ratingScoreText, clusterScoreRange } from "@hr/contracts";
+import { fullName, scoringLabels, statusLabels, formatMoscowDateTime, formatAnalysisDuration, ratingScoreText, clusterScore, clusterScoreRange, ratingRangeText, ratingAnalysis, type ReportRating } from "@hr/contracts";
 
 export const escapeHtml = (value: unknown) =>
   String(value ?? "").replace(
@@ -25,8 +25,8 @@ export function exportCsv(candidates: Candidate[], clusters: Cluster[]) {
       "Статус",
       "Оценка",
       "Чёрный список",
-      ...clusters.map((c) => c.name + " (максимум)"),
-      ...profiles.map((p) => p.clusterName + " / " + p.position_name),
+      ...clusters.flatMap((c) => [c.name + " (максимум)", c.name + " / Диапазон"]),
+      ...profiles.flatMap((p) => [p.clusterName + " / " + p.position_name, p.clusterName + " / " + p.position_name + " / Диапазон"]),
     ],
     ...candidates.map((c) => [
       fullName(c) || "ФИО не указано",
@@ -34,12 +34,12 @@ export function exportCsv(candidates: Candidate[], clusters: Cluster[]) {
       statusLabels[c.status],
       scoringLabels[c.scoring_status],
       c.blacklisted ? "Совпадение" : "",
-      ...clusters.map((cluster) => {
+      ...clusters.flatMap((cluster) => {
         const range = clusterScoreRange(c, cluster);
-        return range ? range.min === range.max ? range.min : `${range.min}–${range.max}` : "";
+        return [clusterScore(c, cluster) ?? "", range ? `${range.min}–${range.max}` : ""];
       }),
-      ...profiles.map(
-        (p) => { const rating = c.ratings.find(r => r.profile_id === p.id); return rating ? ratingScoreText(rating) : ""; },
+      ...profiles.flatMap(
+        (p) => { const rating = c.ratings.find(r => r.profile_id === p.id); return rating ? [Number(rating.score), ratingRangeText(rating)] : ["", ""]; },
       ),
     ]),
   ];
@@ -78,6 +78,14 @@ export function htmlDocument(title: string, content: string, print: boolean) {
     .report td,.report th{white-space:normal;overflow-wrap:anywhere;min-width:140px;vertical-align:top}
     .report td:first-child{min-width:240px}
     .report td p{margin:0 0 10px}
+    .rating-report{margin:24px 0;padding:20px;border:1px solid #dee2e6;border-radius:8px;overflow-wrap:anywhere}
+    .rating-report h3{margin:0 0 16px}.rating-report h4{margin:20px 0 12px}
+    .rating-report .primary-score{font-size:20px;font-weight:600}
+    .rating-report dl{display:flex;flex-wrap:wrap;gap:24px;margin:16px 0}
+    .rating-report dt{color:#59636e}.rating-report dd{margin:4px 0;font-weight:600}
+    .rating-report ul{padding-left:20px}.rating-report li{margin:0 0 16px;break-inside:avoid}
+    .rating-report blockquote{margin:8px 0;padding-left:12px;border-left:2px solid #dee2e6;white-space:pre-wrap}
+    .rating-report .criterion-category{display:block;color:#59636e;font-size:12px;margin-bottom:4px}
     .individual-report{break-before:page}
     .report-section{scroll-margin-top:20px}
     .report-section:target{outline:2px solid #0956bb}
@@ -107,23 +115,40 @@ export function reportContent(
   candidate: Candidate,
   clusters: Cluster[],
   tablesOnly = false,
+  anchorPrefix = "",
 ) {
   const processed = candidate.ratings.map(r => r.calculated_at).sort((a, b) => Date.parse(a) - Date.parse(b)).at(-1);
+  const analyses: string[] = [];
   const rows = clusters
     .flatMap((cluster) =>
       cluster.profiles.flatMap((profile) => {
         const rating = candidate.ratings.find(
           (r) => r.profile_id === profile.id,
         );
+        const evidence = rating ? ratingAnalysis(rating).evidence : undefined;
+        if (rating && !tablesOnly) analyses.push(`<section class="rating-report"><h3>${escapeHtml(cluster.name)} / ${escapeHtml(profile.position_name)}</h3><p class="primary-score">Основная оценка: ${escapeHtml(ratingScoreText(rating))} / 100</p>${ratingAnalysisHtml(rating)}</section>`);
         return rating
           ? [
-              `<tr id="profile-${escapeHtml(profile.id)}" class="report-section"><td>${profile.id === cluster.profiles.find(p => candidate.ratings.some(r => r.profile_id === p.id))?.id ? `<span id="cluster-${escapeHtml(cluster.id)}"></span>` : ""}${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td>${escapeHtml(ratingScoreText(rating))} / 100</td>${tablesOnly ? "" : `<td><p><strong>Обоснование</strong></p><p>${escapeHtml(rating.explanation || "Пояснение не предоставлено").replace(/\n/g, "<br>")}</p><p><strong>Совпадения с требованиями</strong><br>${escapeHtml(rating.matched_keywords?.join(", ") || "Нет совпадений")}</p><p><strong>Стоп-факторы</strong><br>${escapeHtml(rating.triggered_stop_factors?.join(", ") || "Не найдены")}</p></td>`}</tr>`,
+              `<tr id="profile-${escapeHtml(anchorPrefix + profile.id)}" class="report-section"><td>${profile.id === cluster.profiles.find(p => candidate.ratings.some(r => r.profile_id === p.id))?.id ? `<span id="cluster-${escapeHtml(anchorPrefix + cluster.id)}"></span>` : ""}${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td class="primary-score">${escapeHtml(ratingScoreText(rating))} / 100</td><td>${escapeHtml(ratingRangeText(rating) || "Не указан")}</td><td>${evidence?.coverage ?? "—"}${evidence ? "%" : ""}</td></tr>`,
             ]
           : [];
       }),
     )
     .join("");
-  return `${tablesOnly ? "" : `<p>${escapeHtml(candidate.phone || "Телефон не указан")} · ${escapeHtml(statusLabels[candidate.status])} · ${escapeHtml(scoringLabels[candidate.scoring_status])}</p>${candidate.blacklisted ? '<p class="af-alert af-alert--warning">Внимание: совпадение с чёрным списком. Требуется ручная проверка.</p>' : ""}<p class="af-caption">Файл: ${escapeHtml(candidate.file_name)}. Обработано: ${processed ? escapeHtml(formatMoscowDateTime(processed)) + " МСК" : "оценка ещё не завершена"}. Время анализа: ${escapeHtml(formatAnalysisDuration(candidate.analysis_duration_ms))}</p>`}<div class="af-table-scroll"><table class="af-table af-table--wrap report-table"><thead><tr><th>Кластер</th><th>Профиль</th><th>Рейтинг</th>${tablesOnly ? "" : "<th>Обоснование</th>"}</tr></thead><tbody>${rows || `<tr><td colspan="${tablesOnly ? 3 : 4}">Оценки ещё не сформированы.</td></tr>`}</tbody></table></div>`;
+  return `${tablesOnly ? "" : `<p>${escapeHtml(candidate.phone || "Телефон не указан")} · ${escapeHtml(statusLabels[candidate.status])} · ${escapeHtml(scoringLabels[candidate.scoring_status])}</p>${candidate.blacklisted ? '<p class="af-alert af-alert--warning">Внимание: совпадение с чёрным списком. Требуется ручная проверка.</p>' : ""}<p class="af-caption">Файл: ${escapeHtml(candidate.file_name)}. Обработано: ${processed ? escapeHtml(formatMoscowDateTime(processed)) + " МСК" : "оценка ещё не завершена"}. Время анализа: ${escapeHtml(formatAnalysisDuration(candidate.analysis_duration_ms))}</p>`}<div class="af-table-scroll"><table class="af-table af-table--wrap report-table"><thead><tr><th>Кластер</th><th>Профиль</th><th>Основная оценка</th><th>Диапазон по доступным сведениям</th><th>Охват критериев</th></tr></thead><tbody>${rows || '<tr><td colspan="5">Оценки ещё не сформированы.</td></tr>'}</tbody></table></div>${analyses.join("")}`;
+}
+
+export function ratingAnalysisHtml(rating: ReportRating) {
+  const analysis = ratingAnalysis(rating);
+  const text = (value: string) => escapeHtml(value).replace(/\n/g, "<br>");
+  const quotes = (items: string[]) => items.map(quote => `<blockquote>${text(quote)}</blockquote>`).join("");
+  const groups = analysis.groups.filter(group => group.items.length).map(group => `<section><h4>${escapeHtml(group.title)}</h4><ul>${group.items.map(item => `<li><span class="criterion-category">${escapeHtml(item.category)}</span><strong>${escapeHtml(item.requirement)}</strong>${item.notes.length ? `<p>${escapeHtml(item.notes.join(" "))}</p>` : ""}${item.quotes.length ? quotes([item.quotes.join("\n")]) : ""}</li>`).join("")}</ul></section>`).join("");
+  const metrics = analysis.evidence ? `<dl><div><dt>Диапазон оценки</dt><dd>${escapeHtml(analysis.range)} / 100</dd></div><div><dt>Охват критериев</dt><dd>${analysis.evidence.coverage}%</dd></div></dl>${analysis.evidence.context_truncated ? '<p class="af-alert af-alert--warning">Оценён только фрагмент резюме.</p>' : ""}` : "";
+  const knownStops = analysis.stops.filter(stop => stop.state !== "unknown");
+  const stops = knownStops.length ? `<ul>${knownStops.map(stop => `<li><strong>${escapeHtml(stop.requirement)}</strong><p>${escapeHtml(stop.status)}. ${escapeHtml(stop.notes)}</p>${quotes([stop.quotes.join("\n")])}</li>`).join("")}</ul>` : `<p>${escapeHtml(analysis.stops.length ? "Не указано" : rating.triggered_stop_factors?.join("; ") || "Не заданы")}</p>`;
+  const skills = analysis.skills.length ? `<h4>Навыки</h4>${analysis.skills.map(group => `<p>${escapeHtml(group.title)}: ${group.items.map(item => escapeHtml(item.requirement)).join(", ")}</p>${quotes([...new Set(group.items.flatMap(item => item.quotes))])}`).join("")}` : "";
+  const missing = analysis.missing.length ? `<dl class="missing-fields">${analysis.missing.map(field => `<div><dt>${escapeHtml(field.label)}</dt><dd>Не указано</dd></div>`).join("")}</dl>` : "";
+  return `${metrics}${groups ? `<h4>Обоснование оценки</h4>${groups}` : !analysis.evidence ? `<h4>Обоснование оценки</h4><p>${text(analysis.legacyExplanation)}</p>` : ""}${skills}${missing}<h4>Стоп-факторы</h4>${stops}`;
 }
 export function reportHtml(candidate: Candidate, clusters: Cluster[], print: boolean, tablesOnly = false, controls = false) {
   const toolbar = controls ? `<form class="report-controls" action="/api/resumes/${escapeHtml(candidate.resume_id)}/report" method="get"><label>Содержание<select name="content"><option value="report"${!tablesOnly ? " selected" : ""}>Полный отчёт</option><option value="table"${tablesOnly ? " selected" : ""}>Только таблицы</option></select></label><label>Формат экспорта<select name="format"><option value="xlsx">Excel (.xlsx)</option><option value="csv">CSV (.csv)</option><option value="html">HTML (.html)</option></select></label><button type="submit" name="download" value="true">Скачать</button><button type="submit" name="print" value="true">Печать / PDF</button></form>` : "";
