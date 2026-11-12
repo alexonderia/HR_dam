@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { validateRankResponse, ratingEvidence, ratingScoreText, clusterScoreRange } from "@hr/contracts";
+import { validateRankResponse, ratingEvidence, ratingScoreText, ratingRangeText, clusterScoreRange, explainEvidenceRating } from "@hr/contracts";
 
 const fixtures = JSON.parse(readFileSync(new URL("./fixtures/evidence-ratings.json", import.meta.url), "utf8")) as {
   name: string; source: string; requirements: Parameters<typeof validateRankResponse>[1];
@@ -14,7 +14,7 @@ test("Python evidence results pass backend validation with identical weights, ro
     const rating = result.clusters[0].profiles[0];
     const details = ratingEvidence(rating)!;
     assert.ok(details, fixture.name);
-    assert.equal(rating.explanation, fixture.result.clusters[0].profiles[0].explanation, fixture.name);
+    assert.equal(rating.explanation, explainEvidenceRating(details), fixture.name);
     for (const item of [...details.criteria, ...details.stop_factors]) for (const quote of item.evidence)
       assert.equal(Array.from(fixture.source).slice(quote.start, quote.end).join(""), quote.quote);
   }
@@ -46,7 +46,8 @@ test("backend rejects forged scores, weights, criteria, matches, stops, citation
 
 test("unknown facts retain a score range, while the Moskalenko duration gives 41.67 by the proposed formula", () => {
   const unknown = fixtures.find(f => f.name === "unknown_is_not_absent")!.result.clusters[0].profiles[0];
-  assert.equal(ratingScoreText(unknown), "50–100");
+  assert.equal(ratingScoreText(unknown), "50");
+  assert.equal(ratingRangeText(unknown), "50–100");
   assert.equal(ratingEvidence(unknown)?.coverage, 50);
   const duration = fixtures.find(f => f.name === "moskalenko_15_of_36_months")!.result.clusters[0].profiles[0];
   assert.equal(duration.score, 41.67);
@@ -74,6 +75,6 @@ test("backend rebuilds the explanation from checked comparisons instead of trust
   result.clusters[0].profiles[0].explanation = "Python confirmed, SQL absent, Kubernetes required";
   const checked = validateRankResponse(result, fixture.requirements).clusters[0].profiles[0];
   assert.match(checked.explanation!, /Подтверждено: SQL/);
-  assert.match(checked.explanation!, /Требует уточнения: Python/);
+  assert.match(checked.explanation!, /Не указано: Навыки/);
   assert.doesNotMatch(checked.explanation!, /Kubernetes|SQL absent|Python confirmed/);
 });

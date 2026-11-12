@@ -2,6 +2,7 @@ export * from "./domain.js";
 export * from "./contacts.js";
 export * from "./rank.js";
 export * from "./evidence.js";
+export * from "./rating-report.js";
 export * from "./matrix.js";
 export * from "./imports.js";
 export * from "./time.js";

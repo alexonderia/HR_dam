@@ -42,3 +42,9 @@ export function moscowJsonReplacer(key: string, value: unknown) {
   return timestampFields.has(key) && typeof value === "string" && Number.isFinite(Date.parse(value))
     ? moscowTimestamp(value) : value;
 }
+
+export function formatExperienceDuration(value: number): string {
+  const unit = (n: number, forms: string[]) => n % 100 >= 11 && n % 100 <= 14 ? forms[2] : n % 10 === 1 ? forms[0] : n % 10 >= 2 && n % 10 <= 4 ? forms[1] : forms[2];
+  const years = Math.floor(value / 12), months = value % 12;
+  return [years ? `${years} ${unit(years, ["год", "года", "лет"])}` : "", months || !years ? `${months} ${unit(months, ["месяц", "месяца", "месяцев"])}` : ""].filter(Boolean).join(" ");
+}

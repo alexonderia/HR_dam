@@ -144,8 +144,7 @@ export function ratingEvidence(rating?: { details?: unknown }): EvidenceDetails 
 }
 
 export function ratingScoreText(rating: { score: number; details?: unknown }): string {
-  const range = ratingEvidence(rating)?.score_range;
-  return range && range.min !== range.max ? `${range.min}–${range.max}` : String(rating.score);
+  return String(rating.score);
 }
 
 export function explainEvidenceRating(data: EvidenceDetails): string {
@@ -157,9 +156,14 @@ export function explainEvidenceRating(data: EvidenceDetails): string {
     return parts.join(" ");
   };
   const lines: string[] = [];
-  for (const [status, label] of [["met", "Подтверждено"], ["partial", "Частичное соответствие"], ["not_met", "Подтверждённое несоответствие"], ["unknown", "Требует уточнения"]]) {
+  for (const [status, label] of [["met", "Подтверждено"], ["partial", "Частичное соответствие"], ["not_met", "Подтверждённое несоответствие"], ["unknown", "Не указано"]]) {
     const group = data.criteria.filter(c => c.status === status);
     if (!group.length) continue;
+    if (status === "unknown") {
+      const categories = { keyword: "Навыки", experience: "Опыт", education: "Образование", additional: "Дополнительные сведения" };
+      lines.push(label + ": " + [...new Set(group.map(c => categories[c.category]))].join(", ") + ".");
+      continue;
+    }
     const items = group.map(c => {
       let text = c.requirement;
       if (c.required_months != null) {
@@ -175,8 +179,8 @@ export function explainEvidenceRating(data: EvidenceDetails): string {
   const triggered = data.stop_factors.filter(s => s.status === "triggered");
   if (triggered.length) lines.push("Подтверждённые стоп-факторы: " + triggered.map(s => s.requirement + " — «" + s.evidence[0].quote + "»").join("; ") + ".");
   const unknown = data.stop_factors.filter(s => s.status === "unknown");
-  if (unknown.length) lines.push("Стоп-факторы требуют уточнения, штраф не применён: " + unknown.map(s => s.requirement).join("; ") + ".");
-  lines.push(`Диапазон соответствия по доступным сведениям: ${data.score_range.min}–${data.score_range.max}/100; охват проверенными критериями — ${data.coverage}%. Неизвестные сведения не означают отсутствие компетенции.`);
+  if (unknown.length) lines.push("Стоп-факторы: Не указано.");
+  lines.push(`Диапазон соответствия по доступным сведениям: ${data.score_range.min}–${data.score_range.max}/100; охват проверенными критериями — ${data.coverage}%.`);
   if (data.context_truncated) lines.push("Оценён только фрагмент резюме из-за ограничения контекста; оставшиеся сведения требуют проверки.");
   return lines.join("\n");
 }

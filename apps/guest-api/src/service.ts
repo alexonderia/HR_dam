@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { z } from "zod";
-import { guestCriteriaSchema } from "@hr/contracts";
+import { guestCriteriaSchema, ratingEvidence, explainEvidenceRating } from "@hr/contracts";
 import { AccessError } from "@hr/security";
 import { newTask, mutateTask, live, expireWork, guestAbsoluteTtlMs, inspectUpload, type ObjectStore, type GuestTaskStore, type ProcessingEngine, type Task, type IncomingFile } from "@hr/processing";
 import { AdmissionQueue } from "./admission.js";
@@ -101,7 +101,16 @@ export function guestReport(task: Task) {
     candidate_count: task.jobs.filter(j => j.operation === "evaluate").length,
     completed_count: task.jobs.filter(j => j.operation === "evaluate" && j.applied && j.result?.status === "completed").length,
     files: task.files.map(file => ({ file_id: file.file_id, file_name: file.file_name, source_file_id: file.source_file_id || null, pages: file.metadata?.pages || [] })),
-    results: task.jobs.filter(j => j.operation === "evaluate" && j.applied && j.result?.status === "completed").map(j => ({ file_id: j.file_id, ...j.result })),
+    results: task.jobs.flatMap(j => {
+      const result = j.result;
+      if (j.operation !== "evaluate" || !j.applied || result?.status !== "completed" || !("evaluations" in result)) return [];
+      return [{ file_id: j.file_id, ...result,
+        evaluations: result.evaluations.map(evaluation => {
+          const evidence = ratingEvidence(evaluation);
+          return evidence ? { ...evaluation, explanation: explainEvidenceRating(evidence) } : evaluation;
+        }),
+      }];
+    }),
     errors: task.jobs.filter(j => j.applied && j.result).flatMap(j => j.result!.status === "failed"
       ? [{ file_id: j.file_id, ...j.result!.error }] : "errors" in j.result! ? j.result!.errors.map(e => ({ file_id: j.file_id, ...e })) : []) };
 }
