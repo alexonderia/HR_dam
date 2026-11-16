@@ -1,3 +1,15 @@
 services:
   clamav:
     platform: linux/amd64
+  backend:
+    environment:
+      PROCESSING_TIMEOUT_MS: ${MAC_PROCESSING_TIMEOUT_MS:-10800000}
+  guest-api:
+    environment:
+      PROCESSING_TIMEOUT_MS: ${MAC_PROCESSING_TIMEOUT_MS:-10800000}
+  resume-evaluator:
+    environment:
+      OLLAMA_MODEL: ${MAC_OLLAMA_MODEL:-qwen3.5:2b-q4_K_M}
+      OLLAMA_NUM_CTX: ${MAC_OLLAMA_NUM_CTX:-8192}
+      OLLAMA_MAX_TOKENS: ${MAC_OLLAMA_MAX_TOKENS:-2048}
+      OLLAMA_KEEP_ALIVE: ${MAC_OLLAMA_KEEP_ALIVE:-30s}

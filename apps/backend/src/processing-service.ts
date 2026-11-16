@@ -1,6 +1,6 @@
 import { pool, PermanentQueueError } from "@hr/data-access";
 import { keyFromEnv, AccessError } from "@hr/security";
-import { ObjectStore, ProcessingBroker, ProcessingEngine, mutateTask, expireWork, type Task, type Job, type Publication } from "@hr/processing";
+import { ObjectStore, ProcessingBroker, ProcessingEngine, mutateTask, expireWork, probeEvaluator, type Task, type Job, type Publication } from "@hr/processing";
 import { AuthorizedTaskStore } from "./processing-store.js";
 import { persistResult, markTargetFailure } from "./import-results.js";
 import type { ImportFile, ImportManifest } from "@hr/contracts";
@@ -67,14 +67,15 @@ export function startAuthorizedProcessing() {
   return async () => { clearInterval(timer); await stop(); };
 }
 export async function processingBrokerStatus() {
+  const readiness = probeEvaluator();
   const endpoint = process.env.PROCESSING_MANAGEMENT_URL || "http://rabbitmq:15672";
   const connection = new URL(process.env.PROCESSING_AMQP_URL || "amqp://localhost/hr-authorized");
   try {
-    const response = await fetch(`${endpoint}/api/queues/hr-authorized`, { headers: { Authorization: `Basic ${Buffer.from(`${decodeURIComponent(connection.username)}:${decodeURIComponent(connection.password)}`).toString("base64")}` }, signal: AbortSignal.timeout(3000) });
+    const [response, evaluator] = await Promise.all([fetch(`${endpoint}/api/queues/hr-authorized`, { headers: { Authorization: `Basic ${Buffer.from(`${decodeURIComponent(connection.username)}:${decodeURIComponent(connection.password)}`).toString("base64")}` }, signal: AbortSignal.timeout(3000) }), readiness]);
     if (!response.ok) throw new Error();
     const rows = await response.json() as { name: string; messages_ready?: number; messages_unacknowledged?: number; consumers?: number }[];
-    return { mode: "broker" as const, broker_enabled: true, rank_bridge_enabled: false, available: true,
+    return { mode: "broker" as const, broker_enabled: true, rank_bridge_enabled: false, available: evaluator.available, evaluator,
       analysis_consumers: rows.find(q => q.name === "hr.authorized.evaluate")?.consumers || 0,
       queues: Object.fromEntries(rows.map(q => [q.name, { ready: q.messages_ready || 0, processing: q.messages_unacknowledged || 0, consumers: q.consumers || 0 }])) };
-  } catch { return { mode: "broker" as const, broker_enabled: true, rank_bridge_enabled: false, available: false, analysis_consumers: 0, queues: {} }; }
+  } catch { return { mode: "broker" as const, broker_enabled: true, rank_bridge_enabled: false, available: false, evaluator: { ...await readiness, available: false }, analysis_consumers: 0, queues: {} }; }
 }

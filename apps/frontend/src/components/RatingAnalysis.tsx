@@ -1,3 +1,4 @@
+import { RatingClarifications } from "./RatingClarifications";
 import { ratingAnalysis, type ReportRating } from "@hr/contracts";
 import { CompactRatingAnalysis } from "./CompactRatingAnalysis";
 
@@ -8,14 +9,14 @@ export function RatingAnalysis({ rating, compact = false }: { rating: ReportRati
   return <div className="rating-explanation rating-analysis">
     {analysis.evidence && <section className="rating-overview" aria-label="Дополнительные показатели">
       <dl className="rating-metrics">
-        <div><dt>Диапазон оценки</dt><dd>{analysis.range} из 100</dd></div>
-        <div><dt>Охват критериев</dt><dd>{analysis.evidence.coverage.toLocaleString("ru-RU")}%</dd></div>
+        <div><dt>{analysis.estimate!.label}</dt><dd>{analysis.estimate!.value} из 100</dd></div>
       </dl>
+      {analysis.estimate?.note && <p className="rating-metric-help">{analysis.estimate.note}</p>}
       {analysis.evidence.context_truncated && <p className="af-alert af-alert--warning">Оценён только фрагмент резюме.</p>}
     </section>}
     <section className="rating-rationale">
       <h5>Обоснование оценки</h5>
-      <p className="explanation-text">{rating.explanation?.trim() ? rating.explanation : "Обоснование не указано."}</p>
+      <p className="explanation-text">{analysis.explanation}</p>
     </section>
     {hasCriteria && <section className="rating-requirements">
       <h5>Проверка требований</h5>
@@ -39,6 +40,7 @@ export function RatingAnalysis({ rating, compact = false }: { rating: ReportRati
     {!!analysis.missing.length && <section className="rating-missing">
       <dl>{analysis.missing.map(field => <div key={field.label}><dt>{field.label}</dt><dd>Не указано</dd></div>)}</dl>
     </section>}
+    <RatingClarifications items={analysis.clarifications} expanded={analysis.estimate?.insufficient} />
     <section className={`rating-stops rating-stops--${knownStops.some(stop => stop.state === "triggered") ? "triggered" : knownStops.length ? "not_triggered" : "unknown"}`}>
       <h5>Стоп-факторы</h5>
       {knownStops.length ? <ul className="rating-item-list">{knownStops.map((stop, index) => <li key={index}>

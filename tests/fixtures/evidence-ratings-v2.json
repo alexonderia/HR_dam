@@ -1,0 +1,1247 @@
+[
+  {
+    "name": "mironova_unsupported_stack",
+    "kind": "synthetic_contract_fixture",
+    "source": "Филология. Преподаватель. Canva, Tilda, PowerPoint.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "Python",
+              "Pandas",
+              "Tableau",
+              "Power BI",
+              "React",
+              "TypeScript"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 0.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Не указано: Навыки.\nДиапазон соответствия по доступным сведениям: 0–100/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "9e42962ee177ba967af34d4dc33ee7be65a0aedbc1cee228b4ff40260d861a62",
+                "source_text_length": 51,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "Pandas",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "Tableau",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:3:0",
+                    "category": "keyword",
+                    "requirement": "Power BI",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1667,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:4:0",
+                    "category": "keyword",
+                    "requirement": "React",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1666,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:5:0",
+                    "category": "keyword",
+                    "requirement": "TypeScript",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 1666,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 0.0,
+                "score_range": {
+                  "min": 0.0,
+                  "max": 100.0
+                },
+                "stop_penalty": 0,
+                "score_status": "insufficient_evidence"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "moskalenko_15_of_36_months",
+    "kind": "synthetic_contract_fixture",
+    "source": "Опыт работы — 1 год 3 месяца. Android-разработчик — 1 год 3 месяца.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 41.67,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Частичное соответствие: От 3 лет — в приведённых сведениях 1 год 3 месяца, требуется не менее 3 лет — «Android-разработчик — 1 год 3 месяца».\nДиапазон соответствия по доступным сведениям: 41.67–41.67/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "b9d3d314952c099a2afcfef2eb430305d9f82fc81ce373a7022602e58a51527e",
+                "source_text_length": 67,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "partial",
+                    "evidence": [
+                      {
+                        "quote": "Android-разработчик — 1 год 3 месяца",
+                        "start": 30,
+                        "end": 66
+                      },
+                      {
+                        "quote": "Опыт работы — 1 год 3 месяца",
+                        "start": 0,
+                        "end": 28
+                      }
+                    ],
+                    "credit": 0.4166666666666667,
+                    "experience_months": 15,
+                    "required_months": 36,
+                    "total_experience_months": 15,
+                    "possible_credit": 0.4166666666666667,
+                    "partial_reason": "duration"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 41.67,
+                  "max": 41.67
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown_is_not_absent",
+    "kind": "synthetic_contract_fixture",
+    "source": "SQL. Готов переехать в Татарстан.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "SQL",
+              "Python"
+            ],
+            "stop_factors": [
+              "Отказ от переезда в Татарстан"
+            ],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 50.0,
+              "matched_keywords": [
+                "SQL"
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: SQL — «SQL».\nНе указано: Навыки.\nСтоп-факторы требуют уточнения, штраф не применён: Отказ от переезда в Татарстан.\nДиапазон соответствия по доступным сведениям: 50–100/100; охват проверенными критериями — 50%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "5139b69d93aaa8aa900cdd2ab5fefe5c06a1d9d523bcb3dc3a7dd4dcc7c567a2",
+                "source_text_length": 33,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "SQL",
+                        "start": 0,
+                        "end": 3
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  }
+                ],
+                "stop_factors": [
+                  {
+                    "id": "stop:0",
+                    "requirement": "Отказ от переезда в Татарстан",
+                    "status": "unknown",
+                    "evidence": [],
+                    "penalty": 0,
+                    "duplicates": [],
+                    "unknown_reason": "not_stated"
+                  }
+                ],
+                "coverage": 50.0,
+                "score_range": {
+                  "min": 50.0,
+                  "max": 100.0
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "no_double_penalty",
+    "kind": "synthetic_contract_fixture",
+    "source": "Нет Python. SQL.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "Python",
+              "SQL"
+            ],
+            "stop_factors": [
+              "Нет Python"
+            ],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 50.0,
+              "matched_keywords": [
+                "SQL"
+              ],
+              "triggered_stop_factors": [
+                "Нет Python"
+              ],
+              "explanation": "Подтверждено: SQL — «SQL».\nПодтверждённое несоответствие: Python — «Нет Python».\nПодтверждённые стоп-факторы: Нет Python — «Нет Python».\nДиапазон соответствия по доступным сведениям: 50–50/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "d0dfeb7b6596cb7c4bfd137783d50f2dcf8aeeb7bd5a6691febfcdd56c1852de",
+                "source_text_length": 16,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "not_met",
+                    "evidence": [
+                      {
+                        "quote": "Нет Python",
+                        "start": 0,
+                        "end": 10
+                      }
+                    ],
+                    "credit": 0,
+                    "possible_credit": 0
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 5000,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "SQL",
+                        "start": 12,
+                        "end": 15
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [
+                  {
+                    "id": "stop:0",
+                    "requirement": "Нет Python",
+                    "status": "triggered",
+                    "evidence": [
+                      {
+                        "quote": "Нет Python",
+                        "start": 0,
+                        "end": 10
+                      }
+                    ],
+                    "penalty": 0,
+                    "duplicates": [
+                      "keyword:0:0"
+                    ]
+                  }
+                ],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 50.0,
+                  "max": 50.0
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "optional_mba",
+    "kind": "synthetic_contract_fixture",
+    "source": "Бакалавр филологии.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": "Высшее, MBA приветствуется",
+            "experience": null,
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 100.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: Высшее — «Бакалавр филологии».\nНе указано: Образование.\nДиапазон соответствия по доступным сведениям: 100–100/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "9ce37a264fe285cd1dcf388210db06c9edca986111b93ef9da44e53c3e199231",
+                "source_text_length": 19,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "education:0",
+                    "category": "education",
+                    "requirement": "Высшее",
+                    "source": "education",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Бакалавр филологии",
+                        "start": 0,
+                        "end": 18
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "education:1",
+                    "category": "education",
+                    "requirement": "MBA приветствуется",
+                    "source": "education",
+                    "optional": true,
+                    "weight": 0,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 100.0,
+                  "max": 100.0
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unicode_and_weight_remainders",
+    "kind": "synthetic_contract_fixture",
+    "source": "🙂 SQL. Python. Не знаю Java.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет",
+            "keywords": [
+              "SQL",
+              "Python",
+              "Java",
+              "Go",
+              "React",
+              "CSS",
+              "HTML"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 16.34,
+              "matched_keywords": [
+                "SQL",
+                "Python"
+              ],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: SQL — «🙂 SQL»; Python — «Python».\nПодтверждённое несоответствие: Java — «Не знаю Java».\nНе указано: Навыки, Опыт.\nДиапазон соответствия по доступным сведениям: 16.34–91.84/100; охват проверенными критериями — 24.5%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "a6afeb47a4e23e85c8f9a2ab51a291e380b9bafb226032dd55502b35851eb2ce",
+                "source_text_length": 28,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "SQL",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 817,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "🙂 SQL",
+                        "start": 0,
+                        "end": 5
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:1:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 817,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Python",
+                        "start": 7,
+                        "end": 13
+                      }
+                    ],
+                    "credit": 1,
+                    "possible_credit": 1
+                  },
+                  {
+                    "id": "keyword:2:0",
+                    "category": "keyword",
+                    "requirement": "Java",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "not_met",
+                    "evidence": [
+                      {
+                        "quote": "Не знаю Java",
+                        "start": 15,
+                        "end": 27
+                      }
+                    ],
+                    "credit": 0,
+                    "possible_credit": 0
+                  },
+                  {
+                    "id": "keyword:3:0",
+                    "category": "keyword",
+                    "requirement": "Go",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:4:0",
+                    "category": "keyword",
+                    "requirement": "React",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:5:0",
+                    "category": "keyword",
+                    "requirement": "CSS",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "keyword:6:0",
+                    "category": "keyword",
+                    "requirement": "HTML",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 816,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  },
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 4286,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "required_months": 36,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 24.5,
+                "score_range": {
+                  "min": 16.34,
+                  "max": 91.84
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "age_is_not_experience",
+    "kind": "synthetic_contract_fixture",
+    "source": "Мужчина, 23 года. Опыт работы — 1 год 5 месяцев. Электромонтажник.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет коммерческой разработки на Python",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 0.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Не указано: Опыт.\nДиапазон соответствия по доступным сведениям: 0–47.22/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "9c5a89a41bc143b560a358a8841d6352fd2a1fd925f9f9152873f060e5de76d2",
+                "source_text_length": 66,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет коммерческой разработки на Python",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "unknown",
+                    "evidence": [
+                      {
+                        "quote": "23 года",
+                        "start": 9,
+                        "end": 16
+                      },
+                      {
+                        "quote": "Опыт работы — 1 год 5 месяцев",
+                        "start": 18,
+                        "end": 47
+                      }
+                    ],
+                    "credit": 0,
+                    "required_months": 36,
+                    "total_experience_months": 17,
+                    "possible_credit": 0.4722222222222222,
+                    "unknown_reason": "not_stated"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 0.0,
+                "score_range": {
+                  "min": 0.0,
+                  "max": 47.22
+                },
+                "stop_penalty": 0,
+                "score_status": "insufficient_evidence"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "compound_experience_stays_partial",
+    "kind": "synthetic_contract_fixture",
+    "source": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 50.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Частичное соответствие: От 3 лет коммерческой разработки на Python и проектирование микросервисов — в приведённых сведениях 5 лет, требуется не менее 3 лет — «Коммерческая разработка на Python — 5 лет; микросервисами не занимался.».\nДиапазон соответствия по доступным сведениям: 50–50/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "9e4723ce2d765443704c2216f252bbfa3f364cd19b7725fc204aee709d538ee6",
+                "source_text_length": 71,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "partial",
+                    "evidence": [
+                      {
+                        "quote": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+                        "start": 0,
+                        "end": 71
+                      }
+                    ],
+                    "credit": 0.5,
+                    "experience_months": 60,
+                    "required_months": 36,
+                    "possible_credit": 0.5,
+                    "partial_reason": "missing_parts"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 50.0,
+                  "max": 50.0
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "duration_does_not_override_noncompliance",
+    "kind": "synthetic_contract_fixture",
+    "source": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 0.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждённое несоответствие: От 3 лет коммерческой разработки на Python и проектирование микросервисов — в приведённых сведениях 5 лет, требуется не менее 3 лет — «Коммерческая разработка на Python — 5 лет; микросервисами не занимался.».\nДиапазон соответствия по доступным сведениям: 0–0/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "9e4723ce2d765443704c2216f252bbfa3f364cd19b7725fc204aee709d538ee6",
+                "source_text_length": 71,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "not_met",
+                    "evidence": [
+                      {
+                        "quote": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+                        "start": 0,
+                        "end": 71
+                      }
+                    ],
+                    "credit": 0,
+                    "experience_months": 60,
+                    "required_months": 36,
+                    "possible_credit": 0
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 0.0,
+                  "max": 0.0
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "future_intent",
+    "kind": "synthetic_contract_fixture",
+    "source": "Хотел бы изучить Python.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": null,
+            "keywords": [
+              "Python"
+            ],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 0.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Не указано: Навыки.\nДиапазон соответствия по доступным сведениям: 0–100/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "5bd4ad5e00a675b5f88ccc2f2cc1727134095b76cb2cc816bfcf4b18a2340bd7",
+                "source_text_length": 24,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "keyword:0:0",
+                    "category": "keyword",
+                    "requirement": "Python",
+                    "source": "keywords",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "future_intent"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 0.0,
+                "score_range": {
+                  "min": 0.0,
+                  "max": 100.0
+                },
+                "stop_penalty": 0,
+                "score_status": "insufficient_evidence"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "optional_boundary",
+    "kind": "synthetic_contract_fixture",
+    "source": "Коммерческая разработка на Python — 1 год 3 месяца.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет разработки на Python и желательно знание Docker",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 41.67,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Частичное соответствие: От 3 лет разработки на Python — в приведённых сведениях 1 год 3 месяца, требуется не менее 3 лет — «Коммерческая разработка на Python — 1 год 3 месяца.».\nНе указано: Опыт.\nДиапазон соответствия по доступным сведениям: 41.67–41.67/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "267b17f44523f6a14afbd1de394dd8981211724cff78d76bd835a8a668c86e8a",
+                "source_text_length": 51,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет разработки на Python",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "partial",
+                    "evidence": [
+                      {
+                        "quote": "Коммерческая разработка на Python — 1 год 3 месяца.",
+                        "start": 0,
+                        "end": 51
+                      }
+                    ],
+                    "credit": 0.4166666666666667,
+                    "experience_months": 15,
+                    "required_months": 36,
+                    "possible_credit": 0.4166666666666667,
+                    "partial_reason": "duration"
+                  },
+                  {
+                    "id": "experience:1",
+                    "category": "experience",
+                    "requirement": "желательно знание Docker",
+                    "source": "experience",
+                    "optional": true,
+                    "weight": 0,
+                    "status": "unknown",
+                    "evidence": [],
+                    "credit": 0,
+                    "possible_credit": 1,
+                    "unknown_reason": "not_stated"
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 41.67,
+                  "max": 41.67
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "two_jobs_four_years",
+    "kind": "synthetic_contract_fixture",
+    "source": "01.01.2020 — 31.12.2021\nКоммерческая разработка на Python, первая работа.\n01.01.2022 — 31.12.2023\nКоммерческая разработка на Python, вторая работа.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет разработки на Python",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 100.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждено: От 3 лет разработки на Python — в приведённых сведениях 4 года, требуется не менее 3 лет — «Коммерческая разработка на Python, первая работа.».\nДиапазон соответствия по доступным сведениям: 100–100/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v2",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "assessment_date": "2026-11-13",
+                "context_chunks": 1,
+                "source_text_sha256": "6436b4d3850e00bec970b83bf38bb3c73767d355fcc6a88d2a6b629f30d32322",
+                "source_text_length": 147,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет разработки на Python",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "met",
+                    "evidence": [
+                      {
+                        "quote": "Коммерческая разработка на Python, первая работа.",
+                        "start": 24,
+                        "end": 73
+                      },
+                      {
+                        "quote": "Коммерческая разработка на Python, вторая работа.",
+                        "start": 98,
+                        "end": 147
+                      },
+                      {
+                        "quote": "01.01.2020 — 31.12.2021",
+                        "start": 0,
+                        "end": 23
+                      },
+                      {
+                        "quote": "01.01.2022 — 31.12.2023",
+                        "start": 74,
+                        "end": 97
+                      }
+                    ],
+                    "credit": 1,
+                    "work_periods": [
+                      {
+                        "start_month": 24240,
+                        "end_month": 24264,
+                        "start": 0,
+                        "end": 23
+                      },
+                      {
+                        "start_month": 24264,
+                        "end_month": 24288,
+                        "start": 74,
+                        "end": 97
+                      }
+                    ],
+                    "experience_months": 48,
+                    "required_months": 36,
+                    "possible_credit": 1
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 100.0,
+                  "max": 100.0
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

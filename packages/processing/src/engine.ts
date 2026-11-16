@@ -1,4 +1,4 @@
-import { validateEvidenceRating, processingCommandSchema, processingEventSchema, prepareResultSchema, evaluateResultSchema, failedResultSchema, type ProcessingEvent, type ProcessingMode } from "@hr/contracts";
+import { validateEvidenceRating, processingCommandSchema, processingEventSchema, prepareResultSchema, evaluateResultSchema, failedResultSchema, processingProgressSchema, type ProcessingProgress, type EvaluationCheckpoint, type ProcessingEvent, type ProcessingMode } from "@hr/contracts";
 import { AccessError, signToken, verifyToken, type Claims } from "@hr/security";
 import { command, assignJob, expireWork, finish, live, mutateTask, stableId, terminal, guestAbsoluteTtlMs } from "./state.js";
 import type { BlobStore, Job, Publication, Publisher, Task, TaskStore, StoredFile } from "./types.js";
@@ -57,14 +57,39 @@ export class ProcessingEngine {
       // A redelivered parser must replay that result, not upload outputs again.
       ...(job.result ? { saved_result: job.result } : {}),
       file: { ...description, download_path: `${base}/jobs/${job.job_id}/files/${file.file_id}` },
-      ...(job.operation === "evaluate" ? { requirements: { targets: task.requirements } } : {}),
+      ...(job.operation === "evaluate" ? { requirements: { targets: task.requirements },
+        ...(job.evaluation_checkpoints ? { evaluation_checkpoints: job.evaluation_checkpoints } : {}),
+        assessment_date: new Date(Date.parse(job.created_at) + 3 * 3600000).toISOString().slice(0, 10) } : {}),
       limits: { max_file_bytes: 52428800, max_expanded_bytes: 262144000, max_files: 200 } };
   }
-  async progress(c: Claims, input: { job_id: string; attempt: number; status: string }) {
+  validateEvaluation(task: Task, evaluation: EvaluationCheckpoint["evaluation"]) {
+    const target = task.requirements.find(t => t.id === evaluation.target_id);
+    if (!target) throw new AccessError(422, "Цель отсутствует в задании.");
+    if (evaluation.triggered_stop_factors.some(stop => !target.stop_factors.includes(stop)))
+      throw new AccessError(422, "Стоп-фактор отсутствует в требованиях задания.");
+    if (evaluation.details) {
+      try { validateEvidenceRating(evaluation, target, target.cluster_comment || ""); }
+      catch { throw new AccessError(422, "Некорректное обоснование оценки."); }
+    }
+  }
+  async progress(c: Claims, value: ProcessingProgress) {
+    const input = processingProgressSchema.parse(value);
     const { task } = await mutateTask(this.store, String(c.task_id), task => {
       const job = this.checkJob(task, c, "progress:write");
       if (input.job_id !== job.job_id || input.attempt !== job.attempt || input.status !== "processing") throw new AccessError(409);
-      if (job.confirmed || job.applied || terminal(task)) return;
+      if (job.result || job.confirmed || job.applied || terminal(task)) {
+        if (input.checkpoint) throw new AccessError(409, "Результат уже сохранён.");
+        return;
+      }
+      if (input.checkpoint) {
+        if (job.operation !== "evaluate") throw new AccessError(403);
+        this.validateEvaluation(task, input.checkpoint.evaluation);
+        const { context, evaluation } = input.checkpoint;
+        if (job.evaluation_checkpoints?.context !== context) job.evaluation_checkpoints = { context, evaluations: [] };
+        // First validated value wins, including concurrent redeliveries/lost replies.
+        if (!job.evaluation_checkpoints.evaluations.some(e => e.target_id === evaluation.target_id))
+          job.evaluation_checkpoints.evaluations.push(evaluation);
+      }
       job.started_at ||= new Date().toISOString(); job.activity_at = new Date().toISOString(); task.status = "processing";
     });
     return task;
@@ -101,17 +126,10 @@ export class ProcessingEngine {
         if (result.status === "completed" && "evaluations" in result) {
           const ids = result.evaluations.map(e => e.target_id);
           if (ids.length !== task.requirements.length || new Set(ids).size !== ids.length || ids.some(id => !task.requirements.some(t => t.id === id))) throw new AccessError(422, "Набор целей не соответствует заданию.");
-          for (const evaluation of result.evaluations) {
-            const target = task.requirements.find(t => t.id === evaluation.target_id)!;
-            if (evaluation.triggered_stop_factors.some(stop => !target.stop_factors.includes(stop)))
-              throw new AccessError(422, "Стоп-фактор отсутствует в требованиях задания.");
-            if (evaluation.details) {
-              try { validateEvidenceRating(evaluation, target, target.cluster_comment || ""); }
-              catch { throw new AccessError(422, "Некорректное обоснование оценки."); }
-            }
-          }
+          for (const evaluation of result.evaluations) this.validateEvaluation(task, evaluation);
         }
         job.result = result; job.result_id = stableId(`${job.job_id}:result`); job.event_id = stableId(`${job.job_id}:event`);
+        delete job.evaluation_checkpoints;
       }
       return [{ kind: "event", body: this.resultEvent(task, job) }];
     });

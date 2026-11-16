@@ -153,8 +153,9 @@ function Shell({ logout }: { logout: () => void }) {
         <main>
           {error && (
             <div className="af-alert af-alert--danger notice" role="alert">
-              <span>Не удалось подключиться к API. {error}</span>
+              <span>{refreshedAt ? "Не удалось обновить данные." : "Не удалось загрузить данные."} {error} {refreshedAt ? "Последние полученные данные сохранены; повторим автоматически." : "Запрос будет повторён автоматически."}</span>
               <Button secondary onClick={() => void refresh()}>Повторить</Button>
+              <Button secondary onClick={() => window.location.reload()}>Перезагрузить страницу</Button>
             </div>
           )}
           <RequirementUpdatesNotice />

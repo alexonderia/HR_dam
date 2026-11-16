@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { extractedPersonSchema, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ResumeImportDetail } from "@hr/contracts";
 import { getClusters, transaction } from "@hr/data-access";
-import { newTask, mutateTask, expireWork, command, inspectUpload, type IncomingFile } from "@hr/processing";
+import { newTask, mutateTask, expireWork, command, inspectUpload, type IncomingFile, type Task } from "@hr/processing";
 import { authorizedProcessing } from "./processing-service.js";
 import { HttpError } from "./errors.js";
 
@@ -39,8 +39,18 @@ export async function acceptResumes(file: IncomingFile | undefined, archive: boo
   return { ...await importDetail(task.id), queued: true };
 }
 export async function importDetail(id: string): Promise<ResumeImportDetail> {
+  const record = await authorizedProcessing().store.read(id);
+  if (!record) throw new HttpError(404, "Отправка не найдена.");
+  return detailForTask(record.task);
+}
+async function detailForTask(snapshot: Task): Promise<ResumeImportDetail> {
   const runtime = authorizedProcessing();
-  const { task } = await mutateTask(runtime.store, id, current => { expireWork(current); });
+  const before = JSON.stringify(snapshot);
+  expireWork(snapshot);
+  // Ordinary status reads must not rewrite every completed or running task.
+  // Re-read and CAS only when a deadline actually changes its state.
+  const task = before === JSON.stringify(snapshot) ? snapshot
+    : (await mutateTask(runtime.store, snapshot.id, current => { expireWork(current); })).task;
   for (const job of task.jobs) if (job.applied && job.result?.status === "failed" && task.files.some(f => f.file_id === job.file_id && f.target_resume_id))
     await runtime.engine.project?.(task, job);
   const files = task.jobs.length ? task.files.filter(file => {
@@ -55,6 +65,11 @@ export async function importDetail(id: string): Promise<ResumeImportDetail> {
       attempt: job?.attempt || 1, error: job?.projection_error || (job?.result?.status === "failed" ? job.result.error.message : null),
       warning: job?.receipt?.warning || null, candidate_id: job?.receipt?.candidate_id || null, resume_id: job?.receipt?.resume_id || null,
       updated_at: job?.activity_at || task.finished_at || task.created_at, analysis_started_at: job?.started_at || null,
+      ...(job?.operation === "evaluate" ? { profile_progress: {
+        completed: job.result?.status === "completed" ? task.requirements.length
+          : new Set(job.evaluation_checkpoints?.evaluations.map(e => e.target_id) || []).size,
+        total: task.requirements.length,
+      } } : {}),
       analysis_duration_ms: job?.started_at && job.applied ? Math.max(0, Date.parse(task.finished_at || job.activity_at || task.created_at) - Date.parse(job.started_at)) : null,
       file_sha256: file.sha256, candidate_hint: file.candidate_hint, target_resume_id: file.target_resume_id };
   });
@@ -66,7 +81,7 @@ export async function importDetail(id: string): Promise<ResumeImportDetail> {
 }
 export async function listImportDetails() {
   const all: ResumeImportDetail[] = [];
-  for await (const id of authorizedProcessing().store.list()) all.push(await importDetail(id));
+  for await (const task of authorizedProcessing().store.records()) all.push(await detailForTask(task));
   return all.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
 export async function listImports() { return (await listImportDetails()).map(({ items: _items, ...summary }) => summary); }

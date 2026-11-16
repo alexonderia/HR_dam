@@ -6,8 +6,7 @@ import {
   scoringLabels,
   matrixColumns,
   clusterScore,
-  ratingRangeText,
-  ratingAnalysis,
+  ratingEstimateText,
   ratingAnalysisText,
   ratingGroupLabels,
   formatMoscowDateTime,
@@ -102,8 +101,7 @@ export function ratingRows(
       "Кластер",
       "Профиль",
       "Основная оценка",
-      "Диапазон по доступным сведениям",
-      "Охват критериев, %",
+      "Оценка по доступным сведениям",
       ...(full ? [...Object.values(ratingGroupLabels), "Стоп-факторы", "Ключевые слова", "Обоснование"] : []),
     ],
     ...candidates.flatMap((c) =>
@@ -118,8 +116,7 @@ export function ratingRows(
                   cluster.name,
                   p.position_name,
                   Number(r.score),
-                  ratingRangeText(r),
-                  ratingAnalysis(r).evidence?.coverage ?? "",
+                  ratingEstimateText(r),
                   ...(full
                     ? [
                         ...analysis!.groups.map(group => group.text),

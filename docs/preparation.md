@@ -1,6 +1,6 @@
 # Подготовка и включение обработки
 
-Обновлено: 10 ноября 2026 года. Базовые обработчики prepare/evaluate собираются из репозитория.
+Обновлено: 13 ноября 2026 года. Базовые обработчики prepare/evaluate собираются из репозитория.
 
 ## Локальный запуск
 
@@ -42,11 +42,32 @@ SameSite=Lax и Secure вычисляются API; HTTP разрешён тол�
 ## Сборка и подключение обработчиков
 
 Основной Compose содержит профиль `processing` с одним `resume-parser` и одним
-`resume-evaluator`. Их образы собираются через `infra/processing/Dockerfile` с
-операциями `prepare`/`evaluate`. Общий транспорт и алгоритмы находятся в
-`apps/resume-analyzer/app/processing_v2`; прежний consumer не запускается.
+`resume-evaluator`. У каждого свой Dockerfile и список зависимостей в
+`apps/resume-parser` / `apps/resume-evaluator`. Общий транспорт расположен в
+`packages/processing-python`, функции документов — в `packages/resume-documents`.
+Прежний Python-анализатор удалён. Parser не получает сеть модели и LibreOffice.
 
 Для Ollama на хосте:
+
+`docker-compose.mac.yml` ограничивает контекст оценщика 8192 токенами, ответ —
+2048 токенами, а время хранения неиспользуемой модели в памяти — 30 секундами.
+Это уменьшает нагрузку при совместной работе Docker и нативной Ollama на Mac
+с 8 ГБ общей памяти. Для Mac используется более лёгкая модель
+`qwen3.5:2b-q4_K_M` в поставке GGUF Q4_K_M: вариант 4B на проверенном Mac
+вызывал задержки и ошибки API даже после уменьшения контекста.
+Переход с 4B на 2B может снизить точность оценок. Перед запуском выполните
+`ollama pull qwen3.5:2b-q4_K_M`; тег можно изменить через `MAC_OLLAMA_MODEL`.
+Длинные резюме оцениваются целиком
+по фрагментам. Параметры можно изменить через `MAC_OLLAMA_NUM_CTX`,
+`MAC_OLLAMA_MAX_TOKENS`, `MAC_OLLAMA_KEEP_ALIVE`; они применяются при
+`docker compose ... up` с этим overlay. Запуск старого контейнера кнопкой Start
+в Docker Desktop сам по себе не перечитывает конфигурацию Compose.
+
+Для новых отправок с Mac overlay общий срок обработки пакета — 3 часа
+(`MAC_PROCESSING_TIMEOUT_MS=10800000`), поскольку резюме и профили оцениваются
+последовательно. Это верхний предел ожидания и обработки, не оценка её скорости.
+Ранее завершённые по таймауту задания не возобновляются сами: для них нужна
+новая попытка. Абсолютное время хранения гостевой отправки остаётся не более 24 часов.
 
 На Mac перед отправкой резюме запустить приложение командой `open -a Ollama`
 и оставить его работающим на всё время обработки. Модель из `OLLAMA_MODEL`
@@ -58,12 +79,16 @@ docker compose --profile processing -f docker-compose.yml -f docker-compose.loca
 
 Для контейнерной Ollama на сервере с NVIDIA включить также профиль `docker-ollama`.
 Модель из `OLLAMA_MODEL` должна быть установлена. Временная недоступность модели
-возвращает команду брокеру; `/health` проверяет подключения обработчика к обоим vhost.
+возвращает команду брокеру. При подтверждённой недоступности модели evaluator
+приостанавливает приём новых доставок до восстановления, сохраняя очередь.
+`/live` и `/health` проверяют процесс и потоки; `/ready` — подключения обоих vhost
+и, только для evaluator, готовность модели. Docker HEALTHCHECK использует `/live`.
+API обоих режимов получает `/ready`; доступность показывается в интерфейсе.
 
 Для готовых внешних образов задать `PREPARE_IMAGE` и `EVALUATE_IMAGE`, выполнить
 `docker compose --profile processing pull resume-parser resume-evaluator`, затем
 `docker compose --profile processing up -d --no-build`. Все образы должны предоставлять
-HEALTHCHECK на `GET /health` и выполнять [общий контракт](processing-services-contract.md).
+HEALTHCHECK на `GET /live` и readiness на `GET /ready` и выполнять [общий контракт](processing-services-contract.md).
 
 Разборщик поддерживает ZIP и текстовые PDF с однозначными границами резюме по ФИО
 в начале страницы. Сканы, неоднозначные границы и разделение внутри страницы
@@ -156,8 +181,9 @@ bridge и сохранить резервную копию. Новая ветк�
 
 ```bash
 docker compose --profile processing run --rm --no-deps \
-  -v "$PWD/apps/resume-analyzer/tests:/tests:ro" --entrypoint python resume-evaluator \
-  -m unittest discover -s /tests -p test_processing_v2.py -v
+  -v "$PWD/apps/resume-parser/src/resume_parser:/app/resume_parser:ro" \
+  -v "$PWD/tests/python:/tests:ro" --entrypoint python resume-evaluator \
+  -m unittest discover -s /tests -v
 ```
 
 `npm run build`, `npm test`, `npm run test:architecture`, `npm run test:processing`.

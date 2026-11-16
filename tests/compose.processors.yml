@@ -34,6 +34,8 @@ services:
     environment:
       OLLAMA_BASE_URL: http://model-stub:11434
       OLLAMA_MODEL: synthetic-model:latest
+      MODEL_PROBE_INTERVAL_SECONDS: 1
+      MODEL_PROBE_TIMEOUT_SECONDS: 1
   model-stub:
     image: python:3.12-slim
     entrypoint: [python, /tests/model_stub.py]

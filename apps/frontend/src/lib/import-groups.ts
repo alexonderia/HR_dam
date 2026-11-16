@@ -1,4 +1,9 @@
-import { fullName, identityKey, type Candidate, type ResumeImportItem } from "@hr/contracts";
+import { fullName, identityKey, type Candidate, type ResumeImportItem, type ResumeImportSummary } from "@hr/contracts";
+
+export function isVisibleImportBatch(batch: Pick<ResumeImportSummary, "created_at" | "pending_files">, recentOnly: boolean, now: number) {
+  // A time filter must never hide unfinished work or its progress.
+  return !recentOnly || batch.pending_files > 0 || Date.parse(batch.created_at) >= now - 60 * 60 * 1000;
+}
 
 export type TrackingItem = ResumeImportItem & { batchId: string; batchName: string; batchCreatedAt: string };
 export interface CandidateImportGroup {

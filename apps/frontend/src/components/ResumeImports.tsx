@@ -8,9 +8,10 @@ import {
 import type { ResumeImportDetail, ResumeImportSummary, BrokerStatus, ImportItemStatus } from "@hr/contracts";
 import { formatMoscowDateTime, formatMoscowTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
 import { api, mutate } from "../lib/api";
+import { startPolling } from "../lib/polling";
 import { useData } from "../lib/store";
 import { Button, ErrorMessage } from "./ui";
-import { groupCandidateImports, candidateImportStatus, type TrackingItem } from "../lib/import-groups";
+import { groupCandidateImports, candidateImportStatus, isVisibleImportBatch, type TrackingItem } from "../lib/import-groups";
 
 const stages = {
   uploading: { label: "Загрузка в хранилище", filter: "Загружаются", icon: UploadCloud },
@@ -22,7 +23,6 @@ const stages = {
 type FileFilter = "all" | ImportItemStatus;
 const priority = { failed: 0, processing: 1, uploading: 2, pending: 3, completed: 4 };
 const pageSize = 10;
-const oneHourMs = 60 * 60 * 1000;
 
 function elapsedAnalysisTime(startedAt: string, now: number) {
   const seconds = Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000));
@@ -48,7 +48,7 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
   const [now, setNow] = useState(() => Date.now());
   const retrying = useRef("");
   const requestVersion = useRef(0);
-  const inPeriod = (batch: ResumeImportSummary) => !lastHourOnly || Date.parse(batch.created_at) >= now - oneHourMs;
+  const inPeriod = (batch: ResumeImportSummary) => isVisibleImportBatch(batch, lastHourOnly, now);
   const batches = (snapshot?.batches ?? resumeImports).filter(inPeriod);
   const hasImports = resumeImports.length > 0;
   const current = batches.reduce((sum, batch) => ({
@@ -64,7 +64,8 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
   const allItems: TrackingItem[] = snapshot?.batches.flatMap(batch => batch.items.map(item => ({
     ...item, batchId: batch.id, batchName: batch.archive_name, batchCreatedAt: batch.created_at,
   }))) ?? [];
-  const items = allItems.filter(item => !lastHourOnly || Date.parse(item.batchCreatedAt) >= now - oneHourMs);
+  const visibleBatchIds = new Set(batches.map(batch => batch.id));
+  const items = allItems.filter(item => visibleBatchIds.has(item.batchId));
 
   useEffect(() => {
     if (!lastHourOnly && !current.processing_files) return;
@@ -77,43 +78,23 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
     if (!selectedBatchExists) { setSelected(""); setPage(1); }
   }, [selectedBatchExists]);
   useEffect(() => {
-    let active = true, loading = false;
-    const controller = new AbortController();
-    const load = async () => {
-      if (loading || document.hidden) return;
-      loading = true;
-      try {
-        const status = await api<BrokerStatus>("/processing/queue", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(6500)]) });
-        if (active) setBroker(status);
-      } catch { if (active) setBroker(undefined); }
-      finally { loading = false; }
-    };
-    void load();
-    const timer = setInterval(() => void load(), 5000);
-    return () => { active = false; controller.abort(); clearInterval(timer); };
+    return startPolling(async signal => {
+      const status = await api<BrokerStatus>("/processing/queue", { signal });
+      if (!signal.aborted) setBroker(status);
+    }, { intervalMs: 5000, enabled: () => !document.hidden, onError: () => setBroker(undefined) });
   }, [reload]);
   useEffect(() => {
     if (!hasImports) return;
-    let active = true, running = false;
-    const controller = new AbortController();
-    const load = async () => {
-      if (running || document.hidden || retrying.current) return;
-      running = true;
-      const version = requestVersion.current;
-      try {
-        const next = await api<ResumeImportDetail[]>("/resume-imports/status", {
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]),
-        });
-        if (active && version === requestVersion.current) {
-          setSnapshot({ batches: next, fetchedAt: new Date() }); setError("");
-        }
-      } catch {
-        if (active && version === requestVersion.current) setError("Не удалось обновить общий статус проверок. Последние полученные данные сохранены; повторим автоматически.");
-      } finally { running = false; }
-    };
-    void load();
-    const timer = setInterval(() => void load(), 3000);
-    return () => { active = false; controller.abort(); clearInterval(timer); };
+    let version = requestVersion.current;
+    return startPolling(async signal => {
+      version = requestVersion.current;
+      const next = await api<ResumeImportDetail[]>("/resume-imports/status", { signal });
+      if (!signal.aborted && version === requestVersion.current) {
+        setSnapshot({ batches: next, fetchedAt: new Date() }); setError("");
+      }
+    }, { intervalMs: 3000, timeoutMs: 20000, enabled: () => !document.hidden && !retrying.current,
+      onError: () => { if (version === requestVersion.current) setError("Не удалось обновить общий статус проверок. Последние полученные данные сохранены; повторим автоматически."); },
+    });
   }, [hasImports, reload]);
 
   async function retry(item: TrackingItem) {
@@ -169,7 +150,7 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
     <div className="panel-heading import-heading">
       <div className="import-heading-title"><span className="import-heading-icon"><FolderOpen size={22} /></span><div>
         <h2 className="af-title">Общий статус проверок</h2>
-        <p>{lastHourOnly ? "Загрузки за последний час" : "Все загрузки"}{batches.some(b => b.source_files !== undefined) &&
+        <p>{lastHourOnly ? "Активные загрузки и завершённые за последний час" : "Все загрузки"}{batches.some(b => b.source_files !== undefined) &&
           ` · источников: ${batches.reduce((n, b) => n + (b.source_files ?? b.total_files), 0)}, найдено резюме: ${batches.reduce((n, b) => n + (b.candidate_files ?? b.total_files), 0)}`}</p>
       </div></div>
       <div className="toolbar"><span className="af-badge badge badge--neutral">Всего в обработке: {remaining}</span>
@@ -199,6 +180,8 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
           </div></div>
           <ul className="import-analysis-files">{activeFiles.slice(0, 3).map(item => <li key={`${item.batchId}-${item.id}`}>
             <strong>{item.file_name}</strong><span>Начало {formatMoscowTime(item.analysis_started_at || item.updated_at)} МСК · {error ? "Статус получен" : "Прошло"} {error && snapshot ? formatMoscowTime(snapshot.fetchedAt) + " МСК" : elapsedAnalysisTime(item.analysis_started_at || item.updated_at, now)}</span>
+            {item.profile_progress && <span>Оценено профилей: {item.profile_progress.completed} из {item.profile_progress.total}
+              {` · Последнее изменение ${formatMoscowTime(item.updated_at)} МСК`}</span>}
           </li>)}</ul>
           {activeFiles.length > 3 && <button type="button" className="af-link import-analysis-more" onClick={() => { setFilesExpanded(true); setSelected(""); setFilter("processing"); setPage(1); }}>Показать все анализируемые файлы: {counts.processing}</button>}
           {!error && <div className="import-analysis-activity" aria-hidden="true"><span /></div>}
@@ -265,6 +248,7 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
                 <div className="import-file-name"><span className="import-file-icon"><FileText size={20} /></span><div>
                   <strong>{item.file_name}</strong>{folder && <small>{folder}</small>}
                   <small>Загрузка: {item.batchName} · {formatMoscowDateTime(item.batchCreatedAt)} МСК</small>
+                  {item.status === "processing" && item.profile_progress && <small>Оценено профилей: {item.profile_progress.completed} из {item.profile_progress.total}</small>}
                   {item.error && <p className="import-file-message import-error"><AlertCircle size={14} /><span>{item.error}</span></p>}
                   {item.warning && <p className="import-file-message import-warning"><ShieldAlert size={14} /><span>{item.warning}</span></p>}
                 </div></div>
@@ -292,7 +276,7 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
           </div>}
         </div>}
         </div>
-      </div> : <p className="muted" role="status">{loading && !snapshot ? "Получаем статус загрузок…" : error || resumeImportsError ? "Сведения о загрузках за последний час пока недоступны." : "За последний час загрузок не было."}</p>}
+      </div> : <p className="muted" role="status">{loading && !snapshot ? "Получаем статус загрузок…" : error || resumeImportsError ? "Сведения о загрузках пока недоступны." : "Активных загрузок и завершённых за последний час нет."}</p>}
       <div className="import-live-status"><span className={`import-live-dot${error ? " import-live-dot--error" : ""}`} />
         <span>{error ? "Ожидаем восстановления связи" : "Автообновление каждые 3 секунды"}</span>
         {snapshot && <span>Обновлено {formatMoscowTime(snapshot.fetchedAt)} МСК</span>}

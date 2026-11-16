@@ -6,29 +6,38 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 lock = threading.Lock()
 calls = 0
+available = True
 
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/api/tags" and not available:
+            self.send_json(503, {"error": "synthetic outage"})
+            return
         self.send_json(200, {"models": [{"name": "synthetic-model:latest"}]} if self.path == "/api/tags" else {"calls": calls})
 
     def do_POST(self):
-        global calls
+        global calls, available
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path == "/control":
+            available = body["available"]
+            self.send_json(200, {"available": available})
+            return
         with lock:
             calls += 1
             current = calls
         # Exhaust the legacy scoring function's two immediate attempts. The
         # worker must then return its delivery for a broker-managed retry.
-        if current <= 2:
+        if not available or current <= 2:
             self.send_json(503, {"error": "synthetic temporary outage"})
             return
         user = body["messages"][1]["content"]
-        criteria = json.loads(user.split("КРИТЕРИИ_JSON:\n", 1)[1].split("\nСТОП_ФАКТОРЫ_JSON:", 1)[0])
-        stops = json.loads(user.split("СТОП_ФАКТОРЫ_JSON:\n", 1)[1].split("\nРЕЗЮМЕ КАНДИДАТА:", 1)[0])
+        user = json.loads(user)
+        criteria, stops = user["criteria"], user["stop_factors"]
         result = {"assessments": [{"id": c["id"], "status": "met" if c["requirement"] == "Python" else "unknown",
-            "evidence": ["Python"] if c["requirement"] == "Python" else []} for c in criteria],
-            "stop_factors": [{"id": s["id"], "status": "unknown", "evidence": []} for s in stops]}
+            "evidence": ["Python"] if c["requirement"] == "Python" else [],
+            "unknown_reason": None if c["requirement"] == "Python" else "not_stated", "partial_reason": None} for c in criteria],
+            "stop_factors": [{"id": s["id"], "status": "unknown", "evidence": [], "unknown_reason": "not_stated"} for s in stops]}
         self.send_json(200, {"model": "synthetic-model:latest", "done": True,
             "message": {"role": "assistant", "content": json.dumps(result)}})
 

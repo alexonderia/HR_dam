@@ -72,10 +72,10 @@ docker compose --profile processing \
   -f docker-compose.mac.yml \
   run --rm --no-deps \
   -e PYTHONPATH=/app:/tests \
-  -e TEXT_CACHE_MAX_ITEMS=0 -e TEXT_CACHE_MAX_BYTES=0 \
-  -v "$PWD/apps/resume-analyzer/tests:/tests:ro" \
+  -v "$PWD/apps/resume-parser/src/resume_parser:/app/resume_parser:ro" \
+  -v "$PWD/tests/python:/tests:ro" \
   --entrypoint python resume-evaluator \
-  -m unittest test_readiness test_service_runtime test_processing_v2
+  -m unittest discover -s /tests
 ```
 
 Перед командой убедиться, что образ собран из проверяемого кода. Этот запуск

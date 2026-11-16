@@ -1,0 +1,124 @@
+
+"""Model readiness is probed off the HTTP thread; liveness stays independent."""
+
+import threading
+import time
+from contextlib import contextmanager
+
+import requests
+
+from resume_evaluator.ollama_client import OLLAMA_BASE_URL, MODEL
+from resume_evaluator.ollama_client import ModelUnavailable
+from resume_evaluator.config import settings
+
+INTERVAL = settings.MODEL_PROBE_INTERVAL_SECONDS
+PROBE_TIMEOUT = settings.MODEL_PROBE_TIMEOUT_SECONDS
+
+model_lock = threading.Lock()
+_state_lock = threading.Lock()
+_available = False
+_checked_at = 0.0
+_owner = threading.local()
+
+
+class ModelBusy(ModelUnavailable):
+    """Model capacity is occupied; this does not invalidate model readiness."""
+
+
+def check_model_cancelled():
+    callback = getattr(_owner, "check_cancelled", None)
+    if callback:
+        callback()
+
+
+@contextmanager
+def model_capacity(check_cancelled=None):
+    # Pipeline and direct text analysis share the same limit, including nested calls.
+    if getattr(_owner, "active", False):
+        yield
+        return
+    if not model_lock.acquire(timeout=PROBE_TIMEOUT + 5):
+        raise ModelBusy("Модель занята.")
+    try:
+        # The monitor cannot probe while inference owns this lock. A long job
+        # therefore expires its last probe even when inference succeeds. Check
+        # freshness explicitly: is_ready() tolerates age while the lock is held.
+        with _state_lock:
+            stale = time.monotonic() - _checked_at >= INTERVAL + PROBE_TIMEOUT + 10
+        if stale:
+            if check_cancelled:
+                check_cancelled()
+            _refresh_model_readiness()
+            if check_cancelled:
+                check_cancelled()
+        if not is_ready():
+            raise ModelUnavailable("Модель временно недоступна.")
+        _owner.active = True
+        _owner.check_cancelled = check_cancelled
+        yield
+    finally:
+        _owner.active = False
+        _owner.check_cancelled = None
+        model_lock.release()
+
+
+def mark_ready(available: bool):
+    global _available, _checked_at
+
+    with _state_lock:
+        _available = available
+        _checked_at = time.monotonic()
+
+
+def is_ready() -> bool:
+    with _state_lock:
+        return _available and (
+            model_lock.locked()
+            or time.monotonic() - _checked_at < INTERVAL + PROBE_TIMEOUT + 10
+        )
+
+
+def _probe_model() -> bool:
+    """Check that Ollama responds and the configured model is available."""
+    response = requests.get(
+        f"{OLLAMA_BASE_URL}/api/tags",
+        timeout=PROBE_TIMEOUT,
+    )
+    response.raise_for_status()
+
+    data = response.json()
+    if not isinstance(data, dict):
+        return False
+
+    models = data.get("models", [])
+    if not isinstance(models, list):
+        return False
+
+    expected = MODEL
+    if ":" not in expected.rsplit("/", 1)[-1]:
+        expected = f"{expected}:latest"
+
+    return any(
+        isinstance(model, dict)
+        and isinstance(model.get("name"), str)
+        and model.get("name") in {MODEL, expected}
+        for model in models
+    )
+
+
+def _refresh_model_readiness():
+    try:
+        mark_ready(_probe_model())
+    except (requests.RequestException, ValueError):
+        mark_ready(False)
+
+
+def monitor(stop: threading.Event):
+    while not stop.is_set():
+        if model_lock.acquire(blocking=False):
+            try:
+                _refresh_model_readiness()
+            finally:
+                model_lock.release()
+
+        stop.wait(INTERVAL)

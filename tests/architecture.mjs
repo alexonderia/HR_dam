@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, relative, join } from 'node:path';
 
 const apps = ['frontend', 'backend', 'worker', 'auth-check', 'guest-api'];
@@ -48,5 +48,16 @@ for (const dep of ['react', 'react-dom', 'vite']) {
   assert.ok(!lock.packages[`node_modules/${dep}`], `frontend dependency hoisted to root: ${dep}`);
 }
 assert.ok(readFileSync('apps/frontend/vite.config.ts', 'utf8').indexOf('../../public') === -1);
-assert.ok(readFileSync('apps/resume-analyzer/Dockerfile', 'utf8').includes('app.server'));
-assert.ok(readFileSync('apps/resume-analyzer/app/server.py', 'utf8').includes('workers=1'));
+for (const [service, module] of [['resume-parser', 'resume_parser'], ['resume-evaluator', 'resume_evaluator']]) {
+  const dockerfile = readFileSync(`apps/${service}/Dockerfile`, 'utf8');
+  assert.ok(dockerfile.includes(`apps/${service}/src/`));
+  assert.ok(dockerfile.includes(`"${module}"`));
+  assert.ok(!dockerfile.includes('resume-analyzer'));
+  assert.ok(!dockerfile.includes(service === 'resume-parser' ? 'apps/resume-evaluator' : 'apps/resume-parser'));
+  const requirements = readFileSync(`apps/${service}/requirements.txt`, 'utf8');
+  assert.ok(!/fastapi|uvicorn|python-multipart/.test(requirements));
+}
+assert.ok(!existsSync('apps/resume-analyzer/Dockerfile'));
+assert.ok(!existsSync('apps/resume-analyzer/app/server.py'));
+assert.ok(!readFileSync('apps/resume-parser/Dockerfile', 'utf8').includes('libreoffice'));
+console.log('PASS Python delivery: independent entrypoints, dependency lists and images; retired analyzer excluded');

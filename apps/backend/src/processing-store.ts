@@ -32,4 +32,12 @@ export class AuthorizedTaskStore implements TaskStore {
       for (const row of rows) { cursor = row.id; yield row.id as string; }
     }
   }
+  async *records() {
+    let cursor = "00000000-0000-0000-0000-000000000000";
+    while (true) {
+      const { rows } = await pool.query("SELECT id,state FROM processing_tasks WHERE id>$1 ORDER BY id LIMIT 100", [cursor]);
+      if (!rows.length) return;
+      for (const row of rows) { cursor = row.id; yield row.state as Task; }
+    }
+  }
 }

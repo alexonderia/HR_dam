@@ -6,7 +6,7 @@ import { contactResult } from "./fixtures/contact-result.js";
 import { Readable } from "node:stream";
 import { signToken, AccessError } from "@hr/security";
 import { ProcessingEngine, newTask, mutateTask, expireWork, type Task, type TaskStore, type Publication, type Job } from "@hr/processing";
-import { processingCommandSchema, processingEventSchema, evaluateResultSchema } from "@hr/contracts";
+import { processingCommandSchema, processingEventSchema, evaluateResultSchema, evaluationSchema } from "@hr/contracts";
 import { createAuthCheck } from "../apps/auth-check/src/app.js";
 
 const pair = () => generateKeyPairSync("rsa", { modulusLength: 2048, publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem" } });
@@ -35,6 +35,68 @@ function evaluation(task: Task) {
   return { status: "completed", candidate: { last_name: null, first_name: null, middle_name: null, phone: null }, evaluations: [{ target_id: task.requirements[0].id, score: 80,
     criteria: ["education", "experience", "keywords"].map(name => ({ name, status: "unknown", explanation: "No synthetic evidence" })), matched_keywords: [], triggered_stop_factors: [], explanation: "Synthetic result" }] };
 }
+async function checkpointCase(mime = "text/plain") {
+  const r = await setup(mime);
+  const [fixture] = JSON.parse(readFileSync(new URL("./fixtures/evidence-ratings-v2.json", import.meta.url), "utf8"));
+  await mutateTask(r.store, r.task.id, task => {
+    task.requirements = fixture.requirements.flatMap((c: any) => c.profiles.map((p: any) => ({
+      id:p.id, name:p.position_name || "Test", education:p.education || "", experience:p.experience || "",
+      keywords:p.keywords || [], stop_factors:p.stop_factors || [], comment:p.comment || "", cluster_comment:c.comment || "",
+    })));
+  });
+  const task = (await r.store.read(r.task.id))!.task;
+  const profile = fixture.result.clusters[0].profiles[0];
+  const value = evaluationSchema.parse({ ...evaluation(task).evaluations[0], target_id:profile.id,
+    score:profile.score, details:profile.details, matched_keywords:profile.matched_keywords || [],
+    triggered_stop_factors:profile.triggered_stop_factors || [], explanation:profile.explanation || "" });
+  const job = task.jobs[0], auth = await r.engine.authorize(`Bearer ${r.engine.token(job)}`, job.job_id, "progress:write");
+  const progress = { job_id:job.job_id, attempt:job.attempt, status:"processing" as const,
+    checkpoint:{context:"b".repeat(64), evaluation:value} };
+  return {...r, task, job, auth, progress};
+}
+test("profile checkpoints survive redelivery, retain the first value and do not finish or publish results", async () => {
+  const r = await checkpointCase(), before = r.sent.length;
+  await r.engine.progress(r.auth.claims, r.progress);
+  const changed = structuredClone(r.progress); changed.checkpoint.evaluation.explanation += " Different duplicate";
+  await r.engine.progress(r.auth.claims, changed);
+  const task = (await r.store.read(r.task.id))!.task;
+  assert.deepEqual(task.jobs[0].evaluation_checkpoints?.evaluations, [r.progress.checkpoint.evaluation]);
+  assert.deepEqual(r.engine.input(task, task.jobs[0], "/internal").evaluation_checkpoints, task.jobs[0].evaluation_checkpoints);
+  assert.equal(task.jobs[0].result, undefined); assert.equal(task.jobs[0].applied, undefined);
+  assert.equal(task.status, "processing"); assert.equal(r.sent.length, before);
+});
+test("checkpoint validation rejects unknown targets, forged scores and evidence-free summaries", async () => {
+  const r = await checkpointCase();
+  for (const change of [{target_id:randomUUID()}, {score:r.progress.checkpoint.evaluation.score === 99 ? 98 : 99}, {details:undefined}]) {
+    const input = structuredClone(r.progress); Object.assign(input.checkpoint.evaluation, change);
+    await assert.rejects(r.engine.progress(r.auth.claims, input));
+  }
+  assert.equal((await r.store.read(r.task.id))!.task.jobs[0].evaluation_checkpoints, undefined);
+});
+test("checkpoint context changes discard previous reuse and deleted or superseded jobs cannot write", async () => {
+  const r = await checkpointCase(); await r.engine.progress(r.auth.claims, r.progress);
+  const next = structuredClone(r.progress); next.checkpoint.context = "c".repeat(64);
+  await r.engine.progress(r.auth.claims, next);
+  assert.equal((await r.store.read(r.task.id))!.task.jobs[0].evaluation_checkpoints?.context, next.checkpoint.context);
+  await mutateTask(r.store, r.task.id, task => { task.jobs[0].attempt++; });
+  await assert.rejects(r.engine.progress(r.auth.claims, next), (e: unknown) => e instanceof AccessError && e.status === 409);
+  const deleted = await checkpointCase();
+  await mutateTask(deleted.store, deleted.task.id, task => { task.deleted_at = new Date().toISOString(); });
+  await assert.rejects(deleted.engine.progress(deleted.auth.claims, deleted.progress), (e: unknown) => e instanceof AccessError && e.status === 410);
+  const parser = await checkpointCase("application/pdf");
+  await assert.rejects(parser.engine.progress(parser.auth.claims, parser.progress), (e: unknown) => e instanceof AccessError && e.status === 403);
+});
+test("checkpoints never permit incomplete final results and are removed once the complete result is durable", async () => {
+  const r = await checkpointCase(); await r.engine.progress(r.auth.claims, r.progress);
+  await mutateTask(r.store, r.task.id, task => { task.requirements.push({...task.requirements[0], id:randomUUID()}); });
+  const result = {...evaluation(r.task), evaluations:[r.progress.checkpoint.evaluation]};
+  await assert.rejects(r.engine.result(r.auth.claims, result), (e: unknown) => e instanceof AccessError && e.status === 422);
+  await mutateTask(r.store, r.task.id, task => { task.requirements.pop(); });
+  await r.engine.result(r.auth.claims, result);
+  const saved = (await r.store.read(r.task.id))!.task.jobs[0];
+  assert.ok(saved.result); assert.equal(saved.evaluation_checkpoints, undefined);
+  await assert.rejects(r.engine.progress(r.auth.claims, r.progress), (e: unknown) => e instanceof AccessError && e.status === 409);
+});
 test("processing messages accept the current contract and reject extra fields and malformed criteria", () => {
   const identity = { task_id: randomUUID(), mode: "guest", deadline: new Date(Date.now() + 60000).toISOString() };
   const command = { ...identity, job_id: randomUUID(), file_id: randomUUID(), operation: "prepare", attempt: 1 };
