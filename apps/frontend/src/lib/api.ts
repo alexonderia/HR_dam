@@ -1,8 +1,10 @@
+import { fetchWithReadRetry } from "./read-request";
+
 export async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const headers = new Headers(options?.headers);
   if (options?.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
-  const response = await fetch("/api/app" + url, { ...options, headers, cache: "no-store" });
+  const response = await fetchWithReadRetry("/api/app" + url, { ...options, headers, cache: "no-store" });
   if (!response.ok) {
     if (response.status === 401) window.dispatchEvent(new Event("hr:session-expired"));
     const body = await response

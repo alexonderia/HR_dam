@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronRight, Download, FileText, LoaderCircle, Paperclip, X } from "lucide-react";
-import { guestCriteriaSchema, type ProcessingResult } from "@hr/contracts";
+import { guestCriteriaSchema, type ProcessingResult, type AnalysisStatus } from "@hr/contracts";
 import { Button, ErrorMessage, Framework, InfoHint, Score } from "../components/ui";
 import { RatingAnalysis } from "../components/RatingAnalysis";
 import { sessionApi } from "../lib/session-api";
+import { startPolling } from "../lib/polling";
 import { downloadReport } from "../lib/report-download";
 
 interface Report { task_id: string; status: string; source_count: number; candidate_count: number; completed_count: number; expires_at: string;
@@ -32,6 +33,7 @@ const guestFields = [
 ] as const;
 const fileSize = (bytes: number) => bytes < 1024 ? `${bytes} Б` : `${(bytes / (bytes >= 1048576 ? 1048576 : 1024)).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} ${bytes >= 1048576 ? "МБ" : "КБ"}`;
 export function Guest({ onLogin }: { onLogin: () => void }) {
+  const [analysis, setAnalysis] = useState<AnalysisStatus>();
   const [report, setReport] = useState<Report>(), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [expandedCandidates, setExpandedCandidates] = useState<Record<string, boolean>>({});
@@ -56,18 +58,25 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
   };
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
+    return startPolling(async signal => {
+      const status = await sessionApi<AnalysisStatus>("/guest/analysis/status", { signal });
+      if (!signal.aborted) setAnalysis(status);
+    }, { intervalMs: 5000, enabled: () => !document.hidden,
+      onError: () => setAnalysis({ available: false, message: "Не удалось проверить доступность анализа. Готовые результаты сохраняются." }),
+    });
+  }, []);
+  useEffect(() => {
     setExpandedCandidates({});
     setVisibleCandidates(4);
     if (!taskId) return;
-    let active = true, timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const data = await sessionApi<Report>(`/guest/tasks/${taskId}`);
-        if (!active) return; setReport(data); setError("");
-        if (!complete(data.status)) timer = setTimeout(() => void poll(), 2500);
-      } catch (e) { if (active) { setError((e as Error).message); timer = setTimeout(() => void poll(), 10000); } }
-    };
-    void poll(); return () => { active = false; clearTimeout(timer); };
+    const stop = startPolling(async signal => {
+      const data = await sessionApi<Report>(`/guest/tasks/${taskId}`, { signal });
+      if (signal.aborted) return;
+      setReport(data); setError("");
+      if (complete(data.status)) stop();
+    }, { intervalMs: 2500, enabled: () => !document.hidden,
+      onError: e => setError((e as Error).message) });
+    return stop;
   }, [taskId]);
   const submit = async () => {
     setError("");
@@ -131,6 +140,7 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
         </section>
         {stage && <p role="status" aria-live="polite">{stage}</p>}<div className="guest-form-actions"><Button className="af-btn--lg" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Отправка…" : "Оценить резюме"}</Button></div>
       </form>}
+      {analysis && !analysis.available && (!report || !complete(report.status)) && <p className="af-alert af-alert--warning" role="status">{analysis.message}</p>}
       <ErrorMessage message={error} />
       {!report && taskId && <section className="af-card af-card--outer guest-report-loading" role="status"><LoaderCircle className="guest-processing-spinner" size={20} aria-hidden="true" /><span>Получаем статус обработки…</span></section>}
       {report && <section ref={reportElement} className="guest-report" aria-label="Результаты оценки">

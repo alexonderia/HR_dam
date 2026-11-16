@@ -12,3 +12,5 @@ output/
 backups/
 
 .secrets/
+logs/
+**/logs/

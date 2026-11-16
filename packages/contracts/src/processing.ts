@@ -42,6 +42,14 @@ export const evaluationSchema = z.object({
   matched_keywords: z.array(z.string().max(300)).max(100),
   triggered_stop_factors: z.array(z.string().max(300)).max(100), explanation: z.string().max(20000),
 }).strict();
+export const evaluationCheckpointSchema = z.object({
+  context: z.string().regex(/^[a-f0-9]{64}$/),
+  evaluation: evaluationSchema.refine(value => !!value.details, "Checkpoint requires verified evidence details."),
+}).strict();
+export const processingProgressSchema = z.object({
+  job_id: z.uuid(), attempt: z.number().int().positive(), status: z.literal("processing"),
+  checkpoint: evaluationCheckpointSchema.optional(),
+}).strict();
 export const prepareResultSchema = z.object({
   status: z.literal("completed"), files: z.array(z.object({ file_id: z.uuid() }).strict()).min(1).max(200),
   errors: z.array(z.object({ path: z.string().max(1000), code: processingErrorSchema.shape.code,
@@ -68,3 +76,5 @@ export type ProcessingEvent = z.infer<typeof processingEventSchema>;
 export type ProcessingTarget = z.infer<typeof processingTargetSchema>;
 export type ProcessingResult = z.infer<typeof prepareResultSchema> | z.infer<typeof evaluateResultSchema> | z.infer<typeof failedResultSchema>;
 export type OutputMetadata = z.infer<typeof outputMetadataSchema>;
+export type EvaluationCheckpoint = z.infer<typeof evaluationCheckpointSchema>;
+export type ProcessingProgress = z.infer<typeof processingProgressSchema>;

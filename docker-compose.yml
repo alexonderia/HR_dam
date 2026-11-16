@@ -22,7 +22,7 @@ x-processor: &processor
     GUEST_JOB_PUBLIC_KEY_FILE: /run/secrets/guest-job-public
     AUTHORIZED_JOB_PUBLIC_KEY_FILE: /run/secrets/authorized-job-public
   secrets: [guest-job-public, authorized-job-public]
-  networks: [guest-jobs, authorized-jobs, processor-broker, model]
+  networks: [guest-jobs, authorized-jobs, processor-broker]
   depends_on: {rabbitmq-init: {condition: service_completed_successfully}}
 
 services:
@@ -69,6 +69,7 @@ services:
       GUEST_UPLOAD_CONCURRENCY: ${GUEST_UPLOAD_CONCURRENCY:-3}
       GUEST_ABSOLUTE_TTL_MS: ${GUEST_ABSOLUTE_TTL_MS:-86400000}
       GUEST_RESULT_TTL_MS: ${GUEST_RESULT_TTL_MS:-7200000}
+      EVALUATOR_READY_URL: http://resume-evaluator:8002/ready
     expose: ['3002']
     networks: [frontend-guest, guest-store, guest-broker, guest-jobs, guest-antivirus]
     secrets: [auth-public, guest-job-private, guest-job-public, guest-cookie-private, guest-cookie-public]
@@ -97,6 +98,7 @@ services:
       CLAMAV_HOST: clamav
       PROCESSING_AMQP_URL: amqp://hr_authorized:${AUTHORIZED_AMQP_PASSWORD:?Run npm run prepare:environment}@rabbitmq:5672/hr-authorized
       PROCESSING_MANAGEMENT_URL: http://rabbitmq:15672
+      EVALUATOR_READY_URL: http://resume-evaluator:8002/ready
       AUTH_PRIVATE_KEY_FILE: /run/secrets/auth-private
       AUTHORIZED_JOB_PRIVATE_KEY_FILE: /run/secrets/authorized-job-private
       AUTHORIZED_JOB_PUBLIC_KEY_FILE: /run/secrets/authorized-job-public
@@ -148,8 +150,7 @@ services:
     image: ${PREPARE_IMAGE:-hr-dam-resume-parser:local}
     build:
       context: .
-      dockerfile: infra/processing/Dockerfile
-      args: {OPERATION: prepare}
+      dockerfile: apps/resume-parser/Dockerfile
     environment:
       <<: *processor-env
       PORT: 8001
@@ -160,8 +161,8 @@ services:
     image: ${EVALUATE_IMAGE:-hr-dam-resume-evaluator:local}
     build:
       context: .
-      dockerfile: infra/processing/Dockerfile
-      args: {OPERATION: evaluate}
+      dockerfile: apps/resume-evaluator/Dockerfile
+    networks: [guest-jobs, authorized-jobs, processor-broker, model]
     environment:
       <<: *processor-env
       PORT: 8002

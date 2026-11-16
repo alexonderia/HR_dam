@@ -3,7 +3,7 @@ import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { cookie, cookieValue, checkOrigin, readSession, signToken, verifyToken, AccessError } from "@hr/security";
-import { internalRouter, apiErrors, receiveUpload, mutateTask, finish } from "@hr/processing";
+import { internalRouter, apiErrors, receiveUpload, mutateTask, finish, probeEvaluator } from "@hr/processing";
 import { randomUUID } from "node:crypto";
 import { GuestService, digest, guestReport } from "./service.js";
 
@@ -26,6 +26,7 @@ export function createGuestApp(service: GuestService, settings: { authPublicKey:
       iat: now, exp: now + 172800 }, settings.cookiePrivateKey, "hr-guest-session+jwt"), 172800, settings.secure));
     res.locals.owner = digest(id); next();
   });
+  app.get("/api/guest/analysis/status", async (_req, res) => res.json(await probeEvaluator()));
   app.use("/api/guest/queue", rateLimit({ windowMs: 60000, limit: 60, standardHeaders: true, legacyHeaders: false }));
   app.post("/api/guest/queue", async (req, res) => {
     const input = z.object({ file_count: z.number().int().min(1).max(50), size_bytes: z.number().int().min(1).max(262144000) }).strict().parse(req.body);

@@ -1,3 +1,4 @@
+import { RatingClarifications } from "./RatingClarifications";
 import { AlertCircle, CheckCircle2, CircleMinus, XCircle } from "lucide-react";
 import { ratingAnalysis, type ReportRating } from "@hr/contracts";
 
@@ -14,7 +15,7 @@ export function CompactRatingAnalysis({ rating, analysis }: { rating: ReportRati
     <div className={`rating-summary ${analysis.evidence ? "" : "rating-summary--text-only"}`}>
       <section className="rating-rationale">
         <h4>Обоснование оценки</h4>
-        <p className="explanation-text">{rating.explanation?.trim() ? rating.explanation : "Обоснование не указано."}</p>
+        <p className="explanation-text">{analysis.explanation}</p>
         {!!quotes.length && <figure className="rating-highlight-quote"><blockquote>{quotes[0]}</blockquote><figcaption>
           <span>Цитата из резюме</span>
           {quotes.length > 1 && <details className="rating-sources rating-all-sources"><summary>Все цитаты</summary>
@@ -26,9 +27,9 @@ export function CompactRatingAnalysis({ rating, analysis }: { rating: ReportRati
       </section>
       {analysis.evidence && <section className="rating-overview" aria-label="Дополнительные показатели">
         <dl className="rating-metrics">
-          <div><dt>Диапазон оценки</dt><dd>{analysis.range} из 100</dd></div>
-          <div><dt>Охват критериев</dt><dd>{analysis.evidence.coverage.toLocaleString("ru-RU")}%</dd><p className="rating-metric-help">Доля веса оценённых требований</p></div>
+          <div><dt>{analysis.estimate!.label}</dt><dd>{analysis.estimate!.value} из 100</dd></div>
         </dl>
+        {analysis.estimate?.note && <p className="rating-metric-help">{analysis.estimate.note}</p>}
         {analysis.evidence.context_truncated && <p className="af-alert af-alert--warning">Оценён только фрагмент резюме.</p>}
       </section>}
     </div>
@@ -55,6 +56,7 @@ export function CompactRatingAnalysis({ rating, analysis }: { rating: ReportRati
       {analysis.missing.map(field => <section className="rating-missing" key={field.label}><dl><div className="rating-finding rating-finding--unknown">
         <dt className="rating-finding-label"><span className="rating-state"><CircleMinus size={18} aria-hidden="true" />{field.label}</span></dt><dd className="rating-finding-content">Не указано</dd>
       </div></dl></section>)}
+      <RatingClarifications items={analysis.clarifications} expanded={analysis.estimate?.insufficient} />
       <section className={`rating-finding rating-stops rating-finding--${stopState}`}>
         <h5 className="rating-finding-label"><span className="rating-state"><StopIcon size={18} aria-hidden="true" />Стоп-факторы</span></h5>
         <div className="rating-finding-content">{knownStops.length ? <ul className="rating-item-list">{knownStops.map((stop, index) => <li key={index}>

@@ -16,3 +16,4 @@ docs/*.docx
 **/.venv
 .secrets
 logs
+**/logs

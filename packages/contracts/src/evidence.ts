@@ -1,20 +1,28 @@
 import { z } from "zod";
+import { optionalRequirement, requirementClauses, optionalRequirementV3, requirementClausesV3 } from "./criteria.js";
+import { additionalEvidenceVerdict } from "./additional-evidence.js";
+import { periodBounds } from "./employment.js";
+import { scorePresentation } from "./score-presentation.js";
 
 const quotationSchema = z.object({ quote: z.string().min(1).max(2000), start: z.number().int().nonnegative(), end: z.number().int().positive() }).strict();
+export const unknownReasonSchema = z.enum(["not_stated", "contradictory", "not_relevant", "unverified_evidence", "future_intent", "incomplete_document", "ambiguous_requirement"]);
 const criterionSchema = z.object({
   id: z.string(), category: z.enum(["keyword", "experience", "education", "additional"]),
   requirement: z.string().min(1), source: z.enum(["keywords", "experience", "education", "profile_comment", "cluster_comment"]),
   optional: z.boolean(), weight: z.number().int().min(0).max(10000),
-  status: z.enum(["met", "partial", "not_met", "unknown"]), evidence: z.array(quotationSchema).max(4),
+  status: z.enum(["met", "partial", "not_met", "unknown"]), evidence: z.array(quotationSchema).max(256),
+  unknown_reason: unknownReasonSchema.optional(),
+  partial_reason: z.enum(["duration", "learning", "missing_parts"]).optional(),
+  work_periods: z.array(z.object({ start_month: z.number().int().min(1900*12), end_month: z.number().int(), start: z.number().int().nonnegative(), end: z.number().int().positive() }).strict()).max(96).optional(),
   credit: z.number().min(0).max(1), possible_credit: z.number().min(0).max(1), experience_months: z.number().int().nonnegative().optional(),
   required_months: z.number().int().positive().optional(), total_experience_months: z.number().int().nonnegative().optional(),
 }).strict();
 export const evidenceDetailsSchema = z.object({
-  method: z.literal("evidence-v1"), policy_version: z.literal("evidence-v1"), policy_status: z.literal("provisional"),
-  model: z.string(), source_text_sha256: z.string().regex(/^[a-f0-9]{64}$/), source_text_length: z.number().int().nonnegative(),
+  method: z.literal("evidence-v1"), policy_version: z.enum(["evidence-v1", "evidence-v2", "evidence-v3"]), policy_status: z.literal("provisional"),
+  model: z.string(), assessment_date: z.iso.date().optional(), context_chunks: z.number().int().min(1).max(32).optional(), source_text_sha256: z.string().regex(/^[a-f0-9]{64}$/), source_text_length: z.number().int().nonnegative(),
   context_truncated: z.boolean(), criteria: z.array(criterionSchema).max(1000),
   stop_factors: z.array(z.object({ id: z.string(), requirement: z.string(), status: z.enum(["triggered", "not_triggered", "unknown"]),
-    evidence: z.array(quotationSchema).max(3), penalty: z.union([z.literal(0), z.literal(10)]), duplicates: z.array(z.string()), }).strict()).max(100),
+    evidence: z.array(quotationSchema).max(96), unknown_reason: unknownReasonSchema.optional(), penalty: z.union([z.literal(0), z.literal(10)]), duplicates: z.array(z.string()), }).strict()).max(100),
   coverage: z.number().min(0).max(100), score_range: z.object({ min: z.number().min(0).max(100), max: z.number().min(0).max(100) }).strict(),
   stop_penalty: z.number().min(0).max(30), score_status: z.enum(["evaluated", "insufficient_evidence"]),
 }).strict();
@@ -24,19 +32,21 @@ type CriterionInput = Pick<EvidenceDetails["criteria"][number], "id" | "category
 const optional = /желатель\w*|приветству\w*|будет\s+плюсом|не\s+обязател\w*/iu;
 const normalize = (text: string) => text.trim().toLowerCase().replaceAll("ё", "е").replace(/\s+/gu, " ");
 
-export function compileRatingCriteria(profile: EvidenceProfile, clusterComment = ""): CriterionInput[] {
+export function compileRatingCriteria(profile: EvidenceProfile, clusterComment = "", version: EvidenceDetails["policy_version"] = "evidence-v3"): CriterionInput[] {
   const criteria: CriterionInput[] = [];
+  const preference = version === "evidence-v3" ? optionalRequirementV3 : version === "evidence-v2" ? optionalRequirement : optional;
+  const clauses = version === "evidence-v3" ? requirementClausesV3 : requirementClauses;
   const add = (id: string, category: CriterionInput["category"], text: string, source: CriterionInput["source"]) => {
     const requirement = text.trim();
-    if (requirement) criteria.push({ id, category, requirement, source, optional: optional.test(requirement), weight: 0 });
+    if (requirement) criteria.push({ id, category, requirement, source, optional: preference.test(requirement), weight: 0 });
   };
   profile.keywords?.forEach((text, index) => text.split(/[,;\n]+/u).forEach((part, i) => add(`keyword:${index}:${i}`, "keyword", part, "keywords")));
   for (const category of ["experience", "education"] as const) {
     const text = profile[category] || "";
-    (optional.test(text) ? text.split(/[,;\n]+/u) : [text]).forEach((part, index) => add(`${category}:${index}`, category, part, category));
+    (preference.test(text) ? version !== "evidence-v1" ? clauses(text) : text.split(/[,;\n]+/u) : [text]).forEach((part, index) => add(`${category}:${index}`, category, part, category));
   }
   for (const [source, text] of [["profile_comment", profile.comment || ""], ["cluster_comment", clusterComment]] as const)
-    text.split(/[;\n]+/u).forEach((part, index) => add(`${source}:${index}`, "additional", part, source));
+    (version !== "evidence-v1" ? clauses(text) : text.split(/[;\n]+/u)).forEach((part, index) => add(`${source}:${index}`, "additional", part, source));
   const mandatory = criteria.filter(c => !c.optional);
   const base = { keyword: 40, experience: 30, education: 15, additional: 15 };
   const total = [...new Set(mandatory.map(c => c.category))].reduce((sum, category) => sum + base[category], 0);
@@ -78,31 +88,74 @@ const reject = (): never => { throw new Error("Обработчик вернул
 export function validateEvidenceRating(rating: { score: number; matched_keywords?: string[]; triggered_stop_factors?: string[]; details?: unknown },
   profile: EvidenceProfile, clusterComment = "") {
   const data = evidenceDetailsSchema.parse(rating.details);
-  const expected = compileRatingCriteria(profile, clusterComment);
+  const expected = compileRatingCriteria(profile, clusterComment, data.policy_version);
+  const current = data.policy_version !== "evidence-v1";
+  if (current && (!data.assessment_date || !data.context_chunks)) reject();
   if (data.criteria.length !== expected.length || new Set(data.criteria.map(c => c.id)).size !== expected.length) reject();
   for (const criterion of data.criteria) {
     const input = expected.find(c => c.id === criterion.id);
     if (!input || Object.entries(input).some(([key, value]) => criterion[key as keyof typeof input] !== value)) reject();
     if (criterion.status !== "unknown" && !criterion.evidence.length) reject();
+    if (data.policy_version === "evidence-v3" && criterion.category === "additional"
+      && !additionalEvidenceVerdict(criterion.requirement, criterion.status, criterion.evidence.map(e=>e.quote)).valid) reject();
+    if (current && ((criterion.status === "unknown") !== (criterion.unknown_reason != null))) reject();
+    if (current && ((criterion.status === "partial") !== (criterion.partial_reason != null))) reject();
+    if (!current && (criterion.evidence.length > 4 || criterion.unknown_reason || criterion.partial_reason || criterion.work_periods)) reject();
+    if (criterion.work_periods) {
+      if (!current || criterion.category !== "experience") reject();
+      const periods = [...criterion.work_periods].sort((a,b) => a.start_month-b.start_month || a.end_month-b.end_month);
+      let total = 0, end = -1;
+      const asOf = new Date(data.assessment_date! + "T00:00:00Z");
+      const maximum = asOf.getUTCFullYear()*12 + asOf.getUTCMonth() + Number(asOf.getUTCDate() === new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth()+1, 0)).getUTCDate());
+      for (const period of periods) {
+        const citation = criterion.evidence.find(e => e.start <= period.start && e.end >= period.end);
+        const header = citation ? Array.from(citation.quote).slice(period.start-citation.start, period.end-citation.start).join("") : "";
+        const bounds = periodBounds(header, data.assessment_date!);
+        if (period.start_month >= period.end_month || period.end_month > maximum ||
+          !bounds || period.start_month !== bounds[0] || period.end_month > bounds[1]) reject();
+        total += Math.max(0, period.end_month - Math.max(end, period.start_month));
+        end = Math.max(end, period.end_month);
+      }
+      const observed = criterion.total_experience_months == null ? total : Math.min(total, criterion.total_experience_months);
+      if (criterion.status !== "unknown" && criterion.experience_months !== observed) reject();
+    }
     if (criterion.category === "keyword" && criterion.status !== "unknown") {
       const aliases = ({ sql: ["SQL", "MS SQL", "T-SQL", "MSSQL"], "rest api": ["REST API", "RESTful API"] } as Record<string, string[]>)[normalize(criterion.requirement)] || [criterion.requirement];
-      const containsSkill = criterion.evidence.some(e => aliases.some(alias => {
-        const escaped = normalize(alias).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&").replace(/ /gu, "\\s+");
-        return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, "u").test(normalize(e.quote));
-      }));
+      const hasLiteral = (term: string): boolean => {
+        const variants = ({ sql: ["SQL", "MS SQL", "T-SQL", "MSSQL"], "rest api": ["REST API", "RESTful API"] } as Record<string,string[]>)[normalize(term)] || [term];
+        return criterion.evidence.some(e => variants.some(alias => {
+          const escaped = normalize(alias).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&").replace(/ /gu, "\\s+");
+          return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, "u").test(normalize(e.quote));
+        }));
+      };
+      const hasRequirement = (term: string): boolean => {
+        const alternatives = term.split(/\s+или\s+/iu);
+        if (alternatives.length > 1) return alternatives.some(hasRequirement);
+        const combined = term.split(/\s+и\s+/iu);
+        if (combined.length > 1) return combined.every(hasRequirement);
+        return hasLiteral(term);
+      };
+      const containsSkill = current ? criterion.status === "met" ? hasRequirement(criterion.requirement)
+        : criterion.requirement.split(/\s+(?:и|или)\s+/iu).some(hasLiteral)
+        : aliases.some(hasLiteral);
       if (!containsSkill) reject();
     }
-    const credit = criterion.status === "met" ? 1 : criterion.status === "partial"
-      ? criterion.category === "experience" && criterion.required_months && criterion.experience_months != null
-        ? Math.min(criterion.experience_months / criterion.required_months, 1) : .5 : 0;
+    let credit = criterion.status === "met" ? 1 : criterion.status === "partial" ? .5 : 0;
+    if (criterion.status === "partial" && criterion.category === "experience" && criterion.required_months && criterion.experience_months != null) {
+      const duration = Math.min(criterion.experience_months / criterion.required_months, 1);
+      if (current) {
+        if (criterion.partial_reason === "duration" && criterion.experience_months >= criterion.required_months) reject();
+        credit = criterion.partial_reason === "duration" ? duration : Math.min(.5, duration);
+      } else credit = criterion.experience_months < criterion.required_months ? duration : .5;
+    }
     if (Math.abs(criterion.credit - credit) > 1e-10) reject();
     if (criterion.category === "experience" && criterion.required_months !== minimumExperienceMonths(criterion.requirement)) reject();
     const possible = criterion.status !== "unknown" ? criterion.credit
       : criterion.required_months && criterion.total_experience_months != null ? Math.min(criterion.total_experience_months / criterion.required_months, 1) : 1;
     if (Math.abs(criterion.possible_credit - possible) > 1e-10) reject();
     if (criterion.category === "experience" && criterion.required_months && criterion.status !== "unknown") {
-      if (criterion.experience_months == null) reject();
-      if ((criterion.status === "met") !== (criterion.experience_months! >= criterion.required_months)) reject();
+      if (criterion.experience_months == null && (!current || criterion.status !== "not_met")) reject();
+      if (criterion.status === "met" && criterion.experience_months! < criterion.required_months) reject();
       if (criterion.total_experience_months != null && criterion.experience_months! > criterion.total_experience_months) reject();
     }
   }
@@ -113,6 +166,8 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
     const index = Number(stop.id.replace(/^stop:/u, ""));
     if (stop.id !== `stop:${index}` || texts[index] !== stop.requirement) reject();
     if (stop.status !== "unknown" && !stop.evidence.length) reject();
+    if (current && ((stop.status === "unknown") !== (stop.unknown_reason != null))) reject();
+    if (!current && (stop.evidence.length > 3 || stop.unknown_reason)) reject();
     const duplicates = data.criteria.filter(c => ["partial", "not_met"].includes(c.status) && (intersects(contentTokens(c.requirement), contentTokens(stop.requirement)) ||
       c.category === "experience" && c.required_months != null && c.required_months === minimumExperienceMonths(stop.requirement))).map(c => c.id);
     if (JSON.stringify(stop.duplicates) !== JSON.stringify(duplicates)) reject();
@@ -140,7 +195,47 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
 export function ratingEvidence(rating?: { details?: unknown }): EvidenceDetails | undefined {
   if (!rating || (rating.details as { method?: string } | undefined)?.method !== "evidence-v1") return;
   const parsed = evidenceDetailsSchema.safeParse(rating.details);
-  return parsed.success ? parsed.data : undefined;
+  return parsed.success ? verifiedAdditionalEvidence(parsed.data) : undefined;
+}
+
+// Keep saved results immutable. Withdraw only unsupported additional claims in
+// the report view, recomputing the score with the original weights and policy.
+function verifiedAdditionalEvidence(data: EvidenceDetails): EvidenceDetails {
+  const invalid: ReturnType<typeof additionalEvidenceVerdict>[] = data.criteria.map(c=>c.category === "additional" && c.status !== "unknown"
+    ? additionalEvidenceVerdict(c.requirement,c.status,c.evidence.map(e=>e.quote)) : {valid:true});
+  if (invalid.every(v=>v.valid)) return data;
+  const checked = evidenceDetailsSchema.parse(data);
+  checked.criteria.forEach((c,i)=>{
+    if (invalid[i].valid) return;
+    c.status="unknown"; c.credit=0; c.possible_credit=1;
+    if (checked.policy_version !== "evidence-v1") c.unknown_reason=invalid[i].reason || "not_relevant";
+    delete c.partial_reason;
+  });
+  const penalized = new Set<string>();
+  for (const stop of checked.stop_factors) {
+    stop.duplicates=checked.criteria.filter(c=>["partial","not_met"].includes(c.status)
+      && (intersects(contentTokens(c.requirement),contentTokens(stop.requirement))
+        || c.category === "experience" && c.required_months != null && c.required_months === minimumExperienceMonths(stop.requirement))).map(c=>c.id);
+    const key=normalize(stop.requirement);
+    stop.penalty=stop.status === "triggered" && !stop.duplicates.length && !penalized.has(key) ? 10 : 0;
+    if (stop.penalty) penalized.add(key);
+  }
+  checked.stop_penalty=Math.min(30,checked.stop_factors.reduce((sum,s)=>sum+s.penalty,0));
+  const points=checked.criteria.reduce((sum,c)=>sum+c.weight*c.credit,0)/100;
+  const unknown=checked.criteria.filter(c=>c.status === "unknown").reduce((sum,c)=>sum+c.weight*c.possible_credit,0)/100;
+  checked.score_range=checked.criteria.some(c=>c.weight) ? {min:roundScore(points-checked.stop_penalty),max:roundScore(points+unknown-checked.stop_penalty)} : {min:0,max:100};
+  checked.coverage=roundScore(checked.criteria.filter(c=>c.status !== "unknown").reduce((sum,c)=>sum+c.weight,0)/100);
+  checked.score_status=checked.coverage ? "evaluated" : "insufficient_evidence";
+  return checked;
+}
+
+export function verifiedRatingView<T extends {score:number;details?:unknown;explanation?:string|null}>(rating:T):T {
+  if ((rating.details as {method?:string}|undefined)?.method !== "evidence-v1") return rating;
+  const parsed=evidenceDetailsSchema.safeParse(rating.details);
+  if (!parsed.success) return rating;
+  const details=verifiedAdditionalEvidence(parsed.data);
+  if (details === parsed.data) return rating;
+  return {...rating,score:details.score_range.min,details,explanation:explainEvidenceRating(details)};
 }
 
 export function ratingScoreText(rating: { score: number; details?: unknown }): string {
@@ -180,7 +275,8 @@ export function explainEvidenceRating(data: EvidenceDetails): string {
   if (triggered.length) lines.push("Подтверждённые стоп-факторы: " + triggered.map(s => s.requirement + " — «" + s.evidence[0].quote + "»").join("; ") + ".");
   const unknown = data.stop_factors.filter(s => s.status === "unknown");
   if (unknown.length) lines.push("Стоп-факторы: Не указано.");
-  lines.push(`Диапазон соответствия по доступным сведениям: ${data.score_range.min}–${data.score_range.max}/100; охват проверенными критериями — ${data.coverage}%.`);
+  const estimate = scorePresentation(data.score_range, data.context_truncated || data.score_status === "insufficient_evidence");
+  lines.push(`${estimate.label}: ${estimate.value} из 100.${estimate.note ? " " + estimate.note : ""}`);
   if (data.context_truncated) lines.push("Оценён только фрагмент резюме из-за ограничения контекста; оставшиеся сведения требуют проверки.");
   return lines.join("\n");
 }

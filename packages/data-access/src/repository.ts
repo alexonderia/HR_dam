@@ -1,5 +1,6 @@
 import { pool } from "./db.js";
 import type { Cluster, Candidate } from "@hr/contracts";
+import { verifiedRatingView } from "@hr/contracts";
 
 const personMatchSql = (left: string, right: string) => `(${left}.phone = ${right}.phone OR (
   replace(lower(${left}.last_name),'ё','е') = replace(lower(${right}.last_name),'ё','е') AND
@@ -46,5 +47,5 @@ export async function getCandidates(): Promise<Candidate[]> {
       'details', pr.details, 'explanation', pr.explanation, 'calculated_at', pr.calculated_at))
       FROM profile_ratings pr WHERE pr.resume_id=r.id),'[]'::jsonb) AS ratings
     FROM candidates c JOIN resumes r ON r.candidate_id=c.id JOIN files f ON f.id=r.file_id ORDER BY c.created_at DESC`);
-  return result.rows;
+  return result.rows.map((row: Candidate) => ({...row,ratings:row.ratings.map(verifiedRatingView)}));
 }

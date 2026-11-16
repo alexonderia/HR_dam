@@ -1,5 +1,5 @@
 import type { Readable } from "node:stream";
-import type { Cluster, ExtractedPerson, OutputMetadata, ProcessingCommand, ProcessingEvent, ProcessingMode, ProcessingResult, ProcessingTarget } from "@hr/contracts";
+import type { Cluster, ExtractedPerson, OutputMetadata, ProcessingCommand, ProcessingEvent, ProcessingMode, ProcessingResult, ProcessingTarget, EvaluationCheckpoint } from "@hr/contracts";
 
 export interface StoredFile {
   file_id: string; file_name: string; mime_type: string; size_bytes: number; sha256: string; key: string;
@@ -11,6 +11,7 @@ export interface Job extends ProcessingCommand {
   result_id?: string; event_id?: string; confirmed?: boolean; applied?: boolean;
   receipt?: { candidate_id: string; resume_id: string; warning?: string };
   projection_error?: string;
+  evaluation_checkpoints?: { context: string; evaluations: EvaluationCheckpoint["evaluation"][] };
 }
 export interface Task {
   id: string; mode: ProcessingMode; owner: string; name: string; created_at: string; expires_at: string;

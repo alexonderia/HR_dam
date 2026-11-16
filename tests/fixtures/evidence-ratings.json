@@ -36,7 +36,7 @@
               "score": 0.0,
               "matched_keywords": [],
               "triggered_stop_factors": [],
-              "explanation": "Требует уточнения: Python; Pandas; Tableau; Power BI; React; TypeScript.\nДиапазон соответствия по доступным сведениям: 0–100/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.",
+              "explanation": "Не указано: Навыки.\nДиапазон соответствия по доступным сведениям: 0–100/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.",
               "details": {
                 "method": "evidence-v1",
                 "policy_version": "evidence-v1",
@@ -253,7 +253,7 @@
                 "SQL"
               ],
               "triggered_stop_factors": [],
-              "explanation": "Подтверждено: SQL — «SQL».\nТребует уточнения: Python.\nСтоп-факторы требуют уточнения, штраф не применён: Отказ от переезда в Татарстан.\nДиапазон соответствия по доступным сведениям: 50–100/100; охват проверенными критериями — 50%. Неизвестные сведения не означают отсутствие компетенции.",
+              "explanation": "Подтверждено: SQL — «SQL».\nНе указано: Навыки.\nСтоп-факторы требуют уточнения, штраф не применён: Отказ от переезда в Татарстан.\nДиапазон соответствия по доступным сведениям: 50–100/100; охват проверенными критериями — 50%. Неизвестные сведения не означают отсутствие компетенции.",
               "details": {
                 "method": "evidence-v1",
                 "policy_version": "evidence-v1",
@@ -466,7 +466,7 @@
               "score": 100.0,
               "matched_keywords": [],
               "triggered_stop_factors": [],
-              "explanation": "Подтверждено: Высшее — «Бакалавр филологии».\nТребует уточнения: MBA приветствуется (желательное требование, на балл не влияет).\nДиапазон соответствия по доступным сведениям: 100–100/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "explanation": "Подтверждено: Высшее — «Бакалавр филологии».\nНе указано: Образование.\nДиапазон соответствия по доступным сведениям: 100–100/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
               "details": {
                 "method": "evidence-v1",
                 "policy_version": "evidence-v1",
@@ -563,7 +563,7 @@
                 "Python"
               ],
               "triggered_stop_factors": [],
-              "explanation": "Подтверждено: SQL — «🙂 SQL»; Python — «Python».\nПодтверждённое несоответствие: Java — «Не знаю Java».\nТребует уточнения: Go; React; CSS; HTML; От 3 лет.\nДиапазон соответствия по доступным сведениям: 16.34–91.84/100; охват проверенными критериями — 24.5%. Неизвестные сведения не означают отсутствие компетенции.",
+              "explanation": "Подтверждено: SQL — «🙂 SQL»; Python — «Python».\nПодтверждённое несоответствие: Java — «Не знаю Java».\nНе указано: Навыки, Опыт.\nДиапазон соответствия по доступным сведениям: 16.34–91.84/100; охват проверенными критериями — 24.5%. Неизвестные сведения не означают отсутствие компетенции.",
               "details": {
                 "method": "evidence-v1",
                 "policy_version": "evidence-v1",
@@ -694,6 +694,239 @@
                 "score_range": {
                   "min": 16.34,
                   "max": 91.84
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "age_is_not_experience",
+    "kind": "synthetic_contract_fixture",
+    "source": "Мужчина, 23 года. Опыт работы — 1 год 5 месяцев. Электромонтажник.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет коммерческой разработки на Python",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 0.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Не указано: Опыт.\nДиапазон соответствия по доступным сведениям: 0–47.22/100; охват проверенными критериями — 0%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v1",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "9c5a89a41bc143b560a358a8841d6352fd2a1fd925f9f9152873f060e5de76d2",
+                "source_text_length": 66,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет коммерческой разработки на Python",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "unknown",
+                    "evidence": [
+                      {
+                        "quote": "23 года",
+                        "start": 9,
+                        "end": 16
+                      },
+                      {
+                        "quote": "Опыт работы — 1 год 5 месяцев",
+                        "start": 18,
+                        "end": 47
+                      }
+                    ],
+                    "credit": 0,
+                    "required_months": 36,
+                    "total_experience_months": 17,
+                    "possible_credit": 0.4722222222222222
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 0.0,
+                "score_range": {
+                  "min": 0.0,
+                  "max": 47.22
+                },
+                "stop_penalty": 0,
+                "score_status": "insufficient_evidence"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "compound_experience_stays_partial",
+    "kind": "synthetic_contract_fixture",
+    "source": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 50.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Частичное соответствие: От 3 лет коммерческой разработки на Python и проектирование микросервисов — в приведённых сведениях 5 лет, требуется не менее 3 лет — «Коммерческая разработка на Python — 5 лет; микросервисами не занимался.».\nДиапазон соответствия по доступным сведениям: 50–50/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v1",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "9e4723ce2d765443704c2216f252bbfa3f364cd19b7725fc204aee709d538ee6",
+                "source_text_length": 71,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "partial",
+                    "evidence": [
+                      {
+                        "quote": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+                        "start": 0,
+                        "end": 71
+                      }
+                    ],
+                    "credit": 0.5,
+                    "experience_months": 60,
+                    "required_months": 36,
+                    "possible_credit": 0.5
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 50.0,
+                  "max": 50.0
+                },
+                "stop_penalty": 0,
+                "score_status": "evaluated"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "duration_does_not_override_noncompliance",
+    "kind": "synthetic_contract_fixture",
+    "source": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+    "requirements": [
+      {
+        "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+        "profiles": [
+          {
+            "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+            "position_name": "Developer",
+            "education": null,
+            "experience": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+            "keywords": [],
+            "stop_factors": [],
+            "comment": null
+          }
+        ]
+      }
+    ],
+    "result": {
+      "clusters": [
+        {
+          "id": "5cabfa83-676b-4084-9ec8-212658478b6b",
+          "profiles": [
+            {
+              "id": "d5ebfa74-a6f9-44aa-9b93-43ce2d62fbfb",
+              "score": 0.0,
+              "matched_keywords": [],
+              "triggered_stop_factors": [],
+              "explanation": "Подтверждённое несоответствие: От 3 лет коммерческой разработки на Python и проектирование микросервисов — в приведённых сведениях 5 лет, требуется не менее 3 лет — «Коммерческая разработка на Python — 5 лет; микросервисами не занимался.».\nДиапазон соответствия по доступным сведениям: 0–0/100; охват проверенными критериями — 100%. Неизвестные сведения не означают отсутствие компетенции.",
+              "details": {
+                "method": "evidence-v1",
+                "policy_version": "evidence-v1",
+                "policy_status": "provisional",
+                "model": "synthetic-fixture",
+                "source_text_sha256": "9e4723ce2d765443704c2216f252bbfa3f364cd19b7725fc204aee709d538ee6",
+                "source_text_length": 71,
+                "context_truncated": false,
+                "criteria": [
+                  {
+                    "id": "experience:0",
+                    "category": "experience",
+                    "requirement": "От 3 лет коммерческой разработки на Python и проектирование микросервисов",
+                    "source": "experience",
+                    "optional": false,
+                    "weight": 10000,
+                    "status": "not_met",
+                    "evidence": [
+                      {
+                        "quote": "Коммерческая разработка на Python — 5 лет; микросервисами не занимался.",
+                        "start": 0,
+                        "end": 71
+                      }
+                    ],
+                    "credit": 0,
+                    "experience_months": 60,
+                    "required_months": 36,
+                    "possible_credit": 0
+                  }
+                ],
+                "stop_factors": [],
+                "coverage": 100.0,
+                "score_range": {
+                  "min": 0.0,
+                  "max": 0.0
                 },
                 "stop_penalty": 0,
                 "score_status": "evaluated"

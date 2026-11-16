@@ -49,8 +49,9 @@ docker compose logs flyway s3-init
 После изменения `.env` примените настройки через `docker compose up -d --no-build`.
 Текущий запуск использует отдельные очереди гостевого и авторизованного режимов.
 Старые переключатели `RABBITMQ_ENABLED`, `ANALYZER_ADAPTER`, `RANK_BRIDGE_ENABLED`
-и профиль `broker` к нему не относятся. `worker` и `resume-analyzer` сохранены в исходниках
-для прежней реализации; основной Compose их не запускает.
+и профиль `broker` к нему не относятся. Старый Python `resume-analyzer` удалён:
+его заменяют самостоятельные `apps/resume-parser` и `apps/resume-evaluator`.
+Исторический TypeScript `worker` основной Compose не запускает.
 Если изменён один сервис, собирайте и пересоздавайте только его, например:
 
 ```powershell
@@ -84,7 +85,8 @@ docker compose --profile processing -f docker-compose.yml -f docker-compose.loca
 `ollama`/`ollama-init`, поэтому доступ к NVIDIA GPU из Docker не требуется.
 Для модели на другой машине задайте `LOCAL_OLLAMA_BASE_URL=http://<IP>:11434`
 в `.env`; имя установленной модели задаётся через `OLLAMA_MODEL`.
-Подготовка Ollama и переключение режимов описаны в [инструкции](docs/analysis.md#ollama-на-хосте).
+На Mac добавьте `-f docker-compose.mac.yml`; перед обработкой выполните `open -a Ollama`.
+Подготовка Ollama и проверка готовности описаны в [инструкции](docs/analysis.md).
 
 Контейнеры имеют фиксированные имена без суффикса `-1`: `hr_dam-postgres`,
 `hr_dam-pgadmin`, `hr_dam-flyway`, `hr_dam-seaweedfs`, `hr_dam-s3-init`.

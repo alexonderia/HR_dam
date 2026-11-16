@@ -34,11 +34,12 @@ test("structured analysis preserves every criterion, status and source quote wit
   }
 });
 
-test("HTML and print reports separate the primary score from the range and render criterion groups and escaped quotes", () => {
+test("HTML and print reports show confirmed scores with missing-data explanations and escaped quotes", () => {
   const html = reportHtml(candidate, [cluster], false);
   assert.match(html, /class="primary-score">50 \/ 100<\/td>/);
-  assert.match(html, /<th>Диапазон по доступным сведениям<\/th>/);
-  assert.match(html, /<td>50–100<\/td>/);
+  assert.match(html, /<th>Оценка по доступным сведениям<\/th>/);
+  assert.match(html, /Недостаточно сведений для полной оценки/);
+  assert.doesNotMatch(html, /50–100|Охват|охват/);
   assert.match(html, /Навыки/);
   assert.match(html, /Не указано/);
   assert.match(html, /<blockquote>SQL<\/blockquote>/);
@@ -50,11 +51,11 @@ test("HTML and print reports separate the primary score from the range and rende
   assert.match(escaped, /&lt;script&gt;/);
 });
 
-test("CSV and Excel keep scores numeric and place ranges, coverage and statuses in separate columns", () => {
+test("CSV and Excel keep confirmed scores numeric and explain missing data without coverage columns", () => {
   const rows = ratingRows([candidate], [cluster], true), header = rows[0], row = rows[1];
   assert.equal(row[header.indexOf("Основная оценка")], 50);
-  assert.equal(row[header.indexOf("Диапазон по доступным сведениям")], "50–100");
-  assert.equal(row[header.indexOf("Охват критериев, %")], 50);
+  assert.match(String(row[header.indexOf("Оценка по доступным сведениям")]), /^50 из 100\. Недостаточно сведений/);
+  assert.ok(!header.some(cell => /Охват/.test(String(cell))));
   assert.match(String(row[header.indexOf("Подтверждено")]), /SQL/);
   assert.match(String(row[header.indexOf("Не указано")]), /Навыки: Не указано/);
   assert.equal(matrixRows([candidate], [cluster], [cluster.id])[1][1], 50);
@@ -62,8 +63,11 @@ test("CSV and Excel keep scores numeric and place ranges, coverage and statuses 
   const files = unzipSync(createExport([candidate], [cluster], options).body as Buffer);
   const xml = strFromU8(files["xl/worksheets/sheet1.xml"]);
   assert.match(xml, /r="D2" s="0" t="n"><v>50<\/v>/);
-  assert.match(xml, /r="E2"[^>]*>.*?50–100/);
-  assert.match(exportCsv([candidate], [cluster]), /Диапазон/);
+  assert.match(xml, /r="E2"[^>]*>.*?50 из 100/);
+  assert.doesNotMatch(xml, /50–100|Охват|охват/);
+  const csv = exportCsv([candidate], [cluster]);
+  assert.match(csv, /Недостаточно сведений/);
+  assert.doesNotMatch(csv, /50–100|Охват|охват/);
 });
 
 test("legacy reports keep their score and explanation without inventing a range or criterion statuses", () => {

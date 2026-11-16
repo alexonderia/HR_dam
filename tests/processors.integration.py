@@ -56,6 +56,51 @@ def docx():
     return data.getvalue()
 
 
+def wait_availability(browser, expected, mode="guest"):
+    end = time.monotonic() + 15
+    while time.monotonic() < end:
+        status = request(browser, f"/api/{'guest' if mode == 'guest' else 'app'}/analysis/status")
+        if status["available"] is expected:
+            return status
+        time.sleep(.3)
+    raise AssertionError("Incorrect application readiness")
+
+
+def model_control(available):
+    response = requests.post("http://model-stub:11434/control", json={"available": available}, timeout=5)
+    response.raise_for_status()
+
+
+def outage(browser):
+    model_control(False)
+    try:
+        status = wait_availability(browser, False)
+        assert status["alive"] is True and status["model_ready"] is False, status
+        before = requests.get("http://model-stub:11434/stats", timeout=5).json()["calls"]
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as zipped:
+            zipped.writestr("first.docx", docx())
+            zipped.writestr("second.docx", docx())
+        task = guest_submit(browser, "waiting-for-model.zip", archive.getvalue())
+        end = time.monotonic() + 15
+        while time.monotonic() < end:
+            report = request(browser, f"/api/guest/tasks/{task}")
+            if report["candidate_count"] == 2:
+                break
+            time.sleep(.3)
+        assert report["candidate_count"] == 2, "Parser must work without Ollama"
+        time.sleep(3)
+        assert not report["errors"], report
+        assert requests.get("http://model-stub:11434/stats", timeout=5).json()["calls"] == before
+    finally:
+        model_control(True)
+    wait_availability(browser, True)
+    report = completed(browser, task)
+    assert report["completed_count"] == 2 and not report["errors"], report
+    request(browser, f"/api/guest/tasks/{task}", 202, method="DELETE")
+    print("PASS model outage: API reports unavailable, parser continues, queued evaluations wait and recover", flush=True)
+
+
 def guest(browser):
     assert request(browser, "/api/session")["mode"] == "guest"
     task = guest_submit(browser, "synthetic.docx", docx())
@@ -66,6 +111,8 @@ def guest(browser):
     assert requests.get("http://model-stub:11434/stats", timeout=5).json()["calls"] >= 3
     print("PASS real DOCX extraction, evidence scoring and broker retry after model outage", flush=True)
     request(browser, f"/api/guest/tasks/{task}", 202, method="DELETE")
+
+    outage(browser)
 
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zipped:
@@ -121,6 +168,13 @@ def guest(browser):
 
 def authorized(browser):
     request(browser, "/api/auth/login", method="POST", json={"login": os.environ["HR_PROCESSOR_TEST_LOGIN"], "password": "synthetic-processor-password-only"})
+    wait_availability(browser, True, "authorized")
+    model_control(False)
+    try:
+        assert wait_availability(browser, False, "authorized")["model_ready"] is False
+    finally:
+        model_control(True)
+    wait_availability(browser, True, "authorized")
     cluster = request(browser, "/api/app/clusters", 201, method="POST", json={"name": "Synthetic processor test " + str(uuid.uuid4()), "track": "test"})
     request(browser, "/api/app/profiles", 201, method="POST", json={"cluster_id": cluster["id"], "position_name": "Synthetic developer",
         "education": "", "experience": "", "keywords": ["Python"], "stop_factors": [], "comment": ""})

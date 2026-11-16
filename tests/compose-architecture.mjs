@@ -5,8 +5,8 @@ import { spawnSync } from "node:child_process";
 // Resolve the actual Compose model with public dummy credentials, never local secrets.
 const source = readFileSync("docker-compose.yml", "utf8");
 const env = { ...process.env, ...Object.fromEntries([...source.matchAll(/\$\{([A-Z0-9_]+):\?/g)].map(m => [m[1], "architecture-test-only"])) };
-const resolve = profiles => {
-  const result = spawnSync("docker", ["compose", "--env-file", ".env.example", ...profiles.flatMap(p => ["--profile", p]), "config", "--format", "json"], { env, encoding: "utf8", maxBuffer: 1024 * 1024 });
+const resolve = (profiles, files = []) => {
+  const result = spawnSync("docker", ["compose", "--env-file", ".env.example", ...files.flatMap(file => ["-f", file]), ...profiles.flatMap(p => ["--profile", p]), "config", "--format", "json"], { env, encoding: "utf8", maxBuffer: 1024 * 1024 });
   assert.equal(result.status, 0, "Compose must resolve successfully");
   return JSON.parse(result.stdout);
 };
@@ -37,4 +37,16 @@ assert.ok(base.services.backend.environment.PROCESSING_AMQP_URL.endsWith("/hr-au
 assert.ok(base.services["guest-api"].environment.PROCESSING_AMQP_URL.endsWith("/hr-guest"));
 for (const legacy of ["RESUME_ANALYZER_URL", "ANALYZER_ADAPTER", "RANK_BRIDGE_ENABLED", "RABBITMQ_ENABLED"]) assert.ok(!(legacy in base.services.backend.environment));
 assert.ok(full.services.backend.healthcheck.test.at(-1).includes(":3001/health"));
+assert.equal(shares('resume-parser', 'ollama'), false, 'parser must not join the model network');
+assert.equal(shares('resume-evaluator', 'ollama'), true);
+for (const name of ['guest-api', 'backend']) assert.equal(full.services[name].environment.EVALUATOR_READY_URL, 'http://resume-evaluator:8002/ready');
+assert.equal(full.services['resume-parser'].build.dockerfile, 'apps/resume-parser/Dockerfile');
+assert.equal(full.services['resume-evaluator'].build.dockerfile, 'apps/resume-evaluator/Dockerfile');
+const mac = resolve(['processing'], ['docker-compose.yml', 'docker-compose.local-ollama.yml', 'docker-compose.mac.yml']);
+assert.equal(Number(mac.services.backend.environment.PROCESSING_TIMEOUT_MS), 10800000);
+assert.equal(Number(mac.services['guest-api'].environment.PROCESSING_TIMEOUT_MS), 10800000);
+assert.equal(Number(mac.services['resume-evaluator'].environment.OLLAMA_NUM_CTX), 8192);
+assert.equal(mac.services['resume-evaluator'].environment.OLLAMA_MODEL, 'qwen3.5:2b-q4_K_M');
+assert.equal(Number(mac.services['resume-evaluator'].environment.OLLAMA_MAX_TOKENS), 2048);
+assert.equal(mac.services['resume-evaluator'].environment.OLLAMA_KEEP_ALIVE, '30s');
 console.log("PASS Compose: default and optional profiles, network isolation, public ports, processor credentials and current transport");

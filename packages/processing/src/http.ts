@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { outputMetadataSchema } from "@hr/contracts";
+import { outputMetadataSchema, processingProgressSchema } from "@hr/contracts";
 import { AccessError } from "@hr/security";
 import { inspectUpload, receiveUpload } from "./uploads.js";
 import type { ProcessingEngine } from "./engine.js";
@@ -50,8 +50,11 @@ export function internalRouter(engine: ProcessingEngine, base: string): Router {
     } finally { if (uploaded) await engine.blobs.remove(uploaded); await upload.dispose(); }
   });
   router.post("/jobs/:jobId/progress", async (req, res) => {
-    const input = z.object({ job_id: z.uuid(), attempt: z.number().int().positive(), status: z.literal("processing") }).strict().parse(req.body);
-    await engine.progress(res.locals.job.claims, input); res.json({ accepted: true });
+    const input = processingProgressSchema.parse(req.body);
+    const task = await engine.progress(res.locals.job.claims, input);
+    const saved = input.checkpoint && task.jobs.find(j => j.job_id === input.job_id)?.evaluation_checkpoints;
+    res.json({ accepted: true, ...(saved ? { checkpoint: { context: saved.context,
+      evaluation: saved.evaluations.find(e => e.target_id === input.checkpoint!.evaluation.target_id) } } : {}) });
   });
   router.post("/jobs/:jobId/result", async (req, res) => { await engine.result(res.locals.job.claims, req.body); res.json({ accepted: true }); });
   return router;

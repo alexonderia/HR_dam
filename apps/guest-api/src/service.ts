@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { z } from "zod";
-import { guestCriteriaSchema, ratingEvidence, explainEvidenceRating } from "@hr/contracts";
+import { guestCriteriaSchema, ratingEvidence, explainEvidenceRating, verifiedRatingView } from "@hr/contracts";
 import { AccessError } from "@hr/security";
 import { newTask, mutateTask, live, expireWork, guestAbsoluteTtlMs, inspectUpload, type ObjectStore, type GuestTaskStore, type ProcessingEngine, type Task, type IncomingFile } from "@hr/processing";
 import { AdmissionQueue } from "./admission.js";
@@ -106,8 +106,9 @@ export function guestReport(task: Task) {
       if (j.operation !== "evaluate" || !j.applied || result?.status !== "completed" || !("evaluations" in result)) return [];
       return [{ file_id: j.file_id, ...result,
         evaluations: result.evaluations.map(evaluation => {
-          const evidence = ratingEvidence(evaluation);
-          return evidence ? { ...evaluation, explanation: explainEvidenceRating(evidence) } : evaluation;
+          const checked = verifiedRatingView(evaluation);
+          const evidence = ratingEvidence(checked);
+          return evidence ? { ...checked, explanation: explainEvidenceRating(evidence) } : checked;
         }),
       }];
     }),

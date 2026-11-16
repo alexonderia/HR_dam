@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Candidate } from "@hr/contracts";
-import { groupCandidateImports, candidateImportStatus, type TrackingItem } from "../apps/frontend/src/lib/import-groups.js";
+import { groupCandidateImports, candidateImportStatus, isVisibleImportBatch, type TrackingItem } from "../apps/frontend/src/lib/import-groups.js";
+
+test("the one-hour filter always retains unfinished batches and expires only completed history", () => {
+  const now = Date.parse("2026-11-13T15:00:00Z");
+  const old = {created_at:"2026-11-13T13:00:00Z", pending_files:1};
+  assert.equal(isVisibleImportBatch(old, true, now), true);
+  assert.equal(isVisibleImportBatch({...old, pending_files:0}, true, now), false);
+  assert.equal(isVisibleImportBatch({...old, pending_files:0}, false, now), true);
+  assert.equal(isVisibleImportBatch({created_at:"2026-11-13T14:00:00Z", pending_files:0}, true, now), true);
+  assert.equal(isVisibleImportBatch({created_at:"2026-11-13T13:59:59Z", pending_files:0}, true, now), false);
+});
 
 const person = (id: string, phone = "+79991234567"): Candidate => ({ id, resume_id: `resume-${id}`, file_id: `file-${id}`,
   last_name: "Иванов", first_name: "Иван", middle_name: null, phone, file_name: "resume.pdf", mime_type: "application/pdf",

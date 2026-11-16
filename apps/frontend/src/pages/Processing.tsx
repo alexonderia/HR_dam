@@ -18,6 +18,7 @@ import {
 import { type ResumeEvent, type QueueStatus, type ResumeProcessing, fullName, blacklistAssessmentWarning, formatMoscowDateTime, formatAnalysisDuration, assessmentRetryRestriction } from "@hr/contracts";
 import { useData } from "../lib/store";
 import { api, mutate } from "../lib/api";
+import { startPolling } from "../lib/polling";
 import {
   Button,
   CandidateStatus,
@@ -53,44 +54,24 @@ export function Processing() {
   useEffect(() => { setEventPage(1); }, [current?.resume_id]);
   useEffect(() => {
     if (!current) return;
-    let disposed = false;
-    const load = () =>
-      api<ResumeEvent[]>(`/resumes/${current.resume_id}/events`)
-        .then((data) => {
-          if (!disposed) {
-            setEvents([...data].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)));
-            setError("");
-          }
-        })
-        .catch((e) => {
-          if (!disposed) setError(e.message);
-        });
-    void load();
-    const timer = setInterval(() => void load(), 2500);
-    return () => {
-      disposed = true;
-      clearInterval(timer);
-    };
+    return startPolling(async signal => {
+      const data = await api<ResumeEvent[]>(`/resumes/${current.resume_id}/events`, { signal });
+      if (!signal.aborted) {
+        setEvents([...data].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)));
+        setError("");
+      }
+    }, { intervalMs: 2500, enabled: () => !document.hidden,
+      onError: e => setError((e as Error).message) });
   }, [current?.resume_id]);
   useEffect(() => {
     setQueue(null);
     setQueueError("");
     if (!current || current.scoring_status !== "pending") return;
-    let disposed = false;
-    let running = false;
-    const load = async () => {
-      if (running) return;
-      running = true;
-      try {
-        const data = await api<ResumeProcessing>(`/resumes/${current.resume_id}/processing`, { signal: AbortSignal.timeout(6500) });
-        if (!disposed) { setQueue(data.queue); setQueueError(""); }
-      } catch {
-        if (!disposed) setQueueError("Не удалось уточнить причину ожидания. Резюме сохранено; информация обновится автоматически.");
-      } finally { running = false; }
-    };
-    void load();
-    const timer = setInterval(() => void load(), 5000);
-    return () => { disposed = true; clearInterval(timer); };
+    return startPolling(async signal => {
+      const data = await api<ResumeProcessing>(`/resumes/${current.resume_id}/processing`, { signal });
+      if (!signal.aborted) { setQueue(data.queue); setQueueError(""); }
+    }, { intervalMs: 5000, enabled: () => !document.hidden,
+      onError: () => setQueueError("Не удалось уточнить причину ожидания. Резюме сохранено; информация обновится автоматически.") });
   }, [current?.resume_id, current?.scoring_status]);
   const completed = current?.scoring_status === "completed",
     failed = current?.scoring_status === "failed",

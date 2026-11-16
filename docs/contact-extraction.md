@@ -66,8 +66,8 @@
 
 ## Проверка
 
-- Python: `python -m unittest discover -s apps/resume-analyzer/tests -q`
-  с `PYTHONPATH=apps/resume-analyzer` и установленными зависимостями анализатора.
+- Python: `python -m unittest discover -s tests/python -q`
+  с `PYTHONPATH=apps/resume-evaluator/src:apps/resume-parser/src:packages/resume-documents/src:packages/processing-python/src` и установленными зависимостями оценщика.
 - TypeScript и сборка: `npm test`, `npm run build`.
 - `npm run test:processing`: отдельный стенд с синтетическими обработчиками.
   Проверяются сохранение источников, восстановление из результата, ручные поля,
