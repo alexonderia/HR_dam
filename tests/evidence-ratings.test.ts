@@ -75,6 +75,6 @@ test("backend rebuilds the explanation from checked comparisons instead of trust
   result.clusters[0].profiles[0].explanation = "Python confirmed, SQL absent, Kubernetes required";
   const checked = validateRankResponse(result, fixture.requirements).clusters[0].profiles[0];
   assert.match(checked.explanation!, /Подтверждено: SQL/);
-  assert.match(checked.explanation!, /Не указано: Навыки/);
+  assert.match(checked.explanation!, /Условий, требующих уточнения: 1/);
   assert.doesNotMatch(checked.explanation!, /Kubernetes|SQL absent|Python confirmed/);
 });

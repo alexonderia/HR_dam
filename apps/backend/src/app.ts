@@ -9,7 +9,7 @@ import { internalRouter } from "@hr/processing";
 import { authorizedProcessing } from "./processing-service.js";
 import { router } from "./routes.js";
 import { HttpError } from "./errors.js";
-import { MissingImportError, isInfrastructureError } from "@hr/data-access";
+import { isInfrastructureError } from "@hr/data-access";
 import { moscowJsonReplacer, moscowTimestamp } from "@hr/contracts";
 
 export const app = express();
@@ -70,10 +70,6 @@ app.use(
           error: "Проверьте заполнение полей.",
           fields: (error as ZodError).flatten().fieldErrors,
         });
-      return;
-    }
-    if (error instanceof MissingImportError) {
-      res.status(404).json({ error: error.message });
       return;
     }
     if (isInfrastructureError(error)) {

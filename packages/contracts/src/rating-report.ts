@@ -19,7 +19,7 @@ export const ratingGroupLabels = {
 const categoryLabels = { keyword: "Навыки", experience: "Опыт", education: "Образование", additional: "Дополнительное требование" };
 const stopLabels = { triggered: "Сработал", not_triggered: "Не сработал", unknown: "Не указано" };
 export const unknownReasonLabels = {
-  not_stated: "В резюме нет подтверждения", contradictory: "Сведения противоречат друг другу",
+  not_stated: "По резюме не удалось подтвердить условие", contradictory: "Сведения противоречат друг другу",
   not_relevant: "Сведения не подтверждают нужную работу или требование", unverified_evidence: "Подтверждение не прошло проверку",
   future_intent: "Указано намерение, а не имеющийся навык", incomplete_document: "Недостаточно контекста фрагмента",
   ambiguous_requirement: "Требование сформулировано неоднозначно",
@@ -27,8 +27,8 @@ export const unknownReasonLabels = {
 
 type Clarification = { id: string; requirement: string; reason: string; question: string; quotes: string[] };
 
-export function groupRatingClarifications(items: Clarification[]) {
-  const groups = new Map<string, { reason: string; question: string; items: Clarification[] }>();
+export function groupRatingClarifications<T extends Clarification>(items: T[]) {
+  const groups = new Map<string, { reason: string; question: string; items: T[] }>();
   for (const item of items) {
     const key = JSON.stringify([item.reason, item.question]);
     const group = groups.get(key);
@@ -38,7 +38,7 @@ export function groupRatingClarifications(items: Clarification[]) {
   return [...groups.values()];
 }
 
-export function clarificationSources(items: Clarification[]) {
+export function clarificationSources(items: Pick<Clarification, "requirement" | "quotes">[]) {
   const quotes = items.flatMap(item => item.quotes.map(quote => ({ quote, requirement: item.requirement })))
     .map(item => ({ ...item, normalized: item.quote.replace(/\s+/gu, " ").trim() }))
     .filter(item => item.normalized)
@@ -72,6 +72,8 @@ export function ratingAnalysis(rating: ReportRating) {
   const evidence = ratingEvidence(rating);
   const clarifications = evidence ? [...evidence.criteria, ...evidence.stop_factors]
     .filter(item => item.status === "unknown").map(item => ({ id: item.id, requirement: item.requirement,
+      category: "category" in item ? categoryLabels[item.category] : "Стоп-фактор",
+      optional: "optional" in item && item.optional,
       reason: unknownReasonLabels[item.unknown_reason || "not_stated"],
       question: item.unknown_reason === "ambiguous_requirement" ? "HR: уточните обязательность и логику условия."
         : item.unknown_reason === "contradictory" ? "Уточните, какие сведения актуальны и к какой работе они относятся."

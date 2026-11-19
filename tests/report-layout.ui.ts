@@ -46,17 +46,26 @@ try {
   await page.route("**/api/**", async route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(new URL(route.request().url()).pathname === "/api/session" ? { mode: "guest" } : report) }));
   await page.goto(process.env.TEST_BASE_URL || "http://localhost:3000");
   const first = page.locator(".guest-candidate").first();
-  await expect(first.locator(".rating-rationale .explanation-text")).toHaveText(explanation);
-  await expect(first.locator(".rating-metrics dd")).toHaveText(["82–92 из 100", "90%"]);
+  await expect(first.locator(".rating-rationale")).toHaveCount(0);
+  await expect(first.locator(".rating-metrics dd")).toHaveText("82–92 из 100");
   await expect(first.locator(".rating-finding--partial .rating-state")).toHaveText("Частичное соответствие");
+  await expect(first.locator(".rating-finding").first()).toHaveClass(/rating-finding--partial/);
+  const additional = first.locator(".rating-clarifications li").filter({ hasText: "Работа с высоконагруженными системами" });
+  await expect(additional.locator(".af-caption")).toHaveText("Дополнительное требование");
+  await expect(additional).toBeVisible();
   await expect(page.locator(".guest-candidate:visible")).toHaveCount(4);
   await expect(page.getByRole("button", { name: "Ещё 6 кандидатов", exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: `${directory}/${phase}-desktop.png` });
-  await first.locator(".rating-all-sources > summary").click();
-  await expect(first.locator(".rating-all-sources").getByText("Среднее профессиональное образование", { exact: true })).toBeVisible();
-  await expect(first.locator(".rating-all-sources").getByText("Разработка API на Python, 2021–2026", { exact: true })).toBeVisible();
-  await first.locator(".rating-all-sources > summary").click();
+  const educationSources = first.locator(".rating-finding--partial .rating-sources");
+  const experienceSources = first.locator(".rating-finding--met .rating-item-list .rating-sources");
+  for (const [sources, quote] of [[educationSources, "Среднее профессиональное образование"], [experienceSources, "Разработка API на Python, 2021–2026"]] as const) {
+    await expect(sources.locator("blockquote")).not.toBeVisible();
+    await sources.locator("summary").click();
+    await expect(sources.locator("blockquote")).toHaveText(quote);
+    await expect(sources.locator("blockquote")).toBeVisible();
+    await sources.locator("summary").click();
+  }
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "Скачать отчёт", exact: true }).click();
   await (await downloadEvent).saveAs(`${directory}/report.html`);
@@ -65,6 +74,7 @@ try {
   await expect(standalone.locator(".guest-candidate:visible")).toHaveCount(10);
   await expect(standalone.locator(".guest-candidate[open]")).toHaveCount(10);
   await expect(standalone.locator(".guest-candidate-score .score")).toHaveText(scores.map(String));
+  await expect(standalone.locator(".guest-candidate").first().locator(".rating-rationale")).toHaveCount(0);
   assert.equal(await standalone.locator("button, script, .guest-actions, .guest-report-login").count(), 0);
   await standalone.pdf({ path: `${directory}/report.pdf`, format: "A4", printBackground: true });
   await standalone.close();

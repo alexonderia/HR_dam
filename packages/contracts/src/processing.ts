@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { extractedPersonSchema } from "./imports.js";
 import { contactDetailsSchema } from "./contacts.js";
-import { contactsResponseSchema } from "./domain.js";
+import { contactsResponseSchema, extractedPersonSchema } from "./domain.js";
 import { evidenceDetailsSchema } from "./evidence.js";
 
 export const processingModeSchema = z.enum(["guest", "authorized"]);

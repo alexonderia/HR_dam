@@ -20,7 +20,6 @@ task.jobs.push({ job_id: randomUUID(), task_id: task.id, file_id: fileId, operat
       criteria: ["education", "experience", "keywords"].map(name => ({ name, status: "unknown", explanation: "Python: unknown; SQL: met" })) }] }),
 });
 const report = guestReport(task);
-const expectedExplanation = report.results[0].evaluations[0].explanation;
 const legacyExplanation = "Опыт работы и навыки указаны в резюме.\nСведения об образовании не указаны.";
 report.results.push({ file_id: randomUUID(), ...evaluateResultSchema.parse({ status: "completed",
   candidate: { last_name: "Второй", first_name: "Кандидат", middle_name: null, phone: null },
@@ -63,14 +62,25 @@ try {
   await expect(second.locator("summary .score")).toBeVisible();
   await expect(second.locator(".rating-rationale")).not.toBeVisible();
   await expect(first.locator(".rating-skill-group--met .tag")).toBeVisible();
-  await expect(first.locator(".rating-rationale .explanation-text")).toHaveText(expectedExplanation);
-  await expect(first.locator(".rating-metrics").getByText("50–100 из 100", { exact: true })).toBeVisible();
-  await expect(first.locator(".rating-metrics").getByText("50%", { exact: true })).toBeVisible();
+  await expect(first.locator(".rating-rationale")).toHaveCount(0);
+  await expect(first.locator(".rating-overview")).toHaveText("Недостаточно сведений для полной оценки.");
+  await expect(first.locator(".rating-metrics")).toHaveCount(0);
   await expect(first.locator(".rating-skill-group--met .tag")).toHaveText("SQL");
-  await expect(first.locator(".rating-highlight-quote > blockquote")).toHaveText("SQL");
-  await expect(first.locator(".rating-missing dt")).toHaveText("Навыки");
-  await expect(first.locator(".rating-missing dd")).toHaveText("Не указано");
-  await expect(first.getByRole("heading", { name: "Стоп-факторы", exact: true })).toBeVisible();
+  const skillSources = first.locator(".rating-skill-group--met .rating-sources");
+  await expect(skillSources.locator("blockquote")).not.toBeVisible();
+  await skillSources.locator("summary").click();
+  await expect(skillSources.locator("blockquote")).toHaveText("SQL");
+  await expect(skillSources.locator("blockquote")).toBeVisible();
+  await skillSources.locator("summary").click();
+  const clarifications = first.locator(".rating-clarifications");
+  await expect(clarifications.locator(":scope > summary")).toHaveText("Требуют уточнения (2)");
+  const skillToClarify = clarifications.locator("li").filter({ hasText: "Python" });
+  await expect(skillToClarify.locator(".af-caption")).toHaveText("Навыки");
+  await expect(skillToClarify.getByText("Python", { exact: true })).toBeVisible();
+  await expect(clarifications.getByText(/По резюме не удалось подтвердить условие/)).toBeVisible();
+  await expect(first.locator(".rating-missing")).toHaveCount(0);
+  await expect(clarifications.getByText("Отказ от переезда в Татарстан", { exact: true })).toBeVisible();
+  await expect(first.locator(".rating-stops")).toHaveCount(0);
   await second.locator("summary.guest-candidate-heading").focus();
   await page.keyboard.press("Enter");
   await expect(second.locator(".rating-rationale .explanation-text")).toBeVisible();
@@ -78,10 +88,10 @@ try {
   await page.keyboard.press("Space");
   await expect(second.locator(".rating-rationale")).not.toBeVisible();
   await first.locator("summary.guest-candidate-heading").click();
-  await expect(first.locator(".rating-rationale")).not.toBeVisible();
+  await expect(first.locator(".rating-analysis")).not.toBeVisible();
   await expect(first.locator("summary .score")).toBeVisible();
   await first.locator("summary.guest-candidate-heading").click();
-  assert.doesNotMatch(await page.locator(".guest-report").innerText(), /unknown|Python|Неизвестные сведения|Однозначное соответствие|SQL: met|Untrusted evaluator explanation/);
+  assert.doesNotMatch(await page.locator(".guest-report").innerText(), /unknown|Не указано: Навыки|SQL: met|Untrusted evaluator explanation/);
   await mkdir(".qa/guest-report", { recursive: true });
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: "Скачать отчёт", exact: true }).click();
@@ -90,17 +100,16 @@ try {
   await download.saveAs(".qa/guest-report/report.html");
   const downloadedHtml = await readFile(".qa/guest-report/report.html", "utf8");
   assert.match(downloadedHtml, /Основная оценка/);
-  assert.match(downloadedHtml, /Диапазон оценки/);
-  assert.match(downloadedHtml, /50–100 из 100/);
+  assert.match(downloadedHtml, /Недостаточно сведений для полной оценки/);
   assert.match(downloadedHtml, /Обоснование оценки/);
   assert.doesNotMatch(downloadedHtml, /<script|<button|Untrusted evaluator explanation/);
   const standalone = await context.newPage();
   await standalone.setContent(downloadedHtml);
   await expect(standalone.locator(".guest-candidate-score .score")).toHaveText(["82", "50"]);
   await expect(standalone.locator(".guest-processing-badge")).toHaveText("Готово");
-  await expect(standalone.locator(".rating-missing dd")).toHaveText("Не указано");
-  await expect(standalone.locator(".rating-rationale .explanation-text").nth(0)).toBeVisible();
-  await expect(standalone.locator(".rating-rationale .explanation-text").nth(0)).toHaveText(legacyExplanation);
+  await expect(standalone.locator(".rating-clarifications").getByText("Python", { exact: true })).toBeVisible();
+  await expect(standalone.locator(".rating-skill-group--met .rating-sources blockquote")).toBeVisible();
+  await expect(standalone.locator(".rating-rationale .explanation-text")).toHaveText(legacyExplanation);
   assert.equal(await standalone.locator("details.guest-candidate[open]").count(), 2, "downloaded candidates must all be expanded");
   assert.equal(await standalone.locator("button, script").count(), 0);
   assert.equal(await standalone.locator(".guest-actions").count(), 0);

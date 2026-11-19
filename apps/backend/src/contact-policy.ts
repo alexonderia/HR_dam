@@ -1,14 +1,15 @@
 import { contactFields, identityKey, type ContactDetails, type ContactField, type ContactProvenance,
-  type ExtractedPerson, type ImportFile } from "@hr/contracts";
+  type ExtractedPerson } from "@hr/contracts";
+import type { StoredFile } from "@hr/processing";
 
 export const emptyPerson = (): ExtractedPerson => ({ last_name: null, first_name: null, middle_name: null, phone: null });
 export const contactLabels: Record<ContactField, string> = {
   last_name: "Фамилия", first_name: "Имя", middle_name: "Отчество", phone: "Телефон",
 };
-export function manualContactFields(file: ImportFile): ContactField[] {
-  // Old re-scoring manifests also contain a snapshot, not user input.
-  if (file.target_resume_id || file.candidate_hint_source === "snapshot") return [];
-  return file.manual_contact_fields ?? contactFields.filter(field => file.candidate_hint[field] !== null);
+export function manualContactFields(file: Pick<StoredFile, "target_resume_id" | "candidate_hint">): ContactField[] {
+  if (file.target_resume_id || !file.candidate_hint) return [];
+  const hint = file.candidate_hint;
+  return contactFields.filter(field => hint[field] !== null);
 }
 export interface StoredContacts extends ExtractedPerson { contact_provenance?: ContactProvenance }
 export function planContactUpdate(current: StoredContacts, extracted: ExtractedPerson, details: ContactDetails | undefined,

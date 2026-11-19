@@ -4,21 +4,14 @@ import { contactDetailsSchema } from "./contacts.js";
 export interface AnalysisStatus {
   available: boolean;
   message: string;
-  adapter?: "http" | "amqp";
   alive?: boolean;
   broker_connected?: boolean | null;
-  consumer_alive?: boolean | null;
   model_ready?: boolean;
   busy?: boolean;
 }
 
-export interface WorkerStatus {
-  state: "idle" | "waiting_analysis" | "waiting_requirements" | "processing" | "error";
-  current_resume_id: string | null;
-}
-
 export interface QueueStatus {
-  reason: "analysis_unavailable" | "no_profiles" | "processing_paused" | "waiting_turn" | "starting" | "delayed";
+  reason: "analysis_unavailable" | "no_profiles" | "waiting_turn" | "starting" | "delayed";
   message: string;
   waiting_seconds: number;
   position: number;

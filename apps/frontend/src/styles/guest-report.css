@@ -51,56 +51,9 @@
 .guest-page--report .guest-report-login { margin: 0 0 0 auto; padding-inline: 0; border: 0; background: transparent; font-size: 12px; }
 .guest-page--report .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-.rating-analysis--compact { display: block; font-size: 14px; line-height: 1.5; }
-.rating-analysis--compact .rating-summary { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; padding-bottom: 12px; }
-.rating-analysis--compact .rating-summary--text-only { grid-template-columns: minmax(0, 1fr); }
-.rating-analysis--compact .rating-rationale { min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.rating-analysis--compact h4, .rating-analysis--compact h5, .rating-analysis--compact h6 { font: inherit; font-weight: 600; }
-.rating-analysis--compact .rating-rationale h4 { margin: 0 0 6px; color: #161616; font-size: 14px; }
-.rating-analysis--compact .explanation-text { margin: 0; color: #495057; white-space: pre-wrap; overflow-wrap: anywhere; }
-.rating-analysis--compact .rating-highlight-quote { margin: 10px 0 0; padding: 8px 12px; border-left: 2px solid #bfdbfe; border-radius: 4px; background: #f8f9fa; }
-.rating-analysis--compact .rating-highlight-quote blockquote { margin: 0; color: #161616; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 500; }
-.rating-analysis--compact .rating-highlight-quote figcaption { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; color: #59636e; font-size: 12px; }
-.rating-analysis--compact .rating-highlight-quote figcaption:has(details[open]) { display: block; }
-.rating-analysis--compact .rating-highlight-quote .rating-all-sources { width: auto; margin: 0; font-size: 12px; }
-.rating-analysis--compact .rating-all-sources[open] { margin-top: 8px; }
-.rating-analysis--compact .rating-all-sources[open] > div { margin-top: 12px; }
-.rating-analysis--compact .rating-all-sources > div > strong { color: #161616; font-weight: 600; }
-.rating-analysis--compact .rating-overview { min-width: 0; align-self: start; padding: 0 0 0 20px; border: 0; border-left: 1px solid #dee2e6; border-radius: 0; background: transparent; }
-.rating-analysis--compact .rating-metrics { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0; }
-.rating-analysis--compact .rating-metrics dt { margin: 0; color: #59636e; font-size: 12px; font-weight: 400; }
-.rating-analysis--compact .rating-metrics dd { margin: 4px 0 0; color: #161616; font-size: 18px; font-weight: 600; line-height: 1.3; }
-.rating-analysis--compact .rating-metric-help { margin: 4px 0 0; color: #59636e; font-size: 12px; line-height: 1.4; }
-.rating-analysis--compact .rating-finding { --finding-text: #495057; --finding-bg: #f1f3f5; display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: start; gap: 16px; padding: 6px 0; border-top: 1px solid #dee2e6; }
-.rating-analysis--compact .rating-finding--met { --finding-text: #176b38; --finding-bg: #d0facc; }
-.rating-analysis--compact .rating-finding--partial { --finding-text: #874700; --finding-bg: #ffdfb5; }
-.rating-analysis--compact .rating-finding--not_met { --finding-text: #9b1717; --finding-bg: #f7b1b1; }
-.rating-analysis--compact .rating-finding-label { margin: 0; font-size: 13px; font-weight: 600; }
-.rating-analysis--compact .rating-state { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; box-sizing: border-box; padding: 2px 8px; border-radius: 6px; color: var(--finding-text); background: var(--finding-bg); line-height: 1.4; }
-.rating-analysis--compact .rating-state svg { width: 14px; height: 14px; flex-shrink: 0; }
-.rating-analysis--compact .rating-finding-content { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; min-width: 0; margin: 0; padding-left: 0; border-left: 0; overflow-wrap: anywhere; }
-.rating-analysis--compact .rating-finding-content > p { margin: 0; }
-.rating-analysis--compact .rating-item-list { display: grid; flex: 1 1 300px; list-style: none; margin: 0; padding: 0; gap: 10px; }
-.rating-analysis--compact .rating-item-list strong { color: #161616; font-weight: 400; }
-.rating-analysis--compact .rating-item-list .af-caption { display: block; margin: 0 0 4px; color: #59636e; font-size: 12px; }
-.rating-analysis--compact .rating-item-notes { margin: 2px 0 0; color: #59636e; font-size: 12px; }
-.rating-analysis--compact .rating-skill-group { min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.rating-analysis--compact .tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.rating-analysis--compact .rating-skill-group .tag { display: inline-block; padding: 2px 8px; border: 1px solid #bfdbfe; border-radius: 6px; background: #e5f0ff; color: #0956bb; font-size: 12px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
-.rating-analysis--compact .rating-sources { width: 100%; margin: 6px 0 0; color: #59636e; font-size: 13px; }
-.rating-analysis--compact .rating-sources summary { cursor: pointer; }
-.rating-analysis--compact .rating-sources blockquote { margin: 8px 0 0; padding: 8px 12px; border-left: 2px solid #bfdbfe; background: #f8f9fa; color: #495057; white-space: pre-wrap; overflow-wrap: anywhere; }
-.rating-analysis--compact .rating-missing { padding: 0; background: transparent; }
-.rating-analysis--compact .rating-missing dl { display: block; margin: 0; }
-.rating-analysis--compact .rating-missing dl > div { padding-bottom: 6px; border-bottom: 0; }
-.rating-analysis--compact .rating-missing dd { color: #59636e; white-space: normal; }
-.rating-analysis--compact .rating-stops { border-radius: 0; background: transparent; }
-
 @media (max-width: 900px) {
   .guest-page--report .guest-processing-counts { flex-wrap: wrap; margin-left: 0; }
   .guest-page--report .guest-processing-counts > div:first-child { padding-left: 0; border-left: 0; }
-  .rating-analysis--compact .rating-summary { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .rating-analysis--compact .rating-overview { padding: 12px 0 0; border-left: 0; border-top: 1px solid #dee2e6; }
 }
 @media (max-width: 720px) {
   .guest-page--report { padding: 16px 16px 32px; }
@@ -124,13 +77,6 @@
   .guest-page--report .guest-score-scale { font-size: 11px; }
   .guest-page--report .guest-candidate-body { padding: 12px; }
   .guest-page--report .guest-report-login { margin-left: 0; }
-  .rating-analysis--compact { font-size: 14px; }
-  .rating-analysis--compact .rating-rationale h4 { font-size: 14px; }
-  .rating-analysis--compact .rating-metrics { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .rating-analysis--compact .rating-metrics dd { font-size: 16px; }
-  .rating-analysis--compact .rating-finding { grid-template-columns: minmax(0, 1fr); gap: 6px; padding-block: 8px; }
-  .rating-analysis--compact .rating-finding-content { padding: 0; border: 0; }
-  .rating-analysis--compact .rating-missing dl > div { padding-bottom: 8px; }
 }
-@media print { .guest-page--report { padding: 0; }.guest-page--report .guest-candidate { overflow: visible; }.rating-analysis--compact .rating-state { print-color-adjust: exact; } }
+@media print { .guest-page--report { padding: 0; }.guest-page--report .guest-candidate { overflow: visible; } }
 

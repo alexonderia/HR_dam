@@ -39,7 +39,6 @@ router.get("/analysis/status", async (_req, res) => {
   const available = broker.available && broker.analysis_consumers > 0;
   res.json({ ...broker.evaluator, available, message: available ? broker.evaluator.message : "Анализ временно недоступен. Резюме сохранены и ожидают восстановления обработки." });
 });
-router.get("/processing/mode", (_req, res) => res.json({ mode: "broker", broker_enabled: true, rank_bridge_enabled: false }));
 router.get("/processing/queue", async (_req, res) => res.json(await processingBrokerStatus()));
 router.post("/resume-imports", async (req, res) => {
   const upload = await receiveUpload(req, res, "archive", 1);
@@ -106,11 +105,10 @@ router.get("/resumes/:id/processing", async (req, res) => {
   if (!row) throw new HttpError(404, "Резюме не найдено.");
   if (row.scoring_status !== "pending") { res.json({ queue: null }); return; }
   const broker = await processingBrokerStatus();
-  const analysis = { available: broker.available && broker.analysis_consumers > 0 };
+  const analysisAvailable = broker.available && broker.analysis_consumers > 0;
   const analysisQueue = broker.queues["hr.authorized.evaluate"];
-  const worker = analysis.available ? { state: "idle" as const, current_resume_id: null } : null;
   res.json({ queue: queueStatus({ queuedAt: new Date(row.updated_at).toISOString(), activeProfiles: row.active_profiles,
-    analysisAvailable: analysis.available, worker, ahead: Math.max(0, (analysisQueue?.ready || 0) - 1), processing: analysisQueue?.processing || 0 }) });
+    analysisAvailable, ahead: Math.max(0, (analysisQueue?.ready || 0) - 1), processing: analysisQueue?.processing || 0 }) });
 });
 router.post("/resumes/:id/retry", async (req, res) => {
   const id = z.uuid().parse(req.params.id);

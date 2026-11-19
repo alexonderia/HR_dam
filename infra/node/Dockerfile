@@ -5,7 +5,6 @@ COPY tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 COPY apps/frontend/package.json ./apps/frontend/
-COPY apps/worker/package.json ./apps/worker/
 COPY apps/auth-check ./apps/auth-check
 COPY apps/guest-api ./apps/guest-api
 RUN --mount=type=cache,target=/root/.npm npm ci --include=optional --ignore-scripts --no-audit --no-fund --prefer-offline --fetch-timeout=15000 --fetch-retries=1
@@ -19,7 +18,6 @@ ARG SERVICE
 COPY package*.json .npmrc ./
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
-COPY apps/worker/package.json ./apps/worker/
 COPY apps/auth-check/package.json ./apps/auth-check/
 COPY apps/guest-api/package.json ./apps/guest-api/
 COPY packages/contracts/package.json ./packages/contracts/
@@ -42,6 +40,5 @@ ENV NODE_ENV=production HR_SERVICE=${SERVICE}
 WORKDIR /app
 COPY --from=dependencies --chown=node:node /app ./
 COPY --from=artifacts --chown=node:node /runtime ./
-RUN mkdir -p /var/lib/hr-dam/resume-spool && chown node:node /var/lib/hr-dam/resume-spool
 USER node
 CMD ["sh", "-c", "exec node apps/$HR_SERVICE/dist/index.js"]

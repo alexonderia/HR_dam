@@ -1,0 +1,16 @@
+# Dedicated QA subnets also work when Docker Desktop's default pools are full.
+networks:
+  frontend-guest: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.0/28'}]}}
+  frontend-app: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.16/28'}]}}
+  frontend-auth: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.32/28'}]}}
+  database: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.48/28'}]}}
+  guest-store: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.64/28'}]}}
+  authorized-store: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.80/28'}]}}
+  guest-broker: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.96/28'}]}}
+  authorized-broker: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.112/28'}]}}
+  processor-broker: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.128/28'}]}}
+  guest-jobs: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.144/28'}]}}
+  authorized-jobs: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.160/28'}]}}
+  guest-antivirus: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.176/28'}]}}
+  authorized-antivirus: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.192/28'}]}}
+  edge: {ipam: {config: [{subnet: '${PROCESSING_QA_SUBNET_PREFIX:-10.254.241}.224/28'}]}}

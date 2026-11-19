@@ -1,9 +1,9 @@
-// Synthetic protocol peer only. Production parser/evaluator live in another branch.
+// Synthetic protocol peers exercise the application API and broker.
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { readFile, writeFile } from "node:fs/promises";
-import { ObjectStore, ProcessingBroker } from "/app/packages/processing/dist/index.js";
+import { GuestTaskStore, newTask, ObjectStore, ProcessingBroker } from "/app/packages/processing/dist/index.js";
 import { hashPassword } from "/app/packages/security/dist/index.js";
 const require = createRequire("/app/packages/processing/package.json");
 const amqp = require("amqplib");
@@ -24,6 +24,7 @@ class Browser {
     }
     assert.equal(r.status, expected, `${options.method || "GET"} ${path}: expected ${expected}, got ${r.status}`);
     assert.match(r.headers.get("content-type") || "", /json/);
+    assert.match(r.headers.get("cache-control") || "", /\bno-store\b/);
     return r.json();
   }
 }
@@ -91,6 +92,7 @@ async function guest() {
   const browser = new Browser();
   assert.equal((await browser.request("/api/session")).mode,"guest");
   await browser.request("/api/app/overview",{},401);
+  await browser.request("/api",{},404);
   for (const path of ["/api/overview","/api/export","/api/files/"+randomUUID(),"/api/internal/resume-results","/internal/guest/jobs/"+randomUUID()+"/input","/__auth_guest"]) await browser.request(path,{},404);
   const forged = new Browser(); forged.cookies.set("hr_session","forged");
   await forged.request("/api/guest/queue",{method:"POST",body:"{}"},401);
@@ -183,7 +185,7 @@ async function authorized(phase) {
     assert.equal(csrf.status,403);
     await browser.request("/api/guest/queue",{method:"POST",body:"{}"},403);
     await browser.request("/api/app/overview");
-    assert.deepEqual(await browser.request("/api/app/processing/mode"),{mode:"broker",broker_enabled:true,rank_bridge_enabled:false});
+    await browser.request("/api/app/processing/mode", {}, 404);
     assert.equal((await browser.request("/api/app/analysis/status")).available,false);
     const fixture=JSON.parse(await readFile("/tests/fixtures/evidence-ratings.json","utf8")).find(f=>f.name==="unknown_is_not_absent");
     const profile=fixture.requirements[0].profiles[0],rating=fixture.result.clusters[0].profiles[0];
@@ -208,10 +210,19 @@ async function authorized(phase) {
     const text=Buffer.from(fixture.source+"\n"+quote),form=new FormData();form.append("resume",new Blob([text]),"synthetic.txt");
     form.append("phone","+79000000002");
     const task=await browser.request("/api/app/candidates",{method:"POST",body:form},202);
+    const waiting = await browser.request(`/api/app/resume-imports/${task.id}`);
+    assert.equal(waiting.pending_files, 1);
+    const stored = await pool.query("SELECT state FROM processing_tasks WHERE id=$1", [task.id]);
+    const [file] = stored.rows[0].state.files;
+    assert.equal(file.sha256, hash(text));
+    const { getFile } = await import("/app/packages/data-access/dist/index.js");
+    assert.deepEqual(await getFile(process.env.S3_BUCKET, file.key), text);
+    console.log("PASS authorized upload remains queued and its input is readable without an evaluator");
     if(phase==="outbox-create"){
       const pending=await pool.query("SELECT count(*)::int AS count FROM processing_outbox WHERE task_id=$1 AND published_at IS NULL",[task.id]);assert.ok(pending.rows[0].count>0);
       await writeFile("/qa/processing-outbox.json",JSON.stringify({task_id:task.id}));console.log("PASS authorized upload accepted transactionally while RabbitMQ is stopped");return;
     }
+    if (phase === "outage") return;
     const peer=await consumer("authorized","evaluate");await completeEvaluation(peer,task.id,"authorized",evidenceResult);
     await until(()=>browser.request(`/api/app/resume-imports/${task.id}`),r=>r.pending_files===0);
     const overview=await browser.request("/api/app/overview");assert.ok(overview.candidates.length>0);assert.ok(overview.candidates.some(c=>c.ratings.length>0));
@@ -264,6 +275,17 @@ async function recovered() {
 }
 async function cleanupCheck() {
   const objects=new ObjectStore("guest-temporary","GUEST_S3");
+  const store = new GuestTaskStore(objects);
+  const upload = newTask("guest", "synthetic-cleanup", "Expired synthetic upload", []);
+  upload.upload_deadline = new Date(Date.now() - 1000).toISOString();
+  const fileId = randomUUID();
+  const blob = `tasks/${upload.id}/files/${fileId}`;
+  const contents = Buffer.from("synthetic upload fragment");
+  upload.files.push({ file_id: fileId, file_name: "fragment.txt", mime_type: "text/plain",
+    size_bytes: contents.length, sha256: hash(contents), key: blob });
+  upload.source_ids.push(fileId);
+  await store.create(upload);
+  await objects.put(blob, contents, contents.length, "text/plain");
   await until(async()=>{
     let inspected=0,pending=0;
     for await(const key of objects.keys("tasks/")) if(key.endsWith("/state.json")) {
@@ -272,7 +294,8 @@ async function cleanupCheck() {
       const prefix=key.slice(0,-"state.json".length);const remaining=[];for await(const k of objects.keys(prefix))remaining.push(k);
       if(remaining.length!==1||remaining[0]!==key)pending++;
     }
-    return inspected>0&&pending===0;
+    const expired = await store.read(upload.id);
+    return expired?.task.deleted_at && inspected>0 && pending===0;
   },Boolean,45000);
   console.log("PASS physical guest cleanup leaves only technical tombstones");
 }

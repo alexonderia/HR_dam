@@ -17,3 +17,6 @@ docs/*.docx
 .secrets
 logs
 **/logs
+.DS_Store
+data.json
+resume-analyzer-source.tar.gz

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { contactsResponseSchema, extractedPersonSchema, rankResponseSchema, evaluateResultSchema, type ImportFile } from "@hr/contracts";
+import { contactsResponseSchema, extractedPersonSchema, rankResponseSchema, evaluateResultSchema } from "@hr/contracts";
 import { emptyPerson, manualContactFields, planContactUpdate } from "../apps/backend/src/contact-policy.js";
 import { contactResult } from "./fixtures/contact-result.js";
 
@@ -48,12 +48,11 @@ test("manual hints take precedence and do not borrow a conflicting person's othe
   assert.deepEqual(result.values, hint);
   assert.equal(result.provenance.first_name?.source, "manual");
 });
-test("snapshot hints in new and legacy re-scoring manifests are not manual input", () => {
-  const file = { candidate_hint: extracted.candidate } as ImportFile;
+test("snapshot hints in reassessment tasks are not manual input", () => {
+  const file = { candidate_hint: extracted.candidate };
   assert.equal(manualContactFields(file).length, 4);
   assert.deepEqual(manualContactFields({ ...file, target_resume_id: "resume" }), []);
-  assert.deepEqual(manualContactFields({ ...file, candidate_hint_source: "snapshot" }), []);
-  assert.deepEqual(manualContactFields({ ...file, candidate_hint_source: "manual", manual_contact_fields: [] }), []);
+  assert.deepEqual(manualContactFields({}), []);
 });
 test("legacy analyzers remain compatible for new records, but cannot repair existing contacts without evidence", () => {
   assert.deepEqual(planContactUpdate(emptyPerson(), extracted.candidate, undefined, "file").values, emptyPerson());

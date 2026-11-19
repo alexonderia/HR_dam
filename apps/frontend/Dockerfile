@@ -4,7 +4,6 @@ COPY package*.json ./
 COPY .npmrc ./
 COPY apps/frontend/package.json ./apps/frontend/
 COPY apps/backend/package.json ./apps/backend/
-COPY apps/worker/package.json ./apps/worker/
 COPY apps/auth-check/package.json ./apps/auth-check/
 COPY apps/guest-api/package.json ./apps/guest-api/
 COPY packages/security/package.json ./packages/security/

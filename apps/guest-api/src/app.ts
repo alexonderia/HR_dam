@@ -3,7 +3,7 @@ import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { cookie, cookieValue, checkOrigin, readSession, signToken, verifyToken, AccessError } from "@hr/security";
-import { internalRouter, apiErrors, receiveUpload, mutateTask, finish, probeEvaluator } from "@hr/processing";
+import { internalRouter, apiErrors, receiveUpload, mutateTask, abortGuestUpload, finish, probeEvaluator } from "@hr/processing";
 import { randomUUID } from "node:crypto";
 import { GuestService, digest, guestReport } from "./service.js";
 
@@ -46,7 +46,10 @@ export function createGuestApp(service: GuestService, settings: { authPublicKey:
       const task = await service.upload(initial.task, upload.files, req.body, initial.fingerprint, initial.duplicate);
       res.status(202).json(guestReport(task));
     } catch (error) {
-      if (!initial.duplicate) await mutateTask(service.store, initial.task.id, task => { task.status = "failed"; finish(task, Date.now()); }).catch(() => {});
+      if (!initial.duplicate) await mutateTask(service.store, initial.task.id, task => {
+        if (task.status === "uploading") abortGuestUpload(task);
+        else if (task.status === "queued" && !task.jobs.length) finish(task, Date.now());
+      }).catch(() => {});
       throw error;
     } finally { await upload?.dispose(); await service.admission.release(permit, res.locals.owner); }
   });

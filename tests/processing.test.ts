@@ -1,19 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
-import { queueStatus, presentResumeEvent, probeWorker } from "../apps/backend/src/processing.js";
+import { queueStatus, presentResumeEvent } from "../apps/backend/src/processing.js";
 import { assessmentCompletedMessage, type ResumeEvent } from "@hr/contracts";
 
 const ready = { queuedAt: "2026-10-13T12:00:00Z", activeProfiles: 1, analysisAvailable: true,
-  worker: { state: "idle" as const, current_resume_id: null }, ahead: 0, processing: 0 };
+  ahead: 0, processing: 0 };
 const start = Date.parse(ready.queuedAt);
 
-test("queue explains unavailable analysis, missing requirements and stopped processing", () => {
-  assert.equal(queueStatus({ ...ready, analysisAvailable: false, worker: null }, start + 120000).reason, "analysis_unavailable");
+test("queue explains unavailable analysis and missing requirements", () => {
+  assert.equal(queueStatus({ ...ready, analysisAvailable: false }, start + 120000).reason, "analysis_unavailable");
   assert.equal(queueStatus({ ...ready, activeProfiles: 0 }, start).reason, "no_profiles");
-  assert.equal(queueStatus({ ...ready, worker: { state: "waiting_analysis", current_resume_id: null } }, start).reason, "analysis_unavailable");
-  assert.equal(queueStatus({ ...ready, worker: null }, start).reason, "processing_paused");
-  assert.equal(queueStatus({ ...ready, worker: { state: "error", current_resume_id: null } }, start).reason, "processing_paused");
 });
 
 test("queue position includes active work and prolonged waits are reported after one minute", () => {
@@ -61,20 +57,4 @@ test("assessment journal retains the blacklist warning recorded at evaluation ti
   assert.equal(event.message, warning);
   const clear = presentResumeEvent({ ...event, message: assessmentCompletedMessage(false) });
   assert.doesNotMatch(clear.message, /чёрном списке/);
-});
-
-test("worker health probe validates actual availability without leaking connection errors", async () => {
-  let body = JSON.stringify({ state: "processing", current_resume_id: "resume" });
-  const server = createServer((_req, res) => { res.writeHead(200); res.end(body); });
-  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as { port: number }).port;
-  const url = `http://127.0.0.1:${port}/health`;
-  try {
-    assert.equal((await probeWorker(url))?.state, "processing");
-    body = '{"ok":true}';
-    assert.equal(await probeWorker(url), null);
-    body = 'not JSON';
-    assert.equal(await probeWorker(url), null);
-  } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
-  assert.equal(await probeWorker(url), null);
 });

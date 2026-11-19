@@ -1,38 +1,33 @@
 services:
   frontend:
-    container_name: hr-dam-processing-qa-frontend
+    container_name: !reset null
     image: hr-dam-processing-qa-frontend:local
     ports: !override
     - 127.0.0.1:13000:8080
   auth-check:
-    container_name: hr-dam-processing-qa-auth-check
     image: hr-dam-processing-qa-auth-check:local
     environment:
       APP_ORIGIN: http://localhost:13000
   guest-api:
-    container_name: hr-dam-processing-qa-guest-api
     image: hr-dam-processing-qa-guest-api:local
     environment:
       APP_ORIGIN: http://localhost:13000
   backend:
-    container_name: hr-dam-processing-qa-backend
     image: hr-dam-processing-qa-backend:local
     environment:
       APP_ORIGIN: http://localhost:13000
   rabbitmq:
-    container_name: hr-dam-processing-qa-rabbitmq
-  rabbitmq-init:
-    container_name: hr-dam-processing-qa-rabbitmq-init
+    container_name: !reset null
   postgres:
-    container_name: hr-dam-processing-qa-postgres
+    container_name: !reset null
   flyway:
-    container_name: hr-dam-processing-qa-flyway
+    container_name: !reset null
   seaweedfs:
-    container_name: hr-dam-processing-qa-seaweedfs
+    container_name: !reset null
   s3-init:
-    container_name: hr-dam-processing-qa-s3-init
+    container_name: !reset null
   clamav:
-    container_name: hr-dam-processing-qa-clamav
+    container_name: !reset null
     image: python:3.12-slim
     entrypoint:
     - python
@@ -52,6 +47,7 @@ services:
     profiles:
     - test
     image: hr-dam-processing-qa-backend:local
+    user: root
     entrypoint:
     - node
     - /tests/processing.integration.mjs
@@ -89,7 +85,8 @@ services:
       EVALUATE_AMQP_PASSWORD: ${EVALUATE_AMQP_PASSWORD}
     volumes:
     - ./tests:/tests:ro
-    - ./.qa:/qa
+    - ./tests/workflow.integration.ts:/app/tests/workflow.integration.ts:ro
+    - qa_processing_state:/qa
     secrets:
     - auth-public
     - guest-job-private
@@ -106,3 +103,6 @@ services:
     - guest-store
     - authorized-store
     - database
+
+volumes:
+  qa_processing_state: {}

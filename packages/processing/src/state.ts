@@ -33,10 +33,23 @@ export function finish(task: Task, at: number) {
   if (task.mode === "guest") task.expires_at = new Date(Math.min(at + guestResultTtlMs, Date.parse(task.created_at) + guestAbsoluteTtlMs)).toISOString();
 }
 export function expireWork(task: Task, now = Date.now()) {
-  if (terminal(task) || task.deleted_at) return;
-  const deadline = Math.min(Date.parse(task.deadline), task.mode === "guest" ? Date.parse(task.created_at) + guestAbsoluteTtlMs : Infinity,
-    task.status === "uploading" ? Date.parse(task.upload_deadline) : Infinity);
+  if (task.deleted_at) return;
+  const workDeadline = Math.min(Date.parse(task.deadline),
+    task.mode === "guest" ? Date.parse(task.created_at) + guestAbsoluteTtlMs : Infinity);
+  const uploadDeadline = Math.min(workDeadline, Date.parse(task.upload_deadline));
+  // Older versions marked expired uploads failed but kept their blobs for the report TTL.
+  if (task.mode === "guest" && task.status === "failed" && !task.jobs.length &&
+      now >= uploadDeadline && Date.parse(task.finished_at || "") === uploadDeadline) {
+    closeGuestUpload(task, uploadDeadline);
+    return;
+  }
+  if (terminal(task)) return;
+  const deadline = task.status === "uploading" ? uploadDeadline : workDeadline;
   if (now < deadline) return;
+  if (task.mode === "guest" && task.status === "uploading") {
+    abortGuestUpload(task, deadline);
+    return;
+  }
   if (!task.jobs.length && task.status !== "uploading") for (const file of task.files.filter(f => task.source_ids.includes(f.file_id)))
     assignJob(task, file, !file.target_resume_id && ["application/pdf", "application/zip"].includes(file.mime_type) ? "prepare" : "evaluate");
   for (const job of task.jobs) if (!job.applied) {
@@ -46,6 +59,16 @@ export function expireWork(task: Task, now = Date.now()) {
     job.applied = true;
   }
   finish(task, deadline);
+}
+
+export function abortGuestUpload(task: Task, at = Date.now()) {
+  if (task.mode !== "guest" || task.status !== "uploading" || task.deleted_at) return;
+  finish(task, at);
+  closeGuestUpload(task, at);
+}
+
+function closeGuestUpload(task: Task, at: number) {
+  task.deleted_at = task.expires_at = new Date(at).toISOString();
 }
 export function assignJob(task: Task, file: StoredFile, operation: "prepare" | "evaluate") {
   const id = stableId(`${task.id}:${operation}:${file.file_id}`);

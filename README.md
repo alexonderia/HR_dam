@@ -48,10 +48,6 @@ docker compose logs flyway s3-init
 Для обычного перезапуска без изменения кода достаточно `docker compose restart`.
 После изменения `.env` примените настройки через `docker compose up -d --no-build`.
 Текущий запуск использует отдельные очереди гостевого и авторизованного режимов.
-Старые переключатели `RABBITMQ_ENABLED`, `ANALYZER_ADAPTER`, `RANK_BRIDGE_ENABLED`
-и профиль `broker` к нему не относятся. Старый Python `resume-analyzer` удалён:
-его заменяют самостоятельные `apps/resume-parser` и `apps/resume-evaluator`.
-Исторический TypeScript `worker` основной Compose не запускает.
 Если изменён один сервис, собирайте и пересоздавайте только его, например:
 
 ```powershell
@@ -168,8 +164,7 @@ npm run test:processing
 
 Актуальная сквозная проверка — `npm run test:processing`: отдельный Compose
 project, реальные S3 CAS и RabbitMQ retries/DLQ, синтетические документы,
-авторизация и рестарты outbox. Исторический `scripts/verify.py` проверяет исходную
-схему V1 и не используется для текущей схемы.
+авторизация и восстановление outbox после перезапуска.
 
 ## Недостающие сведения
 
@@ -189,16 +184,21 @@ CHECK. После уточнения значения следует закре�
 ZIP/PDF направляются в prepare, готовые документы — в evaluate. Команды и события
 используют фиксированные quorum queues в `hr-guest` и `hr-authorized`, mandatory
 и publisher confirms. Guest API хранит состояние только в `guest-temporary`;
-backend сохраняет задачи и outbox в PostgreSQL. В новом Compose нет worker и rank bridge.
+backend сохраняет задачи и outbox в PostgreSQL.
 
 Для подключения образов из другой ветки задайте `PREPARE_IMAGE` / `EVALUATE_IMAGE`
 и запустите `docker compose --profile processing up -d`.
 [Контракт подключения и переход с v1](docs/preparation.md).
 
-Проверки: `npm run build`, `npm test`, `npm run test:architecture`,
-`npm run test:processing`. Последняя команда использует отдельный Compose
-project, синтетические файлы и тестовых обработчиков протокола. Прежние
-`test:workflow`, `test:queue`, `test:rank-modes` относятся к v1.
+- `npm run build` и `npm test` собирают и проверяют текущий TypeScript-код.
+  `npm run test:architecture` и `npm run test:compose` проверяют границы и конфигурацию.
+- `npm run test:workflow` проверяет правила отбора через авторизованный API.
+  `npm run test:service-outage` проверяет отказ auth-check и приём файлов при
+  недоступной оценке. `npm run test:processing` выполняет полный сценарий API
+  с этими проверками, синтетическими файлами и имитацией обработчиков.
+  Команды используют изолированные данные Compose и порт 13000.
+- Проверки Python-сервисов и отдельный стенд с их образами описаны в
+  [плане приёмки](docs/acceptance-plan.md).
 
 Backup сохраняет постоянный bucket и PostgreSQL, включая outbox. Временный bucket,
 буферы Nginx и `.secrets` не копируются. Ключи и настройки окружения хранят отдельно.

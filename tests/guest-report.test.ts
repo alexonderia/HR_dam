@@ -32,7 +32,7 @@ test("saved guest reports rebuild explanations exactly like authorized reports w
   const authorized = validateRankResponse(fixture.result, fixture.requirements).clusters[0].profiles[0];
   assert.equal(evaluation.explanation, authorized.explanation);
   assert.match(evaluation.explanation, /Подтверждено: SQL/);
-  assert.match(evaluation.explanation, /Не указано: Навыки/);
+  assert.match(evaluation.explanation, /Условий, требующих уточнения: 1/);
   assert.doesNotMatch(evaluation.explanation, /Python confirmed|SQL absent|unknown/);
   assert.equal(evaluation.score, rating.score);
   assert.deepEqual(evaluation.details, rating.details);

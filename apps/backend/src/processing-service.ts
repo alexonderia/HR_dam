@@ -1,32 +1,25 @@
-import { pool, PermanentQueueError } from "@hr/data-access";
+import { pool } from "@hr/data-access";
 import { keyFromEnv, AccessError } from "@hr/security";
 import { ObjectStore, ProcessingBroker, ProcessingEngine, mutateTask, expireWork, probeEvaluator, type Task, type Job, type Publication } from "@hr/processing";
 import { AuthorizedTaskStore } from "./processing-store.js";
 import { persistResult, markTargetFailure } from "./import-results.js";
-import type { ImportFile, ImportManifest } from "@hr/contracts";
 import { config } from "./config.js";
 import { HttpError } from "./errors.js";
 
 async function project(task: Task, job: Job) {
   const file = task.files.find(f => f.file_id === job.file_id)!;
-  const input: ImportFile = { id: file.file_id, ...file, source_path: file.metadata?.archive_path || file.file_name, bucket: config.bucket,
-    object_key: file.key, target_resume_id: file.target_resume_id, target_updated_at: file.target_updated_at,
-    assessment_cluster_ids: file.assessment_cluster_ids, candidate_hint_source: file.target_resume_id ? "snapshot" : "manual", candidate_hint: file.candidate_hint || { last_name: null, first_name: null, middle_name: null, phone: null } };
   const duration = job.started_at ? Math.max(0, Date.now() - Date.parse(job.started_at)) : null;
-  if (job.result?.status === "failed") { await markTargetFailure(input, job.job_id, job.result.error.message, duration); return; }
-  if (job.operation !== "evaluate" || !job.result || !("evaluations" in job.result)) return;
-  const manifest: ImportManifest = { version: 1, id: task.id, archive_name: task.name, created_at: task.created_at,
-    requirements: task.clusters!, ignored_files: [], items: [input] };
   const result = job.result;
-  try { return await persistResult(manifest, input, { version: 1, job_id: job.job_id, batch_id: task.id, item_id: file.file_id, attempt: job.attempt,
-    status: "completed", candidate: result.candidate, contact_details: result.contact_details, analysis: { clusters: task.clusters!.map(cluster => ({ id: cluster.id,
-      profiles: cluster.profiles.map(profile => {
-        const evaluation = result.evaluations.find(e => e.target_id === profile.id)!;
-        return { id: profile.id, score: evaluation.score, matched_keywords: evaluation.matched_keywords,
-          triggered_stop_factors: evaluation.triggered_stop_factors, details: evaluation.details || { criteria: evaluation.criteria }, explanation: evaluation.explanation };
-      }) })) } }, duration); } catch (error) {
-    if (error instanceof PermanentQueueError || error instanceof HttpError && error.status === 409) {
-      await markTargetFailure(input, job.job_id, error.message, duration);
+  if (result?.status === "failed") {
+    await markTargetFailure(file, job.job_id, result.error.message, duration);
+    return;
+  }
+  if (job.operation !== "evaluate" || !result || !("evaluations" in result)) return;
+  try {
+    return await persistResult(task.clusters!, file, job.job_id, result, duration);
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 409) {
+      await markTargetFailure(file, job.job_id, error.message, duration);
       throw new AccessError(409, error.message);
     }
     throw error;
@@ -74,8 +67,8 @@ export async function processingBrokerStatus() {
     const [response, evaluator] = await Promise.all([fetch(`${endpoint}/api/queues/hr-authorized`, { headers: { Authorization: `Basic ${Buffer.from(`${decodeURIComponent(connection.username)}:${decodeURIComponent(connection.password)}`).toString("base64")}` }, signal: AbortSignal.timeout(3000) }), readiness]);
     if (!response.ok) throw new Error();
     const rows = await response.json() as { name: string; messages_ready?: number; messages_unacknowledged?: number; consumers?: number }[];
-    return { mode: "broker" as const, broker_enabled: true, rank_bridge_enabled: false, available: evaluator.available, evaluator,
+    return { available: evaluator.available, evaluator,
       analysis_consumers: rows.find(q => q.name === "hr.authorized.evaluate")?.consumers || 0,
       queues: Object.fromEntries(rows.map(q => [q.name, { ready: q.messages_ready || 0, processing: q.messages_unacknowledged || 0, consumers: q.consumers || 0 }])) };
-  } catch { return { mode: "broker" as const, broker_enabled: true, rank_bridge_enabled: false, available: false, evaluator: { ...await readiness, available: false }, analysis_consumers: 0, queues: {} }; }
+  } catch { return { available: false, evaluator: { ...await readiness, available: false }, analysis_consumers: 0, queues: {} }; }
 }

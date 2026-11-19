@@ -15,7 +15,6 @@ import {
   type Cluster,
 } from "@hr/contracts";
 import { escapeHtml as h, htmlDocument, reportContent } from "./export.js";
-import { safeFileName } from "./archive.js";
 
 export const exportOptionsSchema = z.object({
   candidate_ids: z.array(z.uuid()).max(10000).default([]),
@@ -31,6 +30,8 @@ export const exportOptionsSchema = z.object({
   activeRequirementsOnly: z.boolean().default(false),
 });
 export type ExportOptions = z.infer<typeof exportOptionsSchema>;
+
+const safeFileName = (value: string) => value.replace(/[\r\n\x00-\x1f/\\]/g, "_").slice(-180);
 
 export function candidateExportNames(candidates: Candidate[]) {
   const used = new Set<string>();

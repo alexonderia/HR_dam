@@ -166,7 +166,7 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
           </summary>
           <div className="guest-candidate-body">{result.evaluations.map(evaluation => <div key={evaluation.target_id}>
             {result.evaluations.length > 1 && <div className="guest-rating-score"><span>Основная оценка</span><Score value={evaluation.score} /><span>из 100</span></div>}
-            <RatingAnalysis rating={evaluation} compact />
+            <RatingAnalysis rating={evaluation} />
           </div>)}</div></details>)}</div>
         {rankedResults.length > shownCandidates && <Button secondary className="af-btn--clear guest-show-more" onClick={() => setVisibleCandidates(rankedResults.length)}>Ещё {rankedResults.length - shownCandidates} {plural(rankedResults.length - shownCandidates, ["кандидат", "кандидата", "кандидатов"])}<ChevronRight size={18} aria-hidden="true" /></Button>}
         {report.errors.map((item, i) => <p className="af-alert af-alert--warning" key={i}>{item.message}</p>)}

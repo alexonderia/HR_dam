@@ -6,6 +6,26 @@ import { contactResult } from "./fixtures/contact-result.js";
 import { Readable } from "node:stream";
 import { signToken, AccessError } from "@hr/security";
 import { ProcessingEngine, newTask, mutateTask, expireWork, type Task, type TaskStore, type Publication, type Job } from "@hr/processing";
+
+test("expired guest uploads become eligible for deletion, including uploads failed by an earlier version", () => {
+  const now = Date.now();
+  const deadline = new Date(now - 1000).toISOString();
+  const fresh = newTask("guest", "synthetic", "Interrupted upload", [], now - 2000);
+  fresh.deadline = new Date(now + 1000).toISOString();
+  fresh.upload_deadline = deadline;
+  const old = { ...structuredClone(fresh), status: "failed" as const, finished_at: deadline };
+  const accepted = { ...structuredClone(fresh), status: "queued" as const };
+
+  for (const task of [fresh, old]) {
+    expireWork(task, now);
+    assert.equal(task.status, "failed");
+    assert.equal(task.expires_at, deadline);
+    assert.equal(task.deleted_at, deadline);
+  }
+  expireWork(accepted, now);
+  assert.equal(accepted.status, "queued");
+  assert.equal(accepted.deleted_at, undefined);
+});
 import { processingCommandSchema, processingEventSchema, evaluateResultSchema, evaluationSchema } from "@hr/contracts";
 import { createAuthCheck } from "../apps/auth-check/src/app.js";
 

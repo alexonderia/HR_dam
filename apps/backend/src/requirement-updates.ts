@@ -10,10 +10,6 @@ export function initializeAssessmentHistory() {
 }
 
 export async function requirementUpdatePlan(clusters: Cluster[]) {
-  // The current protocol has no access to v1's broker. Overview reads must not
-  // depend on it or backfill data. Configuration writes initialize the baseline
-  // before changing requirements; older deployments keep their ledger recovery.
-  if (!process.env.PROCESSING_AMQP_URL) await initializeAssessmentHistory();
   const active = clusters.filter(cluster => cluster.is_active && cluster.profiles.some(profile => profile.is_active));
   const { rows } = await pool.query(`SELECT r.id,r.status,r.scoring_status,
     coalesce(jsonb_object_agg(a.cluster_id,a.requirements) FILTER (WHERE a.cluster_id IS NOT NULL),'{}'::jsonb) AS assessed,

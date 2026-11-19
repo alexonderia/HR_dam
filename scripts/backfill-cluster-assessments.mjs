@@ -1,9 +1,8 @@
-// Run inside the updated backend container after applying V5.
-import { restoreClusterAssessmentHistory, closeBroker, pool } from "@hr/data-access";
+// Baseline missing assessment snapshots in PostgreSQL after applying V5.
+import { restoreClusterAssessmentHistory, pool } from "@hr/data-access";
 
 try {
   console.log(JSON.stringify(await restoreClusterAssessmentHistory()));
 } finally {
-  await closeBroker();
   await pool.end();
 }

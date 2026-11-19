@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, relative, join } from 'node:path';
 
-const apps = ['frontend', 'backend', 'worker', 'auth-check', 'guest-api'];
+const apps = ['frontend', 'backend', 'auth-check', 'guest-api'];
 const manifests = Object.fromEntries(apps.map(name => [name, JSON.parse(readFileSync(`apps/${name}/package.json`, 'utf8'))]));
 const common = ['contracts', 'documents', 'data-access', 'security', 'processing'];
 const sources = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? sources(join(directory, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(directory, entry.name)] : []);
@@ -16,6 +16,7 @@ for (const name of [...apps, ...common]) {
   if (name === 'contracts') assert.ok(!Object.keys(manifest.dependencies || {}).some(dependency => dependency.startsWith('@hr/')), 'contracts must not depend on server packages');
   for (const file of sources(join(directory, 'src'))) {
     const text = readFileSync(file, 'utf8');
+    assert.doesNotMatch(text, /@hr\/legacy-transport|@hr\/worker/, `${file}: legacy import in current code`);
     for (const match of text.matchAll(/(?:from\s*|import\s*)["']([^"']+)["']/g)) {
       const imported = match[1];
       if (name === 'frontend' || name === 'contracts') assert.ok(!imported.startsWith('node:'), `${file}: Node.js import in browser package`);
@@ -31,7 +32,10 @@ for (const name of [...apps, ...common]) {
 assert.deepEqual(Object.keys(manifests.frontend.dependencies).filter(name => name.startsWith('@hr/')), ['@hr/contracts']);
 for (const name of ['pg', '@aws-sdk/client-s3', 'express', 'multer', 'pdfjs-dist']) assert.ok(!(name in manifests.frontend.dependencies), `frontend contains ${name}`);
 assert.equal(Object.keys(JSON.parse(readFileSync('package.json','utf8')).dependencies || {}).length, 0);
-for (const app of ['frontend', 'backend', 'worker']) assert.ok(readFileSync(`apps/${app}/Dockerfile`, 'utf8').includes(`apps/${app}`));
+assert.ok(readFileSync('apps/frontend/Dockerfile', 'utf8').includes('apps/frontend'));
+assert.ok(!existsSync('apps/backend/Dockerfile'), 'Node services must use the shared Dockerfile');
+assert.ok(!existsSync('apps/worker/src') && !existsSync('legacy/worker/package.json'), 'retired worker present');
+assert.ok(!existsSync('legacy/transport/package.json'), 'retired transport present');
 for (const name of ['auth-check', 'guest-api', 'security', 'processing']) {
   const manifest = JSON.parse(readFileSync(`${apps.includes(name) ? 'apps' : 'packages'}/${name}/package.json`, 'utf8'));
   assert.ok(!manifest.dependencies?.pg && !manifest.dependencies?.['@hr/data-access'], `${name}: database dependency`);
@@ -43,6 +47,7 @@ assert.ok(!readFileSync('apps/backend/src/index.ts', 'utf8').includes('express.s
 console.log('Architecture: isolated application imports, declared dependencies, browser-only frontend and separate Dockerfiles passed');
 assert.ok(readFileSync('.npmrc', 'utf8').includes('install-strategy=nested'));
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+assert.ok(!Object.keys(lock.packages).some(path => /^(?:apps\/worker|legacy\/|node_modules\/@hr\/(?:worker|legacy-transport))/.test(path)), 'retired workspaces in lockfile');
 for (const dep of ['react', 'react-dom', 'vite']) {
   assert.ok(lock.packages[`apps/frontend/node_modules/${dep}`], `frontend dependency must be installed inside frontend: ${dep}`);
   assert.ok(!lock.packages[`node_modules/${dep}`], `frontend dependency hoisted to root: ${dep}`);
@@ -57,7 +62,5 @@ for (const [service, module] of [['resume-parser', 'resume_parser'], ['resume-ev
   const requirements = readFileSync(`apps/${service}/requirements.txt`, 'utf8');
   assert.ok(!/fastapi|uvicorn|python-multipart/.test(requirements));
 }
-assert.ok(!existsSync('apps/resume-analyzer/Dockerfile'));
-assert.ok(!existsSync('apps/resume-analyzer/app/server.py'));
 assert.ok(!readFileSync('apps/resume-parser/Dockerfile', 'utf8').includes('libreoffice'));
 console.log('PASS Python delivery: independent entrypoints, dependency lists and images; retired analyzer excluded');

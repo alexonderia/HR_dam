@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { deflateSync } from "node:zlib";
 import { PDFDocument, PDFHexString, PDFName, PDFString } from "@cantoo/pdf-lib";
-import { validateFile } from "../apps/backend/src/files.js";
+import { validateFile } from "@hr/processing";
 
 const activeContent = { status: 422, message: "PDF содержит активное или вложенное содержимое." };
 

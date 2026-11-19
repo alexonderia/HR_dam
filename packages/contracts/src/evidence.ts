@@ -255,8 +255,7 @@ export function explainEvidenceRating(data: EvidenceDetails): string {
     const group = data.criteria.filter(c => c.status === status);
     if (!group.length) continue;
     if (status === "unknown") {
-      const categories = { keyword: "Навыки", experience: "Опыт", education: "Образование", additional: "Дополнительные сведения" };
-      lines.push(label + ": " + [...new Set(group.map(c => categories[c.category]))].join(", ") + ".");
+      lines.push(`Условий, требующих уточнения: ${group.length}.`);
       continue;
     }
     const items = group.map(c => {
@@ -274,7 +273,7 @@ export function explainEvidenceRating(data: EvidenceDetails): string {
   const triggered = data.stop_factors.filter(s => s.status === "triggered");
   if (triggered.length) lines.push("Подтверждённые стоп-факторы: " + triggered.map(s => s.requirement + " — «" + s.evidence[0].quote + "»").join("; ") + ".");
   const unknown = data.stop_factors.filter(s => s.status === "unknown");
-  if (unknown.length) lines.push("Стоп-факторы: Не указано.");
+  if (unknown.length) lines.push(`Стоп-факторов, требующих уточнения: ${unknown.length}.`);
   const estimate = scorePresentation(data.score_range, data.context_truncated || data.score_status === "insufficient_evidence");
   lines.push(`${estimate.label}: ${estimate.value} из 100.${estimate.note ? " " + estimate.note : ""}`);
   if (data.context_truncated) lines.push("Оценён только фрагмент резюме из-за ограничения контекста; оставшиеся сведения требуют проверки.");

@@ -1,52 +1,99 @@
+import { AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { clarificationSources, ratingAnalysis, type ReportRating } from "@hr/contracts";
 import { RatingClarifications } from "./RatingClarifications";
-import { ratingAnalysis, type ReportRating } from "@hr/contracts";
-import { CompactRatingAnalysis } from "./CompactRatingAnalysis";
 
-export function RatingAnalysis({ rating, compact = false }: { rating: ReportRating; compact?: boolean }) {
-  const analysis = ratingAnalysis(rating), knownStops = analysis.stops.filter(stop => stop.state !== "unknown");
-  if (compact) return <CompactRatingAnalysis rating={rating} analysis={analysis} />;
-  const hasCriteria = analysis.groups.some(group => group.items.length);
+type Analysis = ReturnType<typeof ratingAnalysis>;
+const statusIcons = { not_met: XCircle, partial: AlertCircle, met: CheckCircle2 };
+const statusOrder = ["not_met", "partial", "met"] as const;
+
+function RatingSources({ items }: { items: { quotes: string[]; requirement?: string }[] }) {
+  const sources = clarificationSources(items.map(item => ({ requirement: item.requirement || "", quotes: item.quotes })));
+  if (!sources.length) return null;
+  return <details className="rating-sources">
+    <summary>Цитаты из резюме</summary>
+    {sources.map(source => <figure key={source.quote}>
+      {source.requirements.some(Boolean) && <figcaption>{source.requirements.join(", ")}</figcaption>}
+      <blockquote>{source.quote}</blockquote>
+    </figure>)}
+  </details>;
+}
+
+function RatingStops({ stops, legacyStops }: { stops: Analysis["stops"]; legacyStops: string[] }) {
+  const triggered = stops.filter(stop => stop.state === "triggered");
+  const cleared = stops.filter(stop => stop.state === "not_triggered");
+  if (!triggered.length && !cleared.length && !legacyStops.length) return null;
+  const alertClass = triggered.length || legacyStops.length ? " rating-finding--not_met" : "";
+  return <section className={`rating-finding rating-stops${alertClass}`}>
+    <h5 className="rating-finding-label"><span className="rating-state">Стоп-факторы</span></h5>
+    <div className="rating-finding-content">
+      {(triggered.length > 0 || legacyStops.length > 0) && <ul className="rating-item-list">
+        {triggered.map((stop, index) => <li key={index}>
+          <strong>{stop.requirement}</strong>
+          <p className="rating-item-notes">{stop.status}. {stop.notes}</p>
+          <RatingSources items={[{ quotes: stop.quotes }]} />
+        </li>)}
+        {legacyStops.map((stop, index) => <li key={index}><strong>{stop}</strong></li>)}
+      </ul>}
+      {cleared.length > 0 && <details className="rating-cleared-stops">
+        <summary>Не сработали ({cleared.length})</summary>
+        <ul className="rating-item-list">
+          {cleared.map((stop, index) => <li key={index}>
+            <strong>{stop.requirement}</strong>
+            <RatingSources items={[{ quotes: stop.quotes }]} />
+          </li>)}
+        </ul>
+      </details>}
+    </div>
+  </section>;
+}
+
+export function RatingAnalysis({ rating }: { rating: ReportRating }) {
+  const { evidence, estimate, groups, skills, clarifications, stops } = ratingAnalysis(rating);
+  const legacyExplanation = !evidence && rating.explanation?.trim();
+  const legacyStops = evidence ? [] : rating.triggered_stop_factors || [];
+  const hasTriggeredStops = legacyStops.length > 0 || stops.some(stop => stop.state === "triggered");
+  const stopFindings = <RatingStops stops={stops} legacyStops={legacyStops} />;
+  const showRange = evidence && estimate && !estimate.insufficient && evidence.score_range.min !== evidence.score_range.max;
+  const warning = evidence?.context_truncated ? "Оценён только фрагмент резюме."
+    : estimate?.insufficient ? "Недостаточно сведений для полной оценки." : "";
+  const hasFindings = groups.some(group => group.items.length > 0) || skills.length > 0 || clarifications.length > 0;
+  if (!showRange && !warning && !legacyExplanation && !hasFindings && !hasTriggeredStops && !stops.length) return null;
+
   return <div className="rating-explanation rating-analysis">
-    {analysis.evidence && <section className="rating-overview" aria-label="Дополнительные показатели">
-      <dl className="rating-metrics">
-        <div><dt>{analysis.estimate!.label}</dt><dd>{analysis.estimate!.value} из 100</dd></div>
-      </dl>
-      {analysis.estimate?.note && <p className="rating-metric-help">{analysis.estimate.note}</p>}
-      {analysis.evidence.context_truncated && <p className="af-alert af-alert--warning">Оценён только фрагмент резюме.</p>}
-    </section>}
-    <section className="rating-rationale">
+    {(showRange || warning) && <div className="rating-overview">
+      {showRange && <dl className="rating-metrics"><dt>{estimate.label}</dt><dd>{estimate.value} из 100</dd></dl>}
+      {warning && <p className="rating-metric-help">{warning}</p>}
+    </div>}
+    {legacyExplanation && <section className="rating-rationale">
       <h5>Обоснование оценки</h5>
-      <p className="explanation-text">{analysis.explanation}</p>
-    </section>
-    {hasCriteria && <section className="rating-requirements">
-      <h5>Проверка требований</h5>
-      {analysis.groups.filter(group => group.items.length).map(group => <div className={`rating-group rating-group--${group.status}`} key={group.status}>
-        <h6>{group.title}<span className="rating-group-count">{group.items.length}</span></h6>
-        <ul className="rating-item-list">{group.items.map((item, index) => <li key={index}>
-          <span className="af-caption">{item.category}</span><strong>{item.requirement}</strong>
-          {!!item.notes.length && <p className="rating-item-notes">{item.notes.join(" ")}</p>}
-          {!!item.quotes.length && <blockquote>{item.quotes.join("\n")}</blockquote>}
-        </li>)}</ul>
-      </div>)}
+      <p className="explanation-text">{legacyExplanation}</p>
     </section>}
-    {!!analysis.skills.length && <section className="rating-skills">
-      <h5>Навыки</h5>
-      {analysis.skills.map(group => <div key={group.status} className={`rating-skill-group rating-skill-group--${group.status}`}>
-        <span className="af-caption">{group.title}</span>
-        <div className="tags">{group.items.map((skill, i) => <span className="af-badge tag" key={i}>{skill.requirement}</span>)}</div>
-        {group.items.some(skill => skill.quotes.length) && <details className="rating-sources"><summary>Цитаты из резюме</summary>{group.items.map((skill, i) => <blockquote key={i}>{skill.quotes.join("\n")}</blockquote>)}</details>}
-      </div>)}
-    </section>}
-    {!!analysis.missing.length && <section className="rating-missing">
-      <dl>{analysis.missing.map(field => <div key={field.label}><dt>{field.label}</dt><dd>Не указано</dd></div>)}</dl>
-    </section>}
-    <RatingClarifications items={analysis.clarifications} expanded={analysis.estimate?.insufficient} />
-    <section className={`rating-stops rating-stops--${knownStops.some(stop => stop.state === "triggered") ? "triggered" : knownStops.length ? "not_triggered" : "unknown"}`}>
-      <h5>Стоп-факторы</h5>
-      {knownStops.length ? <ul className="rating-item-list">{knownStops.map((stop, index) => <li key={index}>
-        <strong>{stop.requirement}</strong><p>{stop.status}. {stop.notes}</p>
-        {!!stop.quotes.length && <blockquote>{stop.quotes.join("\n")}</blockquote>}
-      </li>)}</ul> : <p>{analysis.stops.length ? "Не указано" : rating.triggered_stop_factors?.join("; ") || "Не заданы"}</p>}
-    </section>
+    {hasTriggeredStops && stopFindings}
+    {statusOrder.map(status => {
+      const group = groups.find(group => group.status === status);
+      const skillGroup = skills.find(group => group.status === status);
+      if (!group?.items.length && !skillGroup) return null;
+      const Icon = statusIcons[status];
+      return <section className={`rating-finding rating-finding--${status}`} key={status}>
+        <h5 className="rating-finding-label"><span className="rating-state">
+          <Icon size={16} aria-hidden="true" />{evidence ? group?.title : skillGroup?.title}
+        </span></h5>
+        <div className="rating-finding-content">
+          {!!group?.items.length && <ul className="rating-item-list">{group.items.map((item, index) => <li key={index}>
+            {item.category !== item.requirement && <span className="af-caption">{item.category}</span>}
+            <strong>{item.requirement}</strong>
+            {item.notes.length > 0 && <p className="rating-item-notes">{item.notes.join(" ")}</p>}
+            <RatingSources items={[{ quotes: item.quotes }]} />
+          </li>)}</ul>}
+          {skillGroup && <div className={`rating-skill-group rating-skill-group--${status}`}>
+            <span className="af-caption">Навыки</span>
+            <div className="tags">{skillGroup.items.map((skill, index) => <span className="af-badge tag" key={index}>{skill.requirement}</span>)}</div>
+            <RatingSources items={skillGroup.items} />
+          </div>}
+        </div>
+      </section>;
+    })}
+    <RatingClarifications items={clarifications} />
+    {!hasTriggeredStops && stopFindings}
   </div>;
 }

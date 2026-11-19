@@ -2,9 +2,15 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { pool, transaction } from "@hr/data-access";
 import { assessmentCompletedMessage, type Candidate, type ResumeEvent } from "@hr/contracts";
+import { hashPassword, sessionCookieName } from "@hr/security";
 
-// Requires the current backend in Compose. Only UUIDs created by this run are removed.
-const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3000";
+// Invoked by run_processing.py against the isolated Compose project.
+const base = "http://frontend:8080";
+const origin = process.env.APP_ORIGIN!;
+const userId = randomUUID();
+const login = `workflow-${userId}`;
+const password = randomUUID();
+let cookie = "";
 const owned = { candidates: [] as string[], resumes: [] as string[], files: [] as string[], blacklist: [] as string[] };
 const suffix = randomBytes(8).toString("hex").replace(/\d/g, digit => String.fromCharCode(65 + Number(digit)));
 let phoneIndex = 0;
@@ -12,9 +18,10 @@ const phoneBase = String(Date.now()).slice(-5);
 const nextPhone = () => `+7999${phoneBase}${String(++phoneIndex).padStart(2, "0")}`;
 
 async function api(path: string, method = "GET", body?: unknown) {
-  const response = await fetch(base + "/api" + path, {
+  const response = await fetch(base + "/api/app" + path, {
     method,
-    ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    headers: { Origin: origin, Cookie: cookie, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { status: response.status, body: await response.json() };
 }
@@ -47,6 +54,17 @@ async function addBlacklist(person: Pick<Candidate, "phone" | "last_name" | "fir
 }
 
 try {
+  await pool.query("INSERT INTO users(id,login,display_name,password_hash) VALUES($1,$2,$3,$4)",
+    [userId, login, "Synthetic workflow", hashPassword(password)]);
+  const session = await fetch(base + "/api/auth/login", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ login, password }),
+  });
+  assert.equal(session.status, 200);
+  cookie = session.headers.getSetCookie().find(value => value.startsWith(sessionCookieName + "="))?.split(";")[0] || "";
+  assert.ok(cookie, "The login response must issue a session cookie");
+  await session.body?.cancel();
   const clear = await seed(`Проверка${suffix}`);
   assert.equal((await candidate(clear.resume)).has_other_resume_in_process, false);
   assert.equal((await change(clear.resume, "in_process")).status, 200);
@@ -106,6 +124,8 @@ try {
       await client.query("DELETE FROM candidates WHERE id=ANY($1::uuid[])", [owned.candidates]);
       await client.query("DELETE FROM files WHERE id=ANY($1::uuid[])", [owned.files]);
       await client.query("DELETE FROM candidate_blacklist WHERE id=ANY($1::uuid[])", [owned.blacklist]);
+      await client.query("DELETE FROM sessions WHERE user_id=$1", [userId]);
+      await client.query("DELETE FROM users WHERE id=$1", [userId]);
     });
   } finally { await pool.end(); }
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { strToU8, zipSync } from "fflate";
 import { extractDocxText } from "@hr/documents";
-import { validateFile } from "../apps/backend/src/files.js";
+import { validateFile } from "@hr/processing";
 
 function document(xml: string, extra: Record<string, Uint8Array> = {}) {
   return Buffer.from(

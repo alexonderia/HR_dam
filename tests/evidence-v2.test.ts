@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
-import { validateRankResponse, ratingAnalysis, compileRatingCriteria } from "@hr/contracts";
+import { validateRankResponse, ratingAnalysis, ratingEvidence, compileRatingCriteria } from "@hr/contracts";
 import { ratingAnalysisHtml } from "../apps/backend/src/export.js";
 
 const fixtures = JSON.parse(readFileSync(new URL("./fixtures/evidence-ratings-v2.json", import.meta.url), "utf8"));
@@ -9,7 +9,7 @@ const fixtures = JSON.parse(readFileSync(new URL("./fixtures/evidence-ratings-v2
 test("all current Python fixtures pass evidence-v2 API validation; legacy fixtures remain covered separately", () => {
   for (const fixture of fixtures) {
     const checked = validateRankResponse(fixture.result, fixture.requirements);
-    assert.equal(checked.clusters[0].profiles[0].details.policy_version, "evidence-v2");
+    assert.equal(ratingEvidence(checked.clusters[0].profiles[0])?.policy_version, "evidence-v2");
   }
 });
 

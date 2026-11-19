@@ -13,6 +13,10 @@ const resolve = (profiles, files = []) => {
 const base = resolve([]), full = resolve(["*"]);
 const names = Object.keys(base.services).sort();
 assert.deepEqual(names, ["auth-check", "backend", "clamav", "flyway", "frontend", "guest-api", "postgres", "rabbitmq", "rabbitmq-init", "s3-init", "seaweedfs"].sort());
+for (const name of ["auth-check", "guest-api", "backend"]) {
+  assert.equal(base.services[name].build.dockerfile, "infra/node/Dockerfile");
+  assert.equal(base.services[name].build.args.SERVICE, name);
+}
 for (const old of ["worker", "resume-analyzer", "resume-analyzer-consumer"]) assert.ok(!full.services[old], `old processing service: ${old}`);
 const networks = name => Object.keys(full.services[name].networks || {});
 const shares = (a, b) => networks(a).some(n => networks(b).includes(n));

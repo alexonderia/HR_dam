@@ -161,7 +161,7 @@ export function CandidateDetails({
           <h3 className="af-title">Соответствие профилям</h3>
           <p className="muted">
             Рейтинг кластера — максимальная оценка по его профилям. Раскройте
-            профиль, чтобы увидеть обоснование.
+            профиль, чтобы увидеть результаты проверки.
           </p>
           <div className="rating-details" ref={ratingsRef}>
             {sortedClusters.map((cluster) => {

@@ -1,66 +1,6 @@
-import { z } from "zod";
-import { extractedPersonSchema, clusterSchema, profileSchema, rankResponseSchema, type ExtractedPerson } from "./domain.js";
-import { contactFields, contactDetailsSchema } from "./contacts.js";
-export { extractedPersonSchema, type ExtractedPerson } from "./domain.js";
-export const requirementSchema = clusterSchema.extend({ id: z.uuid(), profiles: z.array(profileSchema.extend({ id: z.uuid() })).min(1) });
-export const importFileSchema = z.object({
-  id: z.uuid(), file_id: z.uuid(), source_path: z.string().min(1).max(2048),
-  file_name: z.string().min(1).max(180), mime_type: z.string().max(100),
-  size_bytes: z.number().int().positive().max(50 * 1024 * 1024),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/), bucket: z.string().min(1).max(255), object_key: z.string().min(1).max(2048),
-  candidate_hint: extractedPersonSchema,
-  candidate_hint_source: z.enum(["manual", "snapshot"]).optional(),
-  manual_contact_fields: z.array(z.enum(contactFields)).max(4).optional(),
-  target_resume_id: z.uuid().optional(), target_updated_at: z.string().optional(),
-  assessment_cluster_ids: z.array(z.uuid()).min(1).optional(),
-});
-export type ImportFile = z.infer<typeof importFileSchema>;
-export const importManifestSchema = z.object({
-  version: z.literal(1), id: z.uuid(), archive_name: z.string().min(1).max(180),
-  created_at: z.iso.datetime({ offset: true }), ignored_files: z.array(z.string()),
-  requirements: z.array(requirementSchema).min(1), items: z.array(importFileSchema).min(1).max(200),
-});
-export type ImportManifest = z.infer<typeof importManifestSchema>;
-export const storageJobSchema = z.object({
-  version: z.literal(1), job_id: z.uuid(), batch_id: z.uuid(), item_id: z.uuid(),
-  attempt: z.number().int().min(1).max(100), file: importFileSchema,
-  requirements: z.array(requirementSchema).min(1),
-});
-export type StorageJob = z.infer<typeof storageJobSchema>;
-export const importJobIdentitySchema = storageJobSchema.pick({ version: true, job_id: true, batch_id: true, item_id: true, attempt: true }).strict();
-export type ImportJobIdentity = z.infer<typeof importJobIdentitySchema>;
-export interface ImportJobState {
-  status: "pending" | "processing" | "completed" | "failed" | "superseded";
-  should_process: boolean;
-}
-export const analysisJobSchema = storageJobSchema.extend({
-  file: importFileSchema.extend({ download_url: z.url(), download_url_expires_at: z.iso.datetime({ offset: true }) }),
-});
-export type AnalysisJob = z.infer<typeof analysisJobSchema>;
-const resultEnvelope = { version: z.literal(1), job_id: z.uuid(), batch_id: z.uuid(), item_id: z.uuid(), attempt: z.number().int().min(1).max(100),
-  analysis_duration_ms: z.number().int().min(0).max(2147483647).optional() };
-export const importResultSchema = z.discriminatedUnion("status", [
-  z.object({ ...resultEnvelope, status: z.literal("completed"), candidate: extractedPersonSchema,
-    contact_details: contactDetailsSchema.optional(), analysis: rankResponseSchema }).strict(),
-  z.object({ ...resultEnvelope, status: z.literal("failed"), error: z.object({ code: z.string().min(1).max(100), message: z.string().min(1).max(2000) }).strict() }).strict(),
-]);
-export type ImportResult = z.infer<typeof importResultSchema>;
-export const importEventSchema = z.object({
-  ...resultEnvelope, stage: z.enum(["uploading", "pending", "processing", "completed", "failed"]),
-  created_at: z.iso.datetime({ offset: true }), error: z.string().max(2000).optional(), warning: z.string().optional(),
-  candidate_id: z.uuid().optional(), resume_id: z.uuid().optional(),
-});
-export type ImportEvent = z.infer<typeof importEventSchema>;
-export function importAnalysisTiming(events: ImportEvent[], event: ImportEvent | undefined, finishedAt?: string) {
-  const started = event && events.filter(e => e.item_id === event.item_id && e.job_id === event.job_id &&
-    e.attempt === event.attempt && e.stage === "processing" && Number.isFinite(Date.parse(e.created_at)))
-    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))[0];
-  const end = finishedAt || (event && ["completed", "failed"].includes(event.stage) ? event.created_at : undefined);
-  const elapsed = started && end ? Date.parse(end) - Date.parse(started.created_at) : NaN;
-  return { analysis_started_at: started?.created_at ?? null,
-    analysis_duration_ms: event?.analysis_duration_ms ?? (Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= 2147483647 ? elapsed : null) };
-}
-export type ImportItemStatus = ImportEvent["stage"];
+import type { ExtractedPerson } from "./domain.js";
+
+export type ImportItemStatus = "uploading" | "pending" | "processing" | "completed" | "failed";
 export interface ResumeImportSummary {
   id: string; archive_name: string; created_at: string; total_files: number;
   source_files?: number; candidate_files?: number;
@@ -76,9 +16,6 @@ export interface ResumeImportItem {
 }
 export interface ResumeImportDetail extends ResumeImportSummary { items: ResumeImportItem[] }
 export interface BrokerStatus {
-  mode?: "broker" | "direct";
-  broker_enabled?: boolean;
-  rank_bridge_enabled?: boolean;
   available: boolean; analysis_consumers: number;
   queues: Record<string, { ready: number; processing: number; consumers: number }>;
 }

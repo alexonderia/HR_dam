@@ -24,7 +24,7 @@ import {
   formatNationalPhone,
 } from "../apps/frontend/src/lib/phone.js";
 import { extractDocumentText } from "@hr/documents";
-import { validateFile } from "../apps/backend/src/files.js";
+import { validateFile } from "@hr/processing";
 
 const cluster: Cluster = {
   id: "5cabfa83-676b-4084-9ec8-212658478b6b",
@@ -257,6 +257,7 @@ test("results, history and full exports retain analysis duration", () => {
 
 test("report provides export settings, unique cluster anchors and one processing date", () => {
   const html = reportHtml(candidate, [cluster], false, false, true);
+  assert.ok(html.includes(`action="/api/app/resumes/${candidate.resume_id}/report"`));
   assert.match(html, /name="format"/);
   assert.match(html, /name="content"/);
   assert.equal(html.split(`id="cluster-${cluster.id}"`).length - 1, 1);

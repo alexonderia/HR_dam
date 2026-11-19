@@ -1,31 +1,19 @@
-import { assessmentCompletedMessage, type QueueStatus, type ResumeEvent, type WorkerStatus } from "@hr/contracts";
-
-export async function probeWorker(url: string): Promise<WorkerStatus | null> {
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(1000) });
-    const body = await response.json() as WorkerStatus;
-    if (!response.ok || !["idle", "waiting_analysis", "waiting_requirements", "processing", "error"].includes(body.state)) return null;
-    return body;
-  } catch { return null; }
-}
+import { assessmentCompletedMessage, type QueueStatus, type ResumeEvent } from "@hr/contracts";
 
 export function queueStatus(input: {
   queuedAt: string;
   activeProfiles: number;
   analysisAvailable: boolean;
-  worker: WorkerStatus | null;
   ahead: number;
   processing: number;
 }, now = Date.now()): QueueStatus {
   const waitingSeconds = Math.max(0, Math.floor((now - Date.parse(input.queuedAt)) / 1000) || 0);
   const common = { waiting_seconds: waitingSeconds, position: input.ahead + input.processing + 1, delayed: waitingSeconds >= 60 };
-  if (!input.activeProfiles || input.worker?.state === "waiting_requirements")
+  if (!input.activeProfiles)
     return { ...common, reason: "no_profiles", message: "Для анализа ещё не заданы активные профили. Резюме сохранено; обработка начнётся после настройки требований." };
-  if (!input.analysisAvailable || input.worker?.state === "waiting_analysis")
+  if (!input.analysisAvailable)
     return { ...common, reason: "analysis_unavailable", message: "Анализ временно недоступен. Резюме сохранено и будет обработано после восстановления." };
-  if (!input.worker || input.worker.state === "error")
-    return { ...common, reason: "processing_paused", message: "Обработка очереди временно приостановлена. Резюме сохранено и ждёт возобновления обработки." };
-  if (input.processing || input.ahead || input.worker.state === "processing")
+  if (input.processing || input.ahead)
     return { ...common, reason: "waiting_turn", message: input.ahead
       ? `Перед этим резюме ожидают обработки: ${input.ahead + input.processing}. Анализ начнётся, когда подойдёт его очередь.`
       : "Сейчас обрабатывается другое резюме. Ваше резюме ожидает своей очереди." };

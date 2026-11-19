@@ -99,7 +99,7 @@ export async function retryImport(id: string, itemId: string) {
   try { await engine.dispatch(changed.task, changed.messages); } catch { /* durable outbox */ }
   return importDetail(id);
 }
-export async function enqueueExistingResume(resumeId: string, options: { recoverPending?: boolean; clusterIds?: string[]; onlyOutdated?: boolean } = {}) {
+export async function enqueueExistingResume(resumeId: string, options: { clusterIds?: string[]; onlyOutdated?: boolean } = {}) {
   let requirements = await activeRequirements();
   if (options.clusterIds) requirements = requirements.filter(c => options.clusterIds!.includes(c.id));
   if (!requirements.length) throw new HttpError(409, "Нет активных требований.");
@@ -126,5 +126,3 @@ export async function enqueueExistingResume(resumeId: string, options: { recover
   });
   return task.requirements.length ? importDetail(task.id) : null;
 }
-// Reconciliation only republishes committed authorized intentions.
-export { flushAuthorizedOutbox as reconcilePendingResumes } from "./processing-service.js";

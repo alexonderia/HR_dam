@@ -23,7 +23,6 @@ try {
     await page.route("**/api/**", async route => {
       const path = new URL(route.request().url()).pathname;
       if (path === "/api/session") return route.fulfill({ json: { mode: "authorized", user: { id: "a0000000-0000-4000-8000-000000000001", name: "Synthetic HR" }, expires_at: new Date(Date.now() + 600000).toISOString() } });
-      if (path.endsWith("/processing/mode")) return route.fulfill({ json: { mode: "broker", broker_enabled: true, rank_bridge_enabled: false } });
       if (path.endsWith("/overview")) return route.fulfill({ json: { candidates: [candidate], clusters: [], blacklist: [], resumeImports: [] } });
       if (path.endsWith("/analysis/status")) return route.fulfill({ json: { available: false, message: "Модель недоступна" } });
       if (path.endsWith("/contacts/preview")) { previews++; return route.fulfill({ json: preview }); }
