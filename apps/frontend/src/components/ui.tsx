@@ -10,6 +10,7 @@ import {
 } from "react";
 import { X, Inbox, LoaderCircle } from "lucide-react";
 import {
+  ratingScoreValue, ratingEvidence,
   fullName,
   scoringLabels,
   statusLabels,
@@ -196,7 +197,9 @@ export function Modal({
     </dialog>
   );
 }
-export function Score({ value }: { value?: number }) {
+export function Score({ value, rating }: { value?: number;rating?:{score:number;details?:unknown} }) {
+  if(ratingEvidence(rating)?.score_status==="not_defined")return <span className="no-score">Оценка не определена</span>;
+  if(rating)value=ratingScoreValue(rating);
   if (value === undefined)
     return (
       <span className="no-score" aria-label="Оценка отсутствует">

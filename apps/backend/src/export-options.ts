@@ -6,6 +6,7 @@ import {
   scoringLabels,
   matrixColumns,
   clusterScore,
+  ratingScoreValue,
   ratingEstimateText,
   ratingAnalysisText,
   ratingGroupLabels,
@@ -82,7 +83,7 @@ export function matrixRows(
       (fullName(c) || "ФИО не указано") + "\n" + (c.phone || "Телефон не указан") + (c.blacklisted ? "\nЧёрный список" : ""),
       ...columns.map((column) =>
         column.profile
-          ? (() => { const rating = c.ratings.find(r => r.profile_id === column.profile!.id); return rating ? Number(rating.score) : ""; })()
+          ? (() => { const rating = c.ratings.find(r => r.profile_id === column.profile!.id); return ratingScoreValue(rating)??""; })()
           : clusterScore(c, column.cluster) ?? "",
       ),
       c.scoring_status === "completed"
@@ -116,7 +117,7 @@ export function ratingRows(
                   fullName(c) || "ФИО не указано",
                   cluster.name,
                   p.position_name,
-                  Number(r.score),
+                  ratingScoreValue(r)??"",
                   ratingEstimateText(r),
                   ...(full
                     ? [

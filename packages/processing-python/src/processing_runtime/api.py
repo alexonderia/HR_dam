@@ -2,6 +2,10 @@
 
 import hashlib
 import json
+import math
+import time
+from datetime import datetime
+from uuid import uuid4
 from urllib.parse import urlsplit
 
 import requests
@@ -12,9 +16,13 @@ from .protocol import ClosedJob, DocumentError, InvalidJob, RetryJob
 class JobAPI:
     def __init__(self, base, job, stopped=lambda: False):
         self.base, self.job, self.stopped = base, job, stopped
+        self.work_deadline = None
+        self.run_id = str(uuid4())
+        self.run_started = False
         self.session = requests.Session()
         self.session.trust_env = False
         self.session.headers["Authorization"] = f"Bearer {job.token}"
+        self.session.headers["X-Processing-Run"] = self.run_id
         self.root = f"{base}/jobs/{job.id}"
 
     def close(self):
@@ -22,6 +30,8 @@ class JobAPI:
 
     def check(self):
         self.job.check_open()
+        if self.work_deadline is not None and time.time() >= self.work_deadline:
+            raise ClosedJob()
         if self.stopped():
             raise RetryJob()
 
@@ -84,7 +94,24 @@ class JobAPI:
             raise ClosedJob()
         if value.get("should_process") is not True:
             raise InvalidJob()
+        self._read_work_deadline(value)
         return value
+
+    def _read_work_deadline(self, value):
+        deadline = value.get("work_deadline")
+        if deadline is None:
+            return
+        try:
+            parsed = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
+            seconds = parsed.timestamp()
+            if parsed.tzinfo is None or not math.isfinite(seconds) or seconds > self.job.deadline + 1:
+                raise ValueError()
+            if self.work_deadline is not None and seconds != self.work_deadline:
+                raise ValueError()
+        except (ValueError, TypeError, AttributeError):
+            raise InvalidJob() from None
+        self.work_deadline = seconds
+        self.check()
 
     def download(self, description, limits, directory):
         file_id = self.job.command["file_id"]
@@ -116,20 +143,40 @@ class JobAPI:
         return path
 
     def progress(self):
+        self.run_started = True
         value = self.json_request("POST", "/progress", json={"job_id": self.job.id,
-            "attempt": self.job.command["attempt"], "status": "processing"}, stream=True)
+            "attempt": self.job.command["attempt"], "status": "processing", "run_id": self.run_id}, stream=True)
         if value.get("accepted") is not True:
             raise InvalidJob()
+        self._read_work_deadline(value)
+
+    def pause(self):
+        if not self.run_started:
+            return
+        stopped = self.stopped
+        # Cooperative shutdown must still account for the completed active segment.
+        self.stopped = lambda: False
+        try:
+            value = self.json_request("POST", "/progress", json={"job_id": self.job.id,
+                "attempt": self.job.command["attempt"], "status": "waiting_retry", "run_id": self.run_id}, stream=True)
+            if value.get("accepted") is not True:
+                raise InvalidJob()
+            self.run_started = False
+            self.work_deadline = None
+        finally:
+            self.stopped = stopped
 
     def result(self, value):
         self.input()  # Fence deleted/expired/superseded jobs before sending results.
         response = self.json_request("POST", "/result", json=value, stream=True)
         if response.get("accepted") is not True:
             raise InvalidJob()
+        self.run_started = False
 
     def checkpoint(self, context, evaluation):
         value = self.json_request("POST", "/progress", json={"job_id": self.job.id,
             "attempt": self.job.command["attempt"], "status": "processing",
+            "run_id": self.run_id,
             "checkpoint": {"context": context, "evaluation": evaluation}}, stream=True)
         saved = value.get("checkpoint", {})
         if (value.get("accepted") is not True or saved.get("context") != context

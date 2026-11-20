@@ -179,7 +179,7 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
             {error && <p>Связь прервана. Уточним состояние после восстановления подключения.</p>}
           </div></div>
           <ul className="import-analysis-files">{activeFiles.slice(0, 3).map(item => <li key={`${item.batchId}-${item.id}`}>
-            <strong>{item.file_name}</strong><span>Начало {formatMoscowTime(item.analysis_started_at || item.updated_at)} МСК · {error ? "Статус получен" : "Прошло"} {error && snapshot ? formatMoscowTime(snapshot.fetchedAt) + " МСК" : elapsedAnalysisTime(item.analysis_started_at || item.updated_at, now)}</span>
+            <strong>{item.file_name}</strong><span>Начало {formatMoscowTime(item.analysis_started_at || item.updated_at)} МСК · {error ? "Статус получен" : item.active_duration_ms != null ? "Время анализа" : "Прошло"} {error && snapshot ? formatMoscowTime(snapshot.fetchedAt) + " МСК" : item.active_duration_ms != null ? formatAnalysisDuration(item.active_duration_ms + (!error && snapshot ? Math.max(0, now - snapshot.fetchedAt.getTime()) : 0)) : elapsedAnalysisTime(item.analysis_started_at || item.updated_at, now)}</span>
             {item.profile_progress && <span>Оценено профилей: {item.profile_progress.completed} из {item.profile_progress.total}
               {` · Последнее изменение ${formatMoscowTime(item.updated_at)} МСК`}</span>}
           </li>)}</ul>
@@ -234,7 +234,7 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
                     <small>{group.phone || (group.identified ? latest.file_name : "ФИО не указано")}</small>
                     <small>Загрузок: {group.total}{group.items.length !== group.total && ` · показано: ${group.items.length}`}</small>
                   </span>
-                  <span className={`import-candidate-status import-file-status--${status}`}><StageIcon size={15} className={status === "processing" ? "spin" : undefined} />{stages[status].label}</span>
+                  <span className={`import-candidate-status import-file-status--${status}`}><StageIcon size={15} className={status === "processing" ? "spin" : undefined} />{latest.waiting_for_retry ? "Ожидает повторного запуска" : stages[status].label}</span>
                   <span className="import-candidate-updated"><time dateTime={latest.updated_at}>{formatMoscowDateTime(latest.updated_at)} МСК</time>
                     {["completed", "failed"].includes(latest.status) && <small>Время анализа: {formatAnalysisDuration(latest.analysis_duration_ms)}</small>}
                   </span>
@@ -248,12 +248,14 @@ export function ResumeImports({ lastHourOnly = false }: { lastHourOnly?: boolean
                 <div className="import-file-name"><span className="import-file-icon"><FileText size={20} /></span><div>
                   <strong>{item.file_name}</strong>{folder && <small>{folder}</small>}
                   <small>Загрузка: {item.batchName} · {formatMoscowDateTime(item.batchCreatedAt)} МСК</small>
-                  {item.status === "processing" && item.profile_progress && <small>Оценено профилей: {item.profile_progress.completed} из {item.profile_progress.total}</small>}
+                  {(item.status === "processing" || item.waiting_for_retry) && item.profile_progress && <small>Оценено профилей: {item.profile_progress.completed} из {item.profile_progress.total}</small>}
+                  {item.waiting_for_retry && <small>Готовые оценки сохранены. Время ожидания не расходует бюджет анализа.</small>}
+                  {item.waiting_for_retry && item.active_duration_ms != null && <small>Время анализа: {formatAnalysisDuration(item.active_duration_ms)}</small>}
                   {item.error && <p className="import-file-message import-error"><AlertCircle size={14} /><span>{item.error}</span></p>}
                   {item.warning && <p className="import-file-message import-warning"><ShieldAlert size={14} /><span>{item.warning}</span></p>}
                 </div></div>
                 <div className={`import-file-status import-file-status--${item.status}`}><Icon size={15} className={item.status === "processing" ? "spin" : undefined} />
-                  <span>{stage.label} · Попытка {item.attempt}</span></div>
+                  <span>{item.waiting_for_retry ? "Ожидает повторного запуска" : stage.label} · Попытка {item.attempt}</span></div>
                 <div className="import-file-updated"><small>Последнее изменение</small><time dateTime={item.updated_at}>{formatMoscowDateTime(item.updated_at)} МСК</time>
                   {["completed", "failed"].includes(item.status) && <span>Время анализа: {formatAnalysisDuration(item.analysis_duration_ms)}</span>}
                 </div>

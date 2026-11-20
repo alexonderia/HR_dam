@@ -106,6 +106,9 @@ class FakeAPI:
     def check(self):
         self.job.check_open()
 
+    def progress(self):
+        self.check()
+
     def input(self):
         self.check()
 
@@ -134,14 +137,14 @@ class DocumentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp)
             document = Document()
-            document.add_paragraph("Синтетическое резюме. Python используется в учебном проекте разработки приложений.")
+            document.add_paragraph("Синтетическое резюме. Python используется в работе над приложениями.")
             source = directory / "input.docx"
             document.save(source)
             target = {"id": str(uuid4()), "name": "Разработчик", "education": "", "experience": "",
                 "keywords": ["Python"], "stop_factors": [], "comment": "", "cluster_comment": ""}
             value = {**metadata("input.docx"), "requirements": {"targets": [target]}}
             def scorer(text, profile, comment, **_kwargs):
-                return verify_and_score({"assessments": [{"id": "keyword:0:0", "status": "met", "evidence": ["Python используется в учебном проекте"]}], "stop_factors": []}, text, profile, comment)
+                return verify_and_score({"assessments": [{"id": "keyword:0:0", "status": "met", "evidence": ["Python используется в работе"]}], "stop_factors": []}, text, profile, comment)
             mark_ready(True)
             result = evaluate(FakeAPI("evaluate"), value, source, directory, scorer)
             self.assertEqual(result["evaluations"][0]["score"], 100)
@@ -249,7 +252,7 @@ class DocumentTests(unittest.TestCase):
             directory = Path(temp)
             source = directory / "input.pdf"
             with fitz.open() as document:
-                for text in ("Иванов Иван Иванович\nPython используется в учебном проекте разработки приложений.",
+                for text in ("Иванов Иван Иванович\nPython используется в работе над приложениями.",
                              "Комментарии к резюме\nПетров Петр Петрович\nJava и рекомендации сотрудника"):
                     page = document.new_page()
                     page.insert_font(fontname="resume", fontfile="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
@@ -261,7 +264,7 @@ class DocumentTests(unittest.TestCase):
                 self.assertNotIn("Петров", text)
                 self.assertNotIn("Java", text)
                 return verify_and_score({"assessments": [{"id": "keyword:0:0", "status": "met",
-                    "evidence": ["Python используется в учебном проекте"]}], "stop_factors": []}, text, profile, comment)
+                    "evidence": ["Python используется в работе"]}], "stop_factors": []}, text, profile, comment)
             mark_ready(True)
             result = evaluate(FakeAPI("evaluate"), {**metadata("input.pdf"), "requirements": {"targets": [target]}},
                 source, directory, scorer)

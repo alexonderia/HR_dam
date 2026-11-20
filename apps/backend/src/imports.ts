@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { extractedPersonSchema, assessmentRetryRestriction, clusterRequirementsKey, type Cluster, type ResumeImportDetail } from "@hr/contracts";
 import { getClusters, transaction } from "@hr/data-access";
-import { newTask, mutateTask, expireWork, command, inspectUpload, type IncomingFile, type Task } from "@hr/processing";
+import { newTask, mutateTask, expireWork, command, inspectUpload, taskQueueDeadline, activeWorkMs, type IncomingFile, type Task } from "@hr/processing";
 import { authorizedProcessing } from "./processing-service.js";
 import { HttpError } from "./errors.js";
 
@@ -61,7 +61,9 @@ async function detailForTask(snapshot: Task): Promise<ResumeImportDetail> {
   const items = files.map(file => {
     const job = task.jobs.find(j => j.file_id === file.file_id && j.operation === "evaluate") || task.jobs.find(j => j.file_id === file.file_id);
     return { id: file.file_id, source_path: file.metadata?.archive_path || file.file_name, file_name: file.file_name,
-      status: job?.applied ? job.projection_error || job.result?.status === "failed" ? "failed" as const : "completed" as const : job?.started_at ? "processing" as const : task.status === "uploading" ? "uploading" as const : "pending" as const,
+      status: job?.applied ? job.projection_error || job.result?.status === "failed" ? "failed" as const : "completed" as const : job?.retry_waiting_since ? "pending" as const : job?.started_at ? "processing" as const : task.status === "uploading" ? "uploading" as const : "pending" as const,
+      ...(job?.retry_waiting_since && !job.applied ? { waiting_for_retry: true } : {}),
+      ...(job?.work_elapsed_ms != null ? { active_duration_ms: activeWorkMs(job) } : {}),
       attempt: job?.attempt || 1, error: job?.projection_error || (job?.result?.status === "failed" ? job.result.error.message : null),
       warning: job?.receipt?.warning || null, candidate_id: job?.receipt?.candidate_id || null, resume_id: job?.receipt?.resume_id || null,
       updated_at: job?.activity_at || task.finished_at || task.created_at, analysis_started_at: job?.started_at || null,
@@ -70,7 +72,7 @@ async function detailForTask(snapshot: Task): Promise<ResumeImportDetail> {
           : new Set(job.evaluation_checkpoints?.evaluations.map(e => e.target_id) || []).size,
         total: task.requirements.length,
       } } : {}),
-      analysis_duration_ms: job?.started_at && job.applied ? Math.max(0, Date.parse(task.finished_at || job.activity_at || task.created_at) - Date.parse(job.started_at)) : null,
+      analysis_duration_ms: job?.started_at && job.applied ? job.work_elapsed_ms != null ? activeWorkMs(job) : Math.max(0, Date.parse(task.finished_at || job.activity_at || task.created_at) - Date.parse(job.started_at)) : null,
       file_sha256: file.sha256, candidate_hint: file.candidate_hint, target_resume_id: file.target_resume_id };
   });
   return { id: task.id, archive_name: task.name, created_at: task.created_at, items,
@@ -92,7 +94,10 @@ export async function retryImport(id: string, itemId: string) {
     if (!job || job.result?.status !== "failed" || job.attempt >= 100) throw new HttpError(409, "Повтор доступен после ошибки обработки.");
     if (task.files.find(f => f.file_id === itemId)?.target_resume_id) throw new HttpError(409, "Запустите повторную оценку из карточки кандидата.");
     job.job_id = randomUUID(); job.attempt++; job.created_at = new Date().toISOString();
-    task.deadline = new Date(Date.now() + 1800000).toISOString(); job.deadline = task.deadline;
+    task.timing_version = 2;
+    task.deadline = taskQueueDeadline(task); job.deadline = task.deadline;
+    delete job.work_deadline;
+    delete job.work_elapsed_ms; delete job.work_budget_ms; delete job.work_segment_started_at; delete job.work_run_id; delete job.retry_waiting_since;
     delete job.result; delete job.result_id; delete job.event_id; delete job.confirmed; delete job.applied; delete job.started_at; delete job.receipt; delete job.projection_error;
     task.status = "queued"; delete task.finished_at; return [command(job)];
   });

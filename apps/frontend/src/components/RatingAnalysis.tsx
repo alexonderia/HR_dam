@@ -1,12 +1,15 @@
+import {createContext,useContext} from "react";
 import { AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { clarificationSources, ratingAnalysis, type ReportRating } from "@hr/contracts";
 import { RatingClarifications } from "./RatingClarifications";
 
+const SourceLocations=createContext<{quote:string;start:number;end:number;page?:number}[]>([]);
 type Analysis = ReturnType<typeof ratingAnalysis>;
 const statusIcons = { not_met: XCircle, partial: AlertCircle, met: CheckCircle2 };
 const statusOrder = ["not_met", "partial", "met"] as const;
 
 function RatingSources({ items }: { items: { quotes: string[]; requirement?: string }[] }) {
+  const locations=useContext(SourceLocations);
   const sources = clarificationSources(items.map(item => ({ requirement: item.requirement || "", quotes: item.quotes })));
   if (!sources.length) return null;
   return <details className="rating-sources">
@@ -14,6 +17,7 @@ function RatingSources({ items }: { items: { quotes: string[]; requirement?: str
     {sources.map(source => <figure key={source.quote}>
       {source.requirements.some(Boolean) && <figcaption>{source.requirements.join(", ")}</figcaption>}
       <blockquote>{source.quote}</blockquote>
+      <figcaption>{[...new Set(locations.filter(e=>e.quote.includes(source.quote)).map(e=>`${e.page?`Страница ${e.page}, `:""}символы ${e.start}–${e.end}`))].join("; ")}</figcaption>
     </figure>)}
   </details>;
 }
@@ -48,22 +52,26 @@ function RatingStops({ stops, legacyStops }: { stops: Analysis["stops"]; legacyS
 }
 
 export function RatingAnalysis({ rating }: { rating: ReportRating }) {
-  const { evidence, estimate, groups, skills, clarifications, stops } = ratingAnalysis(rating);
+  const { evidence, estimate, groups, skills, clarifications, stops, policyNote, completeness, reviewNote, professionalNote, generalExperienceNote } = ratingAnalysis(rating);
   const legacyExplanation = !evidence && rating.explanation?.trim();
   const legacyStops = evidence ? [] : rating.triggered_stop_factors || [];
   const hasTriggeredStops = legacyStops.length > 0 || stops.some(stop => stop.state === "triggered");
   const stopFindings = <RatingStops stops={stops} legacyStops={legacyStops} />;
   const showRange = evidence && estimate && !estimate.insufficient && evidence.score_range.min !== evidence.score_range.max;
-  const warning = evidence?.context_truncated ? "Оценён только фрагмент резюме."
+  const warning = evidence?.score_status==="not_defined"?"Оценка не определена: нет обязательных условий.":evidence?.context_truncated ? "Оценён только фрагмент резюме."
     : estimate?.insufficient ? "Недостаточно сведений для полной оценки." : "";
   const hasFindings = groups.some(group => group.items.length > 0) || skills.length > 0 || clarifications.length > 0;
   if (!showRange && !warning && !legacyExplanation && !hasFindings && !hasTriggeredStops && !stops.length) return null;
 
-  return <div className="rating-explanation rating-analysis">
+  return <SourceLocations.Provider value={evidence?[...evidence.criteria,...evidence.stop_factors].flatMap(c=>c.evidence):[]}><div className="rating-explanation rating-analysis">
     {(showRange || warning) && <div className="rating-overview">
       {showRange && <dl className="rating-metrics"><dt>{estimate.label}</dt><dd>{estimate.value} из 100</dd></dl>}
       {warning && <p className="rating-metric-help">{warning}</p>}
     </div>}
+    {evidence && <p className="af-caption">{policyNote} {completeness}</p>}
+    {professionalNote && <p className="rating-metric-help">{professionalNote}</p>}
+    {generalExperienceNote && <p className="af-caption">{generalExperienceNote}</p>}
+    {reviewNote && <p className="rating-metric-help">{reviewNote}</p>}
     {legacyExplanation && <section className="rating-rationale">
       <h5>Обоснование оценки</h5>
       <p className="explanation-text">{legacyExplanation}</p>
@@ -95,5 +103,5 @@ export function RatingAnalysis({ rating }: { rating: ReportRating }) {
     })}
     <RatingClarifications items={clarifications} />
     {!hasTriggeredStops && stopFindings}
-  </div>;
+  </div></SourceLocations.Provider>;
 }

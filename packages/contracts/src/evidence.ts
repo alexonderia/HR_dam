@@ -1,15 +1,25 @@
+import {optionalRequirementV5,requirementClausesV5,conditionStructureV5,requirementListV5} from "./criteria-v5.js";
+import {durationScope,scopeMatches,ambiguousRolePeriod,assertionProof,educationProof,professionalBasis,professionalContext} from "./policy-v5.js";
 import { z } from "zod";
-import { optionalRequirement, requirementClauses, optionalRequirementV3, requirementClausesV3 } from "./criteria.js";
+import {conditionStructure,requirementList} from "./criteria.js";
+import { optionalRequirement, requirementClauses, optionalRequirementV3, requirementClausesV3,optionalRequirementV4,requirementClausesV4 } from "./criteria.js";
+import {requestParticipation,validSemanticReview,educationMetSupported,statementProof,stopProof,experienceConstraint,sameProofCondition} from "./proof-policy.js";
 import { additionalEvidenceVerdict } from "./additional-evidence.js";
 import { periodBounds } from "./employment.js";
 import { scorePresentation } from "./score-presentation.js";
 
-const quotationSchema = z.object({ quote: z.string().min(1).max(2000), start: z.number().int().nonnegative(), end: z.number().int().positive() }).strict();
+const quotationSchema = z.object({ quote: z.string().min(1).max(2000), start: z.number().int().nonnegative(), end: z.number().int().positive(),block_id:z.string().optional(),section:z.string().max(80).optional(),page:z.number().int().positive().optional() }).strict();
 export const unknownReasonSchema = z.enum(["not_stated", "contradictory", "not_relevant", "unverified_evidence", "future_intent", "incomplete_document", "ambiguous_requirement"]);
 const criterionSchema = z.object({
   id: z.string(), category: z.enum(["keyword", "experience", "education", "additional"]),
   requirement: z.string().min(1), source: z.enum(["keywords", "experience", "education", "profile_comment", "cluster_comment"]),
   optional: z.boolean(), weight: z.number().int().min(0).max(10000),
+  experience_scope:z.object({role:z.string(),anchors:z.array(z.string())}).strict().optional(),
+  participation_only:z.literal(true).optional(),confirmed_part:z.string().min(1).max(2000).optional(),
+  semantic_review:z.object({method:z.literal("focused-model-review-v1"),status:z.enum(["met","partial"]),action_matches:z.boolean(),object_matches:z.boolean(),responsibility_matches:z.boolean(),evidence:z.array(z.string()).min(1).max(3),supported_text:z.string().max(500)}).strict().optional(),
+  condition:z.object({operator:z.enum(["atomic","all","any","ambiguous"]),parts:z.array(z.string())}).strict().optional(),
+  origins:z.array(z.object({source:z.string(),input_id:z.string(),text:z.string()}).strict()).max(1000).optional(),
+  experience_constraint:z.object({minimum:z.number().int().nonnegative().optional(),maximum:z.number().int().nonnegative().optional(),min_inclusive:z.boolean().optional(),max_inclusive:z.boolean().optional(),ambiguous:z.boolean().optional()}).strict().optional(),
   status: z.enum(["met", "partial", "not_met", "unknown"]), evidence: z.array(quotationSchema).max(256),
   unknown_reason: unknownReasonSchema.optional(),
   partial_reason: z.enum(["duration", "learning", "missing_parts"]).optional(),
@@ -18,32 +28,47 @@ const criterionSchema = z.object({
   required_months: z.number().int().positive().optional(), total_experience_months: z.number().int().nonnegative().optional(),
 }).strict();
 export const evidenceDetailsSchema = z.object({
-  method: z.literal("evidence-v1"), policy_version: z.enum(["evidence-v1", "evidence-v2", "evidence-v3"]), policy_status: z.literal("provisional"),
+  method: z.literal("evidence-v1"), policy_version: z.enum(["evidence-v1", "evidence-v2", "evidence-v3","evidence-v4","evidence-v5"]), policy_status: z.literal("provisional"),
   model: z.string(), assessment_date: z.iso.date().optional(), context_chunks: z.number().int().min(1).max(32).optional(), source_text_sha256: z.string().regex(/^[a-f0-9]{64}$/), source_text_length: z.number().int().nonnegative(),
   context_truncated: z.boolean(), criteria: z.array(criterionSchema).max(1000),
+  professional_basis:z.object({status:z.enum(["confirmed","unconfirmed","not_configured"]),criteria_ids:z.array(z.string())}).strict().optional(),
+  general_experience_months:z.number().int().nonnegative().optional(),
+  general_work_periods:z.array(z.object({start_month:z.number().int(),end_month:z.number().int(),start:z.number().int().nonnegative(),end:z.number().int().positive()}).strict()).max(96).optional(),
+  general_work_evidence:z.array(quotationSchema).max(96).optional(),
+  presentation_review:z.object({reason:z.literal("unsupported_additional_evidence"),original_score:z.number().min(0).max(100)}).strict().optional(),
+  run_metadata:z.object({prompt_version:z.string(),prompt_sha256:z.string().regex(/^[a-f0-9]{64}$/),extractor_version:z.string(),
+    model_digest:z.string().nullable(),quantization:z.string().nullable(),temperature:z.number(),num_ctx:z.number().int().positive(),max_tokens:z.number().int().positive(),
+    requests:z.array(z.object({prompt_tokens:z.number().nonnegative().nullable(),generated_tokens:z.number().nonnegative().nullable(),
+      total_time_sec:z.number().nonnegative().nullable(),done_reason:z.string().nullable()}).strict()).max(9000)}).strict().optional(),
   stop_factors: z.array(z.object({ id: z.string(), requirement: z.string(), status: z.enum(["triggered", "not_triggered", "unknown"]),
     evidence: z.array(quotationSchema).max(96), unknown_reason: unknownReasonSchema.optional(), penalty: z.union([z.literal(0), z.literal(10)]), duplicates: z.array(z.string()), }).strict()).max(100),
   coverage: z.number().min(0).max(100), score_range: z.object({ min: z.number().min(0).max(100), max: z.number().min(0).max(100) }).strict(),
-  stop_penalty: z.number().min(0).max(30), score_status: z.enum(["evaluated", "insufficient_evidence"]),
+  stop_penalty: z.number().min(0).max(30), score_status: z.enum(["evaluated", "insufficient_evidence","not_defined"]),
 }).strict();
 export type EvidenceDetails = z.infer<typeof evidenceDetailsSchema>;
-type EvidenceProfile = { keywords?: string[]; experience?: string | null; education?: string | null; comment?: string | null; stop_factors?: string[] };
-type CriterionInput = Pick<EvidenceDetails["criteria"][number], "id" | "category" | "requirement" | "source" | "optional" | "weight">;
+type EvidenceProfile = {position_name?:string;name?:string; keywords?: string[]; experience?: string | null; education?: string | null; comment?: string | null; stop_factors?: string[] };
+type CriterionInput = Pick<EvidenceDetails["criteria"][number], "id" | "category" | "requirement" | "source" | "optional" | "weight"|"origins"|"condition"|"experience_scope">;
 const optional = /желатель\w*|приветству\w*|будет\s+плюсом|не\s+обязател\w*/iu;
 const normalize = (text: string) => text.trim().toLowerCase().replaceAll("ё", "е").replace(/\s+/gu, " ");
 
-export function compileRatingCriteria(profile: EvidenceProfile, clusterComment = "", version: EvidenceDetails["policy_version"] = "evidence-v3"): CriterionInput[] {
+export function compileRatingCriteria(profile: EvidenceProfile, clusterComment = "", version: EvidenceDetails["policy_version"] = "evidence-v5"): CriterionInput[] {
   const criteria: CriterionInput[] = [];
-  const preference = version === "evidence-v3" ? optionalRequirementV3 : version === "evidence-v2" ? optionalRequirement : optional;
-  const clauses = version === "evidence-v3" ? requirementClausesV3 : requirementClauses;
+  const preference = version === "evidence-v5"?optionalRequirementV5:version === "evidence-v4"?optionalRequirementV4:version === "evidence-v3" ? optionalRequirementV3 : version === "evidence-v2" ? optionalRequirement : optional;
+  const clauses = version === "evidence-v5"?requirementClausesV5:version === "evidence-v4"?requirementClausesV4:version === "evidence-v3" ? requirementClausesV3 : requirementClauses;
   const add = (id: string, category: CriterionInput["category"], text: string, source: CriterionInput["source"]) => {
     const requirement = text.trim();
-    if (requirement) criteria.push({ id, category, requirement, source, optional: preference.test(requirement), weight: 0 });
+    if(!requirement)return;
+    if(["evidence-v4","evidence-v5"].includes(version)&&experienceConstraint(requirement)&&/опыт|стаж|работ|разработ/iu.test(requirement)&&!/образован|высше|бакалавр|магистр|специалитет|bachelor|master|средне|колледж|техникум|университет|институт|аспирант|mba|диплом|квалификац/iu.test(requirement))category="experience";
+    if(version==="evidence-v5"&&category==="education"&&!/образован|высше|бакалавр|магистр|специалитет|bachelor|master|средне|колледж|техникум|университет|институт|аспирант|mba|диплом|квалификац/iu.test(requirement)&&/опыт|стаж|работ|руковод|организац/iu.test(requirement))category="experience";
+    const origin={source,input_id:id,text:requirement};
+    const duplicate=["evidence-v4","evidence-v5"].includes(version)&&criteria.find(c=>normalize(c.requirement).replace(/[.!]+$/u,"")===normalize(requirement).replace(/[.!]+$/u,"")&&c.optional===preference.test(requirement));
+    if(duplicate){duplicate.origins!.push(origin);return;}
+    criteria.push({ id, category, requirement, source, optional: preference.test(requirement), weight: 0,...(["evidence-v4","evidence-v5"].includes(version)?{origins:[origin],condition:(version==="evidence-v5"?conditionStructureV5(requirement):conditionStructure(requirement)) as NonNullable<CriterionInput["condition"]>,...(version==="evidence-v5"&&category==="experience"&&(!experienceConstraint(requirement)||durationScope(requirement,profile))?{experience_scope:durationScope(requirement,profile)||{role:profile.position_name||profile.name||"",anchors:[...new Set(profile.keywords||[])]}}:{})}:{}) });
   };
-  profile.keywords?.forEach((text, index) => text.split(/[,;\n]+/u).forEach((part, i) => add(`keyword:${index}:${i}`, "keyword", part, "keywords")));
+  profile.keywords?.forEach((text, index) => (version==="evidence-v5"?requirementListV5(text):version==="evidence-v4"?requirementList(text):text.split(/[,;\n]+/u)).forEach((part, i) => add(`keyword:${index}:${i}`, "keyword", part, "keywords")));
   for (const category of ["experience", "education"] as const) {
     const text = profile[category] || "";
-    (preference.test(text) ? version !== "evidence-v1" ? clauses(text) : text.split(/[,;\n]+/u) : [text]).forEach((part, index) => add(`${category}:${index}`, category, part, category));
+    (["evidence-v4","evidence-v5"].includes(version)?clauses(text):preference.test(text) ? version !== "evidence-v1" ? clauses(text) : text.split(/[,;\n]+/u) : [text]).forEach((part, index) => add(`${category}:${index}`, category, part, category));
   }
   for (const [source, text] of [["profile_comment", profile.comment || ""], ["cluster_comment", clusterComment]] as const)
     (version !== "evidence-v1" ? clauses(text) : text.split(/[;\n]+/u)).forEach((part, index) => add(`${source}:${index}`, "additional", part, source));
@@ -90,12 +115,30 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
   const data = evidenceDetailsSchema.parse(rating.details);
   const expected = compileRatingCriteria(profile, clusterComment, data.policy_version);
   const current = data.policy_version !== "evidence-v1";
+  const scoped=data.policy_version==="evidence-v5";
   if (current && (!data.assessment_date || !data.context_chunks)) reject();
   if (data.criteria.length !== expected.length || new Set(data.criteria.map(c => c.id)).size !== expected.length) reject();
   for (const criterion of data.criteria) {
     const input = expected.find(c => c.id === criterion.id);
-    if (!input || Object.entries(input).some(([key, value]) => criterion[key as keyof typeof input] !== value)) reject();
-    if (criterion.status !== "unknown" && !criterion.evidence.length) reject();
+    if (!input || Object.entries(input).some(([key, value]) => ["origins","condition","experience_scope"].includes(key)?JSON.stringify(criterion[key as keyof typeof input])!==JSON.stringify(value):criterion[key as keyof typeof input] !== value)) reject();
+    if (criterion.status !== "unknown" && (!criterion.evidence.length||criterion.condition?.operator==="ambiguous")) reject();
+    if(criterion.participation_only&&(!["evidence-v4","evidence-v5"].includes(data.policy_version)||criterion.status!=="partial"||!(scoped?["keyword","additional","experience"]:["keyword","additional"]).includes(criterion.category)||criterion.confirmed_part!==requestParticipation(criterion.requirement,criterion.evidence.map(e=>e.quote))))reject();
+    if(criterion.confirmed_part&&!criterion.participation_only)reject();
+    const semantic=validSemanticReview(criterion.semantic_review,criterion.status,criterion.evidence,scoped?"":criterion.requirement);
+    if(criterion.semantic_review&&(!semantic||!["evidence-v4","evidence-v5"].includes(data.policy_version)||!(scoped?["keyword","additional","experience"]:["keyword","additional"]).includes(criterion.category)))reject();
+    if(data.policy_version==="evidence-v4"&&["keyword","additional"].includes(criterion.category)&&!statementProof(criterion.requirement,criterion.status,criterion.evidence.map(e=>e.quote),semantic).valid)reject();
+    if(data.policy_version==="evidence-v4"&&criterion.category==="education"&&criterion.status==="met"&&!educationMetSupported(criterion.requirement,criterion.evidence.map(e=>e.quote)))reject();
+    if(scoped){
+      const quotes=criterion.evidence.map(e=>e.quote);
+      if(criterion.category==="education"&&!educationProof(criterion.requirement,criterion.status,quotes,criterion.condition))reject();
+      if(criterion.category!=="education"&&!criterion.experience_constraint&&!assertionProof(criterion.requirement,criterion.status,quotes,criterion.condition,semantic))reject();
+      if(semantic&&criterion.semantic_review?.supported_text&&!assertionProof(criterion.requirement,criterion.semantic_review.status,[criterion.semantic_review.supported_text],criterion.condition,true))reject();
+      if(criterion.category==="experience"&&!criterion.experience_constraint&&['met','partial'].includes(criterion.status)&&!professionalContext(criterion.requirement,criterion.experience_scope,quotes,criterion.condition))reject();
+      if(criterion.category==="experience"&&criterion.experience_months!=null){
+        if(!quotes.some(q=>scopeMatches(criterion.requirement,criterion.experience_scope,q)))reject();
+        if(criterion.work_periods&&ambiguousRolePeriod(criterion.requirement,criterion.experience_scope,quotes.join('\n')))reject();
+      }
+    }
     if (data.policy_version === "evidence-v3" && criterion.category === "additional"
       && !additionalEvidenceVerdict(criterion.requirement, criterion.status, criterion.evidence.map(e=>e.quote)).valid) reject();
     if (current && ((criterion.status === "unknown") !== (criterion.unknown_reason != null))) reject();
@@ -119,7 +162,7 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
       const observed = criterion.total_experience_months == null ? total : Math.min(total, criterion.total_experience_months);
       if (criterion.status !== "unknown" && criterion.experience_months !== observed) reject();
     }
-    if (criterion.category === "keyword" && criterion.status !== "unknown") {
+    if (!["evidence-v4","evidence-v5"].includes(data.policy_version) && criterion.category === "keyword" && criterion.status !== "unknown") {
       const aliases = ({ sql: ["SQL", "MS SQL", "T-SQL", "MSSQL"], "rest api": ["REST API", "RESTful API"] } as Record<string, string[]>)[normalize(criterion.requirement)] || [criterion.requirement];
       const hasLiteral = (term: string): boolean => {
         const variants = ({ sql: ["SQL", "MS SQL", "T-SQL", "MSSQL"], "rest api": ["REST API", "RESTful API"] } as Record<string,string[]>)[normalize(term)] || [term];
@@ -149,7 +192,13 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
       } else credit = criterion.experience_months < criterion.required_months ? duration : .5;
     }
     if (Math.abs(criterion.credit - credit) > 1e-10) reject();
-    if (criterion.category === "experience" && criterion.required_months !== minimumExperienceMonths(criterion.requirement)) reject();
+    if (criterion.category === "experience") {
+      const bounds=["evidence-v4","evidence-v5"].includes(data.policy_version)?experienceConstraint(criterion.requirement):undefined;
+      if(criterion.required_months !== (["evidence-v4","evidence-v5"].includes(data.policy_version)?(bounds?.minimum||undefined):minimumExperienceMonths(criterion.requirement)))reject();
+      if(["evidence-v4","evidence-v5"].includes(data.policy_version)&&JSON.stringify(criterion.experience_constraint)!==JSON.stringify(bounds))reject();
+      if(bounds?.maximum!=null&&criterion.status==="met"&&(criterion.experience_months==null||criterion.experience_months>bounds.maximum||criterion.experience_months===bounds.maximum&&!bounds.max_inclusive))reject();
+      if(bounds?.minimum!=null&&!bounds.min_inclusive&&criterion.status==="met"&&criterion.experience_months===bounds.minimum)reject();
+    }
     const possible = criterion.status !== "unknown" ? criterion.credit
       : criterion.required_months && criterion.total_experience_months != null ? Math.min(criterion.total_experience_months / criterion.required_months, 1) : 1;
     if (Math.abs(criterion.possible_credit - possible) > 1e-10) reject();
@@ -166,9 +215,11 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
     const index = Number(stop.id.replace(/^stop:/u, ""));
     if (stop.id !== `stop:${index}` || texts[index] !== stop.requirement) reject();
     if (stop.status !== "unknown" && !stop.evidence.length) reject();
+    if(["evidence-v4","evidence-v5"].includes(data.policy_version)&&stop.status!=="unknown"&&!stopProof(stop.requirement,stop.status,stop.evidence.map(e=>e.quote)))reject();
+    if(scoped&&stop.status!=="unknown"&&experienceConstraint(stop.requirement)&&!stop.evidence.some(e=>scopeMatches(stop.requirement,durationScope(stop.requirement,profile),e.quote)))reject();
     if (current && ((stop.status === "unknown") !== (stop.unknown_reason != null))) reject();
     if (!current && (stop.evidence.length > 3 || stop.unknown_reason)) reject();
-    const duplicates = data.criteria.filter(c => ["partial", "not_met"].includes(c.status) && (intersects(contentTokens(c.requirement), contentTokens(stop.requirement)) ||
+    const duplicates = data.criteria.filter(c => ["partial", "not_met"].includes(c.status) && (["evidence-v4","evidence-v5"].includes(data.policy_version)?sameProofCondition(c.requirement,stop.requirement):intersects(contentTokens(c.requirement), contentTokens(stop.requirement)) ||
       c.category === "experience" && c.required_months != null && c.required_months === minimumExperienceMonths(stop.requirement))).map(c => c.id);
     if (JSON.stringify(stop.duplicates) !== JSON.stringify(duplicates)) reject();
     const key = normalize(stop.requirement);
@@ -176,8 +227,21 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
     if (stop.penalty !== penalty) reject();
     if (penalty) penalized.add(key);
   }
-  for (const quote of [...data.criteria, ...data.stop_factors].flatMap(c => c.evidence))
+  for (const quote of [...[...data.criteria, ...data.stop_factors].flatMap(c => c.evidence),...(data.general_work_evidence||[])])
     if (quote.end > data.source_text_length || quote.end <= quote.start || Array.from(quote.quote).length !== quote.end - quote.start) reject();
+  if(data.general_work_periods||data.general_work_evidence||data.general_experience_months!=null){
+    if(!scoped||!data.general_work_periods?.length||!data.general_work_evidence?.length||data.general_experience_months==null)reject();
+    let total=0,end=-1;
+    const asOf=new Date(data.assessment_date!+'T00:00:00Z');
+    const maximum=asOf.getUTCFullYear()*12+asOf.getUTCMonth()+Number(asOf.getUTCDate()===new Date(Date.UTC(asOf.getUTCFullYear(),asOf.getUTCMonth()+1,0)).getUTCDate());
+    for(const p of [...data.general_work_periods!].sort((a,b)=>a.start_month-b.start_month||a.end_month-b.end_month)){
+      const e=data.general_work_evidence!.find(e=>e.start<=p.start&&e.end>=p.end);
+      const bounds=e&&periodBounds(Array.from(e.quote).slice(p.start-e.start,p.end-e.start).join(''),data.assessment_date!);
+      if(!bounds||p.start_month<1900*12||p.start_month!==bounds[0]||p.end_month<=p.start_month||p.end_month>bounds[1]||p.end_month>maximum)reject();
+      total+=Math.max(0,p.end_month-Math.max(end,p.start_month));end=Math.max(end,p.end_month);
+    }
+    if(total!==data.general_experience_months)reject();
+  }
   const matched = [...new Set(data.criteria.filter(c => c.category === "keyword" && ["met", "partial"].includes(c.status)).map(c => c.requirement))];
   const triggered = [...new Set(data.stop_factors.filter(s => s.status === "triggered").map(s => s.requirement))];
   if (JSON.stringify(rating.matched_keywords || []) !== JSON.stringify(matched) || JSON.stringify(rating.triggered_stop_factors || []) !== JSON.stringify(triggered)) reject();
@@ -186,9 +250,17 @@ export function validateEvidenceRating(rating: { score: number; matched_keywords
   const unknown = data.criteria.filter(c => c.status === "unknown").reduce((sum, c) => sum + c.weight * c.possible_credit, 0) / 100;
   const weighted = data.criteria.some(c => c.weight);
   const range = { min: weighted ? roundScore(points - penalty) : 0, max: weighted ? roundScore(points + unknown - penalty) : 100 };
+  if(scoped){
+    const basis=professionalBasis(data.criteria);
+    if(JSON.stringify(data.professional_basis)!==JSON.stringify(basis))reject();
+    if(basis.status==="unconfirmed"){
+      range.min=0;
+      if(!data.criteria.some(c=>!c.optional&&c.category!=="education"&&c.status==="unknown"))range.max=0;
+    }
+  }
   const coverage = roundScore(data.criteria.filter(c => c.status !== "unknown").reduce((sum, c) => sum + c.weight, 0) / 100);
   if (Math.abs(rating.score - range.min) > .001 || data.score_range.min !== range.min || data.score_range.max !== range.max || data.coverage !== coverage || data.stop_penalty !== penalty ||
-    data.score_status !== (coverage ? "evaluated" : "insufficient_evidence")) reject();
+    data.score_status !== (["evidence-v4","evidence-v5"].includes(data.policy_version)&&!weighted?"not_defined":coverage ? "evaluated" : "insufficient_evidence")) reject();
   return data;
 }
 
@@ -201,10 +273,12 @@ export function ratingEvidence(rating?: { details?: unknown }): EvidenceDetails 
 // Keep saved results immutable. Withdraw only unsupported additional claims in
 // the report view, recomputing the score with the original weights and policy.
 function verifiedAdditionalEvidence(data: EvidenceDetails): EvidenceDetails {
+  if(["evidence-v4","evidence-v5"].includes(data.policy_version))return data;
   const invalid: ReturnType<typeof additionalEvidenceVerdict>[] = data.criteria.map(c=>c.category === "additional" && c.status !== "unknown"
     ? additionalEvidenceVerdict(c.requirement,c.status,c.evidence.map(e=>e.quote)) : {valid:true});
   if (invalid.every(v=>v.valid)) return data;
   const checked = evidenceDetailsSchema.parse(data);
+  checked.presentation_review=data.presentation_review||{reason:"unsupported_additional_evidence",original_score:data.score_range.min};
   checked.criteria.forEach((c,i)=>{
     if (invalid[i].valid) return;
     c.status="unknown"; c.credit=0; c.possible_credit=1;
@@ -238,8 +312,15 @@ export function verifiedRatingView<T extends {score:number;details?:unknown;expl
   return {...rating,score:details.score_range.min,details,explanation:explainEvidenceRating(details)};
 }
 
+export function ratingScoreValue(rating?: {score:number;details?:unknown}): number|undefined {
+  if(!rating)return;
+  const evidence=ratingEvidence(rating);
+  return evidence?.score_status==="not_defined"?undefined:evidence?.score_range.min??Number(rating.score);
+}
+
 export function ratingScoreText(rating: { score: number; details?: unknown }): string {
-  return String(rating.score);
+  const evidence=ratingEvidence(rating);
+  return evidence?.score_status==="not_defined"?"Оценка не определена":String(evidence?.score_range.min??rating.score);
 }
 
 export function explainEvidenceRating(data: EvidenceDetails): string {

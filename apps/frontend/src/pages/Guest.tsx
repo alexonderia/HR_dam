@@ -1,3 +1,5 @@
+import {requirementListV5 as requirementList,ratingScoreValue} from "@hr/contracts";
+import { RequirementPreview } from "../components/RequirementPreview";
 import { useEffect, useId, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronRight, Download, FileText, LoaderCircle, Paperclip, X } from "lucide-react";
 import { guestCriteriaSchema, type ProcessingResult, type AnalysisStatus } from "@hr/contracts";
@@ -85,8 +87,8 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
     }
     setBusy(true);
     try {
-      const criteria = guestCriteriaSchema.parse({ ...values, keywords: values.keywords.split(/[,\n]/).map(v => v.trim()).filter(Boolean),
-        stop_factors: values.stop_factors.split(/[,\n]/).map(v => v.trim()).filter(Boolean) });
+      const criteria = guestCriteriaSchema.parse({ ...values, keywords: requirementList(values.keywords),
+        stop_factors: requirementList(values.stop_factors) });
       setStage("Подготовка отправки…");
       const hex = (data: ArrayBuffer) => Array.from(new Uint8Array(data), b => b.toString(16).padStart(2, "0")).join("");
       const descriptions = [];
@@ -122,6 +124,7 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
           {key === "name" ? <input id={`${attachmentsId}-${key}`} className="af-input af-input--lg" name={key} aria-labelledby={`${attachmentsId}-${key}-label`} aria-describedby={`${attachmentsId}-${key}-help`} maxLength={300} required disabled={busy} value={values[key]} onChange={e => setValues({ ...values, [key]: e.target.value })} />
             : <textarea id={`${attachmentsId}-${key}`} className="af-textarea" name={key} aria-labelledby={`${attachmentsId}-${key}-label`} aria-describedby={`${attachmentsId}-${key}-help`} rows={3} maxLength={10000} disabled={busy} value={values[key]} onChange={e => setValues({ ...values, [key]: e.target.value })} />}
         </div>)}</div>
+        <RequirementPreview profile={{...values,keywords:requirementList(values.keywords),stop_factors:requirementList(values.stop_factors)}} />
         <section className="guest-attachments" aria-labelledby={`${attachmentsId}-heading`}>
           <div className="guest-field-heading"><h2 className="af-label" id={`${attachmentsId}-heading`}>Резюме или ZIP-архив</h2>
             <InfoHint id={`${attachmentsId}-help`} label="Резюме или ZIP-архив">Прикрепите резюме кандидатов отдельными файлами или ZIP-архивом. Форматы: PDF, DOCX, DOC, RTF, TXT, ZIP. До 50 файлов по 50 МБ, всего — до 250 МБ. PDF может содержать нескольких кандидатов.</InfoHint></div>
@@ -161,11 +164,11 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
             <div className="guest-candidate-name"><h3>{[result.candidate.last_name, result.candidate.first_name, result.candidate.middle_name].filter(Boolean).join(" ") || "Имя не указано"}</h3>
             </div>
             <div className="guest-candidate-score"><span className="sr-only">{result.evaluations.length > 1 ? "Оценки" : "Основная оценка"}</span>
-              {result.evaluations.map(evaluation => <span className="guest-score-value" key={evaluation.target_id}><Score value={evaluation.score} /><span className="guest-score-scale">из 100</span></span>)}
+              {result.evaluations.map(evaluation => <span className="guest-score-value" key={evaluation.target_id}><Score rating={evaluation} />{ratingScoreValue(evaluation)!=null&&<span className="guest-score-scale">из 100</span>}</span>)}
             </div>
           </summary>
           <div className="guest-candidate-body">{result.evaluations.map(evaluation => <div key={evaluation.target_id}>
-            {result.evaluations.length > 1 && <div className="guest-rating-score"><span>Основная оценка</span><Score value={evaluation.score} /><span>из 100</span></div>}
+            {result.evaluations.length > 1 && <div className="guest-rating-score"><span>Основная оценка</span><Score rating={evaluation} />{ratingScoreValue(evaluation)!=null&&<span>из 100</span>}</div>}
             <RatingAnalysis rating={evaluation} />
           </div>)}</div></details>)}</div>
         {rankedResults.length > shownCandidates && <Button secondary className="af-btn--clear guest-show-more" onClick={() => setVisibleCandidates(rankedResults.length)}>Ещё {rankedResults.length - shownCandidates} {plural(rankedResults.length - shownCandidates, ["кандидат", "кандидата", "кандидатов"])}<ChevronRight size={18} aria-hidden="true" /></Button>}

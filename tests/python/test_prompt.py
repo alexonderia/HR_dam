@@ -37,7 +37,7 @@ class PromptTests(unittest.TestCase):
             identifiers = [c["id"] for c in json.loads(kwargs["user_prompt"])["criteria"]]
             self.assertEqual(schema["properties"]["assessments"]["minItems"], len(identifiers))
             self.assertEqual(schema["properties"]["assessments"]["maxItems"], len(identifiers))
-            self.assertEqual(schema["$defs"]["CriterionAssessment"]["properties"]["id"]["enum"], sorted(identifiers))
+            self.assertEqual(schema["$defs"]["CriterionAssessment"]["anyOf"][0]["properties"]["id"]["enum"], sorted(identifiers))
             self.assertEqual(schema["properties"]["stop_factors"]["maxItems"], 0)
             return {"response": json.dumps({"assessments": [{"id": identifier, "status": "unknown", "evidence": [],
                 "unknown_reason": "not_stated", "partial_reason": None} for identifier in identifiers], "stop_factors": []})}
@@ -69,7 +69,7 @@ class PromptTests(unittest.TestCase):
         def answer(**kwargs):
             requests.append(kwargs)
             data = json.loads(kwargs["user_prompt"])
-            found = "Владею Python" in data["resume_text"]
+            found = "Владею Python" in "".join(b["text"] for b in data["source_blocks"])
             return {"response": json.dumps({"assessments": [{"id": "keyword:0:0", "status": "met" if found else "unknown",
                 "evidence": ["Владею Python"] if found else [], "unknown_reason": None if found else "not_stated", "partial_reason": None}], "stop_factors": []})}
         with patch("resume_evaluator.scoring.ask_ollama_chat", side_effect=answer):
@@ -102,7 +102,7 @@ class PromptTests(unittest.TestCase):
             criterion = result["details"]["criteria"][0]
             self.assertEqual(criterion["status"], status)
             self.assertEqual(model.call_count, 2)
-            self.assertIn("Предыдущие цитаты", json.loads(model.call_args.kwargs["user_prompt"])["retry_feedback"]["instruction"])
+            self.assertIn("Предыдущие ссылки", json.loads(model.call_args.kwargs["user_prompt"])["retry_feedback"]["instruction"])
             if status == "unknown":
                 self.assertEqual(criterion["unknown_reason"], "unverified_evidence")
                 self.assertEqual(criterion["evidence"], [])
@@ -137,7 +137,7 @@ class PromptTests(unittest.TestCase):
             result = rank_profile(source, ProfileRequest(id="p", position_name="Developer", keywords=["Python", "SQL"]))
         second = json.loads(model.call_args_list[1].kwargs["user_prompt"])
         self.assertEqual([c["id"] for c in second["criteria"]], ["keyword:1:0"])
-        self.assertEqual(second["resume_text"], source)
+        self.assertEqual("".join(b["text"] for b in second["source_blocks"]), source)
         self.assertEqual(result["score"], 100)
         self.assertEqual(result["details"]["criteria"][0]["evidence"][0]["quote"], "Работаю с Python")
 

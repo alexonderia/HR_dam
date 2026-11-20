@@ -1,6 +1,6 @@
 import { pool } from "@hr/data-access";
 import { keyFromEnv, AccessError } from "@hr/security";
-import { ObjectStore, ProcessingBroker, ProcessingEngine, mutateTask, expireWork, probeEvaluator, type Task, type Job, type Publication } from "@hr/processing";
+import { ObjectStore, ProcessingBroker, ProcessingEngine, mutateTask, expireWork, probeEvaluator, activeWorkMs, type Task, type Job, type Publication } from "@hr/processing";
 import { AuthorizedTaskStore } from "./processing-store.js";
 import { persistResult, markTargetFailure } from "./import-results.js";
 import { config } from "./config.js";
@@ -8,7 +8,7 @@ import { HttpError } from "./errors.js";
 
 async function project(task: Task, job: Job) {
   const file = task.files.find(f => f.file_id === job.file_id)!;
-  const duration = job.started_at ? Math.max(0, Date.now() - Date.parse(job.started_at)) : null;
+  const duration = job.started_at ? job.work_elapsed_ms != null ? activeWorkMs(job) : Math.max(0, Date.now() - Date.parse(job.started_at)) : null;
   const result = job.result;
   if (result?.status === "failed") {
     await markTargetFailure(file, job.job_id, result.error.message, duration);

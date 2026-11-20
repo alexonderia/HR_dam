@@ -19,7 +19,7 @@ from resume_evaluator.readiness import mark_ready
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 
-def page(document, title, body="Опыт работы\nPython используется в учебном проекте разработки приложений.", size=18):
+def page(document, title, body="Опыт работы\nPython используется в работе над приложениями.", size=18):
     result = document.new_page()
     result.insert_font(fontname="resume", fontfile=FONT)
     result.insert_text((30, 40), title, fontname="resume", fontsize=size)
@@ -97,7 +97,7 @@ class PDFNameTests(unittest.TestCase):
                 "keywords": ["Python"], "stop_factors": [], "comment": "", "cluster_comment": ""}
             def scorer(text, profile, comment, **_kwargs):
                 return verify_and_score({"assessments": [{"id": "keyword:0:0", "status": "met",
-                    "evidence": ["Python используется в учебном проекте"]}], "stop_factors": []}, text, profile, comment)
+                    "evidence": ["Python используется в работе"]}], "stop_factors": []}, text, profile, comment)
             mark_ready(True)
             try:
                 result = evaluate(FakeAPI("evaluate"), {**metadata("input.pdf"),

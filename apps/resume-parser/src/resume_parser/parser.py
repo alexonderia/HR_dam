@@ -11,7 +11,7 @@ import pymupdf as fitz
 
 from resume_documents.candidate_extractor import extract_contacts
 from resume_documents.pdf_names import AmbiguousNameHeader, pdf_name_header
-from resume_documents.resume_sections import SERVICE_SECTION, has_owner_footer, has_resume_sections, resume_body
+from resume_documents.resume_sections import SERVICE_SECTION, has_owner_footer, has_resume_sections, resume_body,ResumeBoundaryError
 
 from processing_runtime.protocol import DocumentError, InvalidJob
 
@@ -54,9 +54,12 @@ def pdf_ranges(document):
     for index, page in enumerate(document):
         raw = page.get_text()
         if not raw.strip():
-            raise DocumentError("CANNOT_SEPARATE_RESUMES", "В PDF есть страницы без текста; требуется OCR или ручное разделение.")
+            raise DocumentError("CANNOT_SEPARATE_RESUMES", f"Страница {index+1} PDF не содержит доступного текста; требуется OCR или ручное разделение.")
         heading = SERVICE_SECTION.search(raw)
-        text = resume_body(raw)
+        try:
+            text = resume_body(raw)
+        except ResumeBoundaryError as error:
+            raise DocumentError("CANNOT_SEPARATE_RESUMES",str(error)) from None
         if heading and not text.strip():
             if not starts or previous is None:
                 raise DocumentError("CANNOT_SEPARATE_RESUMES", "Перед служебным разделом PDF не найдено резюме кандидата.")

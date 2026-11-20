@@ -65,6 +65,7 @@ services:
       GUEST_COOKIE_PRIVATE_KEY_FILE: /run/secrets/guest-cookie-private
       GUEST_COOKIE_PUBLIC_KEY_FILE: /run/secrets/guest-cookie-public
       PROCESSING_TIMEOUT_MS: ${PROCESSING_TIMEOUT_MS:-1800000}
+      PROCESSING_QUEUE_TIMEOUT_MS: ${PROCESSING_QUEUE_TIMEOUT_MS:-86400000}
       UPLOAD_TIMEOUT_MS: ${UPLOAD_TIMEOUT_MS:-600000}
       GUEST_UPLOAD_CONCURRENCY: ${GUEST_UPLOAD_CONCURRENCY:-3}
       GUEST_ABSOLUTE_TTL_MS: ${GUEST_ABSOLUTE_TTL_MS:-86400000}
@@ -103,6 +104,7 @@ services:
       AUTHORIZED_JOB_PRIVATE_KEY_FILE: /run/secrets/authorized-job-private
       AUTHORIZED_JOB_PUBLIC_KEY_FILE: /run/secrets/authorized-job-public
       PROCESSING_TIMEOUT_MS: ${PROCESSING_TIMEOUT_MS:-1800000}
+      PROCESSING_QUEUE_TIMEOUT_MS: ${PROCESSING_QUEUE_TIMEOUT_MS:-86400000}
       UPLOAD_TIMEOUT_MS: ${UPLOAD_TIMEOUT_MS:-600000}
     expose: ['3001']
     networks: [frontend-app, database, authorized-store, authorized-broker, authorized-jobs, authorized-antivirus]

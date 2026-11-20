@@ -79,6 +79,11 @@ export async function persistResult(requirements: Cluster[], file: StoredFile, j
     const blacklisted = await client.query(`SELECT EXISTS(SELECT 1 FROM candidates c JOIN candidate_blacklist b
       ON b.is_active AND ${blacklistMatchSql} WHERE c.id=$1) AS matched`, [candidateId]);
     const warning = blacklisted.rows[0].matched ? "Кандидат найден в чёрном списке. Требуется ручная проверка." : undefined;
+    await client.query(`INSERT INTO resume_rating_history(id,resume_id,replacement_job_id,ratings,assessments)
+      SELECT $1,$2,$3,coalesce((SELECT jsonb_agg(to_jsonb(p)) FROM profile_ratings p WHERE p.resume_id=$2),'[]'::jsonb),
+        coalesce((SELECT jsonb_agg(to_jsonb(a)) FROM resume_cluster_assessments a WHERE a.resume_id=$2),'[]'::jsonb)
+      WHERE EXISTS(SELECT 1 FROM profile_ratings WHERE resume_id=$2)
+      ON CONFLICT(resume_id,replacement_job_id) DO NOTHING`,[randomUUID(),resumeId,jobId]);
     if (file.assessment_cluster_ids) {
       const ids = requirements.map(cluster => cluster.id);
       if (!file.target_resume_id || ids.length !== file.assessment_cluster_ids.length

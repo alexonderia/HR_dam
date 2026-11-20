@@ -14,7 +14,7 @@ export function internalRouter(engine: ProcessingEngine, base: string): Router {
   router.use("/jobs/:jobId", async (req, res, next) => {
     const permission = req.path === "/input" ? "input:read" : req.path.startsWith("/files/") ? "file:read" :
       req.path.startsWith("/output/") ? "output:write" : req.path === "/progress" ? "progress:write" : "result:write";
-    res.locals.job = await engine.authorize(req.header("authorization"), z.uuid().parse(req.params.jobId), permission); next();
+    res.locals.job = await engine.authorize(req.header("authorization"), z.uuid().parse(req.params.jobId), permission, req.header("x-processing-run")); next();
   });
   router.get("/jobs/:jobId/input", (_req, res) => {
     const { task, job } = res.locals.job; res.json(engine.input(task, job, base));
@@ -53,7 +53,8 @@ export function internalRouter(engine: ProcessingEngine, base: string): Router {
     const input = processingProgressSchema.parse(req.body);
     const task = await engine.progress(res.locals.job.claims, input);
     const saved = input.checkpoint && task.jobs.find(j => j.job_id === input.job_id)?.evaluation_checkpoints;
-    res.json({ accepted: true, ...(saved ? { checkpoint: { context: saved.context,
+    const deadline = task.jobs.find(j => j.job_id === input.job_id)?.work_deadline;
+    res.json({ accepted: true, ...(deadline ? { work_deadline: deadline } : {}), ...(saved ? { checkpoint: { context: saved.context,
       evaluation: saved.evaluations.find(e => e.target_id === input.checkpoint!.evaluation.target_id) } } : {}) });
   });
   router.post("/jobs/:jobId/result", async (req, res) => { await engine.result(res.locals.job.claims, req.body); res.json({ accepted: true }); });

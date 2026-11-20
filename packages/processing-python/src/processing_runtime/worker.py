@@ -33,7 +33,8 @@ def handle_delivery(body, properties, mode, operation, key, base, stopped, proce
         with TemporaryDirectory(prefix=f"hr-{job.id}-") as workspace:
             directory = Path(workspace)
             source = api.download(metadata["file"], metadata["limits"], directory)
-            api.progress()
+            if operation == "prepare":
+                api.progress()
             try:
                 result = processor(api, metadata, source, directory)
             except DocumentError as exc:
@@ -53,6 +54,10 @@ def handle_delivery(body, properties, mode, operation, key, base, stopped, proce
         return "retry"
     finally:
         if api:
+            try:
+                api.pause()
+            except (ClosedJob, InvalidJob, RetryJob):
+                logger.warning("Retry pause was not recorded (%s/%s)", mode, operation)
             api.close()
 
 

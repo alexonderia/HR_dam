@@ -64,6 +64,7 @@ export function ratingRangeText(rating: { details?: unknown }): string {
 export function ratingEstimateText(rating: { details?: unknown }): string {
   const evidence = ratingEvidence(rating);
   if (!evidence) return "";
+  if(evidence.score_status==="not_defined")return "Оценка не определена";
   const estimate = scorePresentation(evidence.score_range, evidence.context_truncated || evidence.score_status === "insufficient_evidence");
   return `${estimate.value} из 100${estimate.note ? ". " + estimate.note : ""}`;
 }
@@ -94,10 +95,12 @@ export function ratingAnalysis(rating: ReportRating) {
     items: (evidence?.criteria || []).filter(c => c.category !== "keyword" && c.status === status && status !== "unknown").map(c => ({
       requirement: c.requirement, category: categoryLabels[c.category],
       notes: [
+        ...((c.confirmed_part||c.semantic_review?.supported_text)?[`Подтверждённая часть: ${c.confirmed_part||c.semantic_review?.supported_text}`]:[]),
         ...(c.optional ? ["Желательное требование; на балл не влияет."] : []),
         ...(c.partial_reason === "learning" ? ["Подтверждено обучение, полное владение не подтверждено."] : []),
         ...(c.partial_reason === "missing_parts" ? ["Подтверждены не все части условия."] : []),
         ...(c.required_months != null ? [`Требуемый стаж: ${formatExperienceDuration(c.required_months)}.`] : []),
+        ...(c.experience_scope ? [`${c.experience_constraint ? "Стаж проверяется по профилю" : "Область опыта"} «${c.experience_scope.role}».`] : []),
         ...(c.experience_months != null ? [`Подтверждённый стаж: ${formatExperienceDuration(c.experience_months)}.`] : []),
       ],
       quotes: c.evidence.map(e => e.quote),
@@ -109,7 +112,12 @@ export function ratingAnalysis(rating: ReportRating) {
     quotes: stop.evidence.map(e => e.quote),
   }));
   return { evidence, groups, skills, missing, stops, clarifications, range: ratingRangeText(rating),
-    estimate: evidence ? scorePresentation(evidence.score_range, evidence.context_truncated || evidence.score_status === "insufficient_evidence") : undefined,
+    estimate: evidence?.score_status==="not_defined"?{insufficient:true,label:"Оценка",value:"не определена",note:"Нет обязательных условий; стоп-факторы проверяются отдельно."}:evidence ? scorePresentation(evidence.score_range, evidence.context_truncated || evidence.score_status === "insufficient_evidence") : undefined,
+    professionalNote: evidence?.professional_basis?.status === "unconfirmed" ? "Профессиональное соответствие не подтверждено. Образование и общий стаж сами по себе не повышают оценку этого профиля." : "",
+    generalExperienceNote: evidence?.general_experience_months != null ? `Общий стаж по датам работы: ${formatExperienceDuration(evidence.general_experience_months)}. Стаж по профессии проверяется отдельно.` : "",
+    policyNote: evidence?`Политика ${evidence.policy_version}. ${evidence.policy_status==="provisional"?"Методика проходит проверку.":""}`:"",
+    completeness: evidence ? `Определён статус по ${evidence.coverage}% веса условий. На уточнении: ${clarifications.length}. Это полнота сведений, а не точность оценки.`:"",
+    reviewNote: evidence?.presentation_review?"Представление отчёта пересмотрено: неподтверждённые дополнительные выводы отозваны. Исходная запись сохранена; для актуальной оценки запустите новую проверку.":"",
     explanation: evidence ? explainEvidenceRating(evidence) : rating.explanation?.trim() || "Обоснование не указано.",
     legacyExplanation: evidence ? "" : rating.explanation || "Обработчик не предоставил пояснение." };
 }
@@ -125,6 +133,6 @@ export function ratingAnalysisText(rating: ReportRating) {
     stops: analysis.stops.length ? [...analysis.stops.filter(stop => stop.state !== "unknown").map(stop => [stop.requirement, stop.status, stop.notes, ...stop.quotes.map(quote => `«${quote}»`)].join(" — ")),
       ...(analysis.stops.some(stop => stop.state === "unknown") ? ["Не указано"] : [])].join("\n")
       : rating.triggered_stop_factors?.join("\n") || "Не найдены",
-    explanation: analysis.explanation,
+    explanation: [analysis.explanation,analysis.professionalNote,analysis.generalExperienceNote,analysis.policyNote,analysis.completeness,analysis.reviewNote].filter(Boolean).join("\n"),
   };
 }

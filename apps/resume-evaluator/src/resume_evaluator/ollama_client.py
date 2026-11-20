@@ -216,6 +216,7 @@ def ask_ollama_chat(
               response_length_chars=len(content),
               prompt_tokens=prompt_tokens,
               generated_tokens=generated_tokens,
+              done_reason=data.get("done_reason"),
               prompt_eval_ms=round(prompt_eval_ns / 1_000_000, 1) if prompt_eval_ns else None,
               eval_ms=round(eval_ns / 1_000_000, 1) if eval_ns else None)
 
@@ -237,4 +238,5 @@ def ask_ollama_chat(
         "prompt_tokens": prompt_tokens,
         "generated_tokens": generated_tokens,
         "total_time_sec": round(duration, 2),
+        "done_reason": data.get("done_reason"),
     }

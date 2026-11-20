@@ -1,5 +1,5 @@
 import type { Candidate, Cluster } from "@hr/contracts";
-import { fullName, scoringLabels, statusLabels, formatMoscowDateTime, formatAnalysisDuration, ratingScoreText, clusterScore, clusterScoreRange, ratingEstimateText, scorePresentation, ratingAnalysis, groupRatingClarifications, clarificationSources, type ReportRating } from "@hr/contracts";
+import { fullName, scoringLabels, statusLabels, formatMoscowDateTime, formatAnalysisDuration, ratingScoreText, ratingScoreValue, clusterScore, clusterScoreRange, ratingEstimateText, scorePresentation, ratingAnalysis, groupRatingClarifications, clarificationSources, type ReportRating } from "@hr/contracts";
 
 export const escapeHtml = (value: unknown) =>
   String(value ?? "").replace(
@@ -40,7 +40,7 @@ export function exportCsv(candidates: Candidate[], clusters: Cluster[]) {
         return [clusterScore(c, cluster) ?? "", estimate ? `${estimate.value} из 100${estimate.note ? ". " + estimate.note : ""}` : ""];
       }),
       ...profiles.flatMap(
-        (p) => { const rating = c.ratings.find(r => r.profile_id === p.id); return rating ? [Number(rating.score), ratingEstimateText(rating)] : ["", ""]; },
+        (p) => { const rating = c.ratings.find(r => r.profile_id === p.id); return rating ? [ratingScoreValue(rating)??"", ratingEstimateText(rating)] : ["", ""]; },
       ),
     ]),
   ];
@@ -126,10 +126,10 @@ export function reportContent(
         const rating = candidate.ratings.find(
           (r) => r.profile_id === profile.id,
         );
-        if (rating && !tablesOnly) analyses.push(`<section class="rating-report"><h3>${escapeHtml(cluster.name)} / ${escapeHtml(profile.position_name)}</h3><p class="primary-score">Основная оценка: ${escapeHtml(ratingScoreText(rating))} / 100</p>${ratingAnalysisHtml(rating)}</section>`);
+        if (rating && !tablesOnly) analyses.push(`<section class="rating-report"><h3>${escapeHtml(cluster.name)} / ${escapeHtml(profile.position_name)}</h3><p class="primary-score">Основная оценка: ${escapeHtml(ratingScoreText(rating))}${ratingScoreValue(rating)!=null?" / 100":""}</p>${ratingAnalysisHtml(rating)}</section>`);
         return rating
           ? [
-              `<tr id="profile-${escapeHtml(anchorPrefix + profile.id)}" class="report-section"><td>${profile.id === cluster.profiles.find(p => candidate.ratings.some(r => r.profile_id === p.id))?.id ? `<span id="cluster-${escapeHtml(anchorPrefix + cluster.id)}"></span>` : ""}${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td class="primary-score">${escapeHtml(ratingScoreText(rating))} / 100</td><td>${escapeHtml(ratingEstimateText(rating) || "Не указан")}</td></tr>`,
+              `<tr id="profile-${escapeHtml(anchorPrefix + profile.id)}" class="report-section"><td>${profile.id === cluster.profiles.find(p => candidate.ratings.some(r => r.profile_id === p.id))?.id ? `<span id="cluster-${escapeHtml(anchorPrefix + cluster.id)}"></span>` : ""}${escapeHtml(cluster.name)}</td><td>${escapeHtml(profile.position_name)}</td><td class="primary-score">${escapeHtml(ratingScoreText(rating))}${ratingScoreValue(rating)!=null?" / 100":""}</td><td>${escapeHtml(ratingEstimateText(rating) || "Не указан")}</td></tr>`,
             ]
           : [];
       }),
@@ -143,7 +143,7 @@ export function ratingAnalysisHtml(rating: ReportRating) {
   const text = (value: string) => escapeHtml(value).replace(/\n/g, "<br>");
   const quotes = (items: string[]) => items.map(quote => `<blockquote>${text(quote)}</blockquote>`).join("");
   const groups = analysis.groups.filter(group => group.items.length).map(group => `<section><h4>${escapeHtml(group.title)}</h4><ul>${group.items.map(item => `<li><span class="criterion-category">${escapeHtml(item.category)}</span><strong>${escapeHtml(item.requirement)}</strong>${item.notes.length ? `<p>${escapeHtml(item.notes.join(" "))}</p>` : ""}${item.quotes.length ? quotes([item.quotes.join("\n")]) : ""}</li>`).join("")}</ul></section>`).join("");
-  const metrics = analysis.estimate ? `<dl><div><dt>${escapeHtml(analysis.estimate.label)}</dt><dd>${escapeHtml(analysis.estimate.value)} / 100</dd></div></dl>${analysis.estimate.note ? `<p>${escapeHtml(analysis.estimate.note)}</p>` : ""}${analysis.evidence?.context_truncated ? '<p class="af-alert af-alert--warning">Оценён только фрагмент резюме.</p>' : ""}` : "";
+  const metrics = analysis.estimate ? `<dl><div><dt>${escapeHtml(analysis.estimate.label)}</dt><dd>${escapeHtml(analysis.estimate.value)}${analysis.evidence?.score_status==="not_defined"?"":" / 100"}</dd></div></dl>${analysis.estimate.note ? `<p>${escapeHtml(analysis.estimate.note)}</p>` : ""}${analysis.evidence?.context_truncated ? '<p class="af-alert af-alert--warning">Оценён только фрагмент резюме.</p>' : ""}` : "";
   const knownStops = analysis.stops.filter(stop => stop.state !== "unknown");
   const stops = knownStops.length ? `<ul>${knownStops.map(stop => `<li><strong>${escapeHtml(stop.requirement)}</strong><p>${escapeHtml(stop.status)}. ${escapeHtml(stop.notes)}</p>${quotes([stop.quotes.join("\n")])}</li>`).join("")}</ul>` : `<p>${escapeHtml(analysis.stops.length ? "Не указано" : rating.triggered_stop_factors?.join("; ") || "Не заданы")}</p>`;
   const skills = analysis.skills.length ? `<h4>Навыки</h4>${analysis.skills.map(group => `<p>${escapeHtml(group.title)}: ${group.items.map(item => escapeHtml(item.requirement)).join(", ")}</p>${quotes([...new Set(group.items.flatMap(item => item.quotes))])}`).join("")}` : "";
@@ -151,7 +151,7 @@ export function ratingAnalysisHtml(rating: ReportRating) {
   const clarifications = analysis.clarifications.length ? `<section><h4>Что уточнить</h4><ul>${groupRatingClarifications(analysis.clarifications).map(group => `<li><p>${escapeHtml(group.reason)}. ${escapeHtml(group.question)}</p><ul>${group.items.map(item => `<li><strong>${escapeHtml(item.requirement)}</strong></li>`).join("")}</ul></li>`).join("")}</ul></section>` : "";
   const sources = clarificationSources(analysis.clarifications);
   const clarificationQuotes = sources.length ? `<section><h4>Цитаты к уточнениям</h4>${sources.map(source => `<figure><figcaption>К уточнениям: ${escapeHtml(source.requirements.join(", "))}</figcaption>${quotes([source.quote])}</figure>`).join("")}</section>` : "";
-  return `${clarifications}${clarificationQuotes}${metrics}${groups ? `<h4>Обоснование оценки</h4>${groups}` : !analysis.evidence ? `<h4>Обоснование оценки</h4><p>${text(analysis.legacyExplanation)}</p>` : ""}${skills}${missing}<h4>Стоп-факторы</h4>${stops}`;
+  return `${analysis.professionalNote?`<p>${text(analysis.professionalNote)}</p>`:""}${analysis.generalExperienceNote?`<p>${text(analysis.generalExperienceNote)}</p>`:""}<p>${text(analysis.policyNote)} ${text(analysis.completeness)}</p>${analysis.reviewNote?`<p>${text(analysis.reviewNote)}</p>`:""}${clarifications}${clarificationQuotes}${metrics}${groups ? `<h4>Обоснование оценки</h4>${groups}` : !analysis.evidence ? `<h4>Обоснование оценки</h4><p>${text(analysis.legacyExplanation)}</p>` : ""}${skills}${missing}<h4>Стоп-факторы</h4>${stops}`;
 }
 export function reportHtml(candidate: Candidate, clusters: Cluster[], print: boolean, tablesOnly = false, controls = false) {
   const toolbar = controls ? `<form class="report-controls" action="/api/app/resumes/${escapeHtml(candidate.resume_id)}/report" method="get"><label>Содержание<select name="content"><option value="report"${!tablesOnly ? " selected" : ""}>Полный отчёт</option><option value="table"${tablesOnly ? " selected" : ""}>Только таблицы</option></select></label><label>Формат экспорта<select name="format"><option value="xlsx">Excel (.xlsx)</option><option value="csv">CSV (.csv)</option><option value="html">HTML (.html)</option></select></label><button type="submit" name="download" value="true">Скачать</button><button type="submit" name="print" value="true">Печать / PDF</button></form>` : "";
