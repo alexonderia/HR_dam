@@ -1,6 +1,6 @@
 import { validateEvidenceRating, processingCommandSchema, processingEventSchema, prepareResultSchema, evaluateResultSchema, failedResultSchema, processingProgressSchema, type ProcessingProgress, type EvaluationCheckpoint, type ProcessingEvent, type ProcessingMode } from "@hr/contracts";
 import { AccessError, signToken, verifyToken, type Claims } from "@hr/security";
-import { command, assignJob, expireWork, finish, live, mutateTask, stableId, terminal, guestAbsoluteTtlMs } from "./state.js";
+import { command, assignJob, expireWork, finish, live, mutateTask, stableId, terminal, guestAbsoluteTtlMs, taskQueueDeadline, processingTimeoutMs, beginWork, pauseWork, activeWorkMs } from "./state.js";
 import type { BlobStore, Job, Publication, Publisher, Task, TaskStore, StoredFile } from "./types.js";
 
 export const jobPermissions = (operation: "prepare" | "evaluate") => ["input:read", "file:read", "progress:write", "result:write", ...(operation === "prepare" ? ["output:write"] : [])];
@@ -15,10 +15,11 @@ export class ProcessingEngine {
       permissions: jobPermissions(job.operation), iat: Math.floor(Date.parse(job.created_at) / 1000), exp: Math.floor(Date.parse(job.deadline) / 1000) },
     this.keys.privateKey, "hr-processing-job+jwt");
   }
-  async authorize(authorization: string | undefined, jobId: string, permission: string) {
+  async authorize(authorization: string | undefined, jobId: string, permission: string, runId?: string) {
     // Cryptographic mode/issuer checks precede any storage access (including PostgreSQL).
     if (!authorization?.startsWith("Bearer ")) throw new AccessError(401);
     const c = verifyToken(authorization.slice(7), this.keys.publicKey, "hr-processing-job+jwt", `hr-${this.mode}-jobs`, `hr-${this.mode}-job-api`);
+    if (runId) c.run_id = runId;
     if (c.mode !== this.mode || c.sub !== jobId || !Array.isArray(c.permissions) || !c.permissions.includes(permission)) throw new AccessError(403);
     const record = await this.store.read(String(c.task_id));
     if (!record) throw new AccessError(404, "Задача не найдена.");
@@ -30,6 +31,8 @@ export class ProcessingEngine {
     const job = task.jobs.find(j => j.job_id === c.sub);
     if (task.mode !== this.mode || !job || c.task_id !== task.id || c.operation !== job.operation || c.file_id !== job.file_id || c.attempt !== job.attempt ||
       c.exp !== Math.floor(Date.parse(job.deadline) / 1000) || Date.now() >= Date.parse(job.deadline)) throw new AccessError(409, "Задание устарело.");
+    if (task.timing_version === 2 && !job.result && job.work_deadline && Date.now() >= Date.parse(job.work_deadline)) throw new AccessError(409, "Время выполнения обработки истекло.");
+    if (!job.result && job.work_run_id && ["result:write", "output:write"].includes(permission) && (c.run_id !== job.work_run_id || !job.work_segment_started_at)) throw new AccessError(409, "Попытка обработки больше не активна.");
     if (permission === "output:write" && job.operation !== "prepare") throw new AccessError(403);
     return job;
   }
@@ -42,7 +45,7 @@ export class ProcessingEngine {
       if (task.status !== "uploading") throw new AccessError(409);
       if (!task.source_ids.length || !task.requirements.length || Date.now() >= Date.parse(task.upload_deadline)) throw new AccessError(422, "Загрузка не завершена.");
       task.status = "queued";
-      task.deadline = new Date(Math.min(Date.now() + Number(process.env.PROCESSING_TIMEOUT_MS || 1800000), task.mode === "guest" ? Date.parse(task.created_at) + guestAbsoluteTtlMs : Infinity)).toISOString();
+      task.deadline = task.timing_version === 2 ? taskQueueDeadline(task) : new Date(Math.min(Date.now() + processingTimeoutMs(), task.mode === "guest" ? Date.parse(task.created_at) + guestAbsoluteTtlMs : Infinity)).toISOString();
       return [{ kind: "event", body: { event_id: task.accepted_event_id, event_type: "task.accepted", task_id: task.id, mode: this.mode, deadline: task.deadline } }];
     });
     await this.dispatch(changed.task, changed.messages);
@@ -53,6 +56,7 @@ export class ProcessingEngine {
     const { file_id, file_name, mime_type, size_bytes, sha256, metadata } = file;
     const description = { file_id, file_name, mime_type, size_bytes, sha256, ...(metadata ? { metadata } : {}) };
     return { job_id: job.job_id, attempt: job.attempt, should_process: !job.confirmed && !job.applied && !terminal(task),
+      ...(job.work_deadline && !job.result ? { work_deadline: job.work_deadline } : {}),
       // A result can be durable while its broker confirm/HTTP reply is lost.
       // A redelivered parser must replay that result, not upload outputs again.
       ...(job.result ? { saved_result: job.result } : {}),
@@ -76,12 +80,21 @@ export class ProcessingEngine {
     const input = processingProgressSchema.parse(value);
     const { task } = await mutateTask(this.store, String(c.task_id), task => {
       const job = this.checkJob(task, c, "progress:write");
-      if (input.job_id !== job.job_id || input.attempt !== job.attempt || input.status !== "processing") throw new AccessError(409);
+      if (input.job_id !== job.job_id || input.attempt !== job.attempt) throw new AccessError(409);
       if (job.result || job.confirmed || job.applied || terminal(task)) {
         if (input.checkpoint) throw new AccessError(409, "Результат уже сохранён.");
         return;
       }
+      if (input.status === "waiting_retry") {
+        if (job.work_run_id === input.run_id && job.work_segment_started_at) {
+          pauseWork(job);
+          if (!task.jobs.some(j => !j.applied && !j.result && (j.work_segment_started_at || (!j.work_run_id && j.started_at)))) task.status = "queued";
+        }
+        return;
+      }
       if (input.checkpoint) {
+        if (input.run_id && !job.work_run_id) throw new AccessError(409, "Попытка обработки не начата.");
+        if (job.work_run_id && (input.run_id !== job.work_run_id || !job.work_segment_started_at)) throw new AccessError(409, "Попытка обработки больше не активна.");
         if (job.operation !== "evaluate") throw new AccessError(403);
         this.validateEvaluation(task, input.checkpoint.evaluation);
         const { context, evaluation } = input.checkpoint;
@@ -90,7 +103,10 @@ export class ProcessingEngine {
         if (!job.evaluation_checkpoints.evaluations.some(e => e.target_id === evaluation.target_id))
           job.evaluation_checkpoints.evaluations.push(evaluation);
       }
-      job.started_at ||= new Date().toISOString(); job.activity_at = new Date().toISOString(); task.status = "processing";
+      const now = Date.now();
+      if (task.timing_version === 2 && input.run_id && !input.checkpoint) beginWork(job, input.run_id, now);
+      job.started_at ||= new Date(now).toISOString(); job.activity_at = new Date(now).toISOString(); task.status = "processing";
+      if (task.timing_version === 2 && !input.run_id) job.work_deadline ||= new Date(Math.min(Date.parse(job.started_at) + processingTimeoutMs(), Date.parse(job.deadline))).toISOString();
     });
     return task;
   }
@@ -129,6 +145,7 @@ export class ProcessingEngine {
           for (const evaluation of result.evaluations) this.validateEvaluation(task, evaluation);
         }
         job.result = result; job.result_id = stableId(`${job.job_id}:result`); job.event_id = stableId(`${job.job_id}:event`);
+        if (job.work_elapsed_ms != null) { job.work_elapsed_ms = activeWorkMs(job); delete job.work_segment_started_at; }
         delete job.evaluation_checkpoints;
       }
       return [{ kind: "event", body: this.resultEvent(task, job) }];

@@ -19,7 +19,7 @@ from resume_evaluator.evidence_scoring import validate_rating_source, POLICY_VER
 from resume_evaluator.ollama_client import MODEL
 from resume_evaluator.ollama_client import ModelResponseError, ModelTimeout, ModelUnavailable
 from resume_evaluator.rank_models import ProfileRequest
-from resume_evaluator.readiness import mark_ready, model_capacity
+from resume_evaluator.readiness import mark_ready, model_capacity,model_digest
 from resume_documents.resume_sections import resume_body
 from resume_evaluator.scoring import ContextFitError, rank_profile, PROMPT_VERSION
 from resume_documents.text_extractor import extract_text_from_file
@@ -38,7 +38,7 @@ def checkpoint_context(api, metadata, text, assessment_date):
     value = {"version": 1, "job": api.job.command, "file": metadata["file"],
         "text_sha256": hashlib.sha256(text.encode()).hexdigest(),
         "requirements": metadata["requirements"], "assessment_date": assessment_date,
-        "model": MODEL, "policy": POLICY_VERSION, "prompt": PROMPT_VERSION,
+        "model": MODEL,"model_digest":model_digest(), "policy": POLICY_VERSION, "prompt": PROMPT_VERSION,
         "implementation": IMPLEMENTATION_REVISION,
         "num_ctx": settings.OLLAMA_NUM_CTX, "max_tokens": settings.OLLAMA_MAX_TOKENS}
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -109,9 +109,11 @@ def evaluate(api, metadata, source, directory, scorer=rank_profile):
             validate_rating_source(evaluation, text)
             completed[evaluation["target_id"]] = evaluation
     evaluations = []
-    budget = min(api.job.deadline, time.time() + settings.RANK_TIMEOUT_SECONDS)
     try:
         with model_capacity(api.input) if len(completed) < len(targets) else nullcontext():
+            api.progress()
+            budget = min(api.job.deadline, getattr(api, "work_deadline", None) or api.job.deadline,
+                         time.time() + settings.RANK_TIMEOUT_SECONDS)
             for target in targets:
                 api.input()
                 if target.id in completed:
@@ -124,7 +126,8 @@ def evaluate(api, metadata, source, directory, scorer=rank_profile):
                 if remaining <= 0:
                     raise RetryJob()
                 rating = scorer(text, profile, target.cluster_comment,
-                                timeout=remaining, job_id=api.job.id, assessment_date=assessment_date)
+                                timeout=remaining, job_id=api.job.id, assessment_date=assessment_date,
+                                private_values=[value for value in contacts["candidate"].values() if value])
                 validate_rating_source(rating, text)
                 evaluation = {"target_id": target.id, **rating,
                     "criteria": [criterion_summary(rating.get("details", {}), name)

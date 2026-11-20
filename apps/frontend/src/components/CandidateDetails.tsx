@@ -64,7 +64,7 @@ export function CandidateDetails({
     candidate.ratings.map((rating) => [rating.profile_id, rating]),
   );
   const sortedClusters = [...clusters].sort(
-    (a, b) => (clusterScore(candidate, b) ?? -1) - (clusterScore(candidate, a) ?? -1),
+    (a, b) => Number(b.is_active)-Number(a.is_active) || (clusterScore(candidate, b) ?? -1) - (clusterScore(candidate, a) ?? -1),
   );
   const processed = candidate.ratings
     .map((r) => r.calculated_at)
@@ -197,8 +197,9 @@ export function CandidateDetails({
                             {p.position_name}
                             {!p.is_active && <small> · неактивен</small>}
                           </span>
-                          <Score value={Number(r.score)} />
+                          <Score rating={r} />
                         </summary>
+                        <p className="af-caption">Оценено: {formatMoscowDateTime(r.calculated_at)} МСК{!cluster.is_active || !p.is_active ? " · Архивная оценка: требование не участвует в текущей обработке." : ""}</p>
                         <RatingAnalysis rating={r} />
                       </details>
                     );

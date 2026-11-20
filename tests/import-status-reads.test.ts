@@ -87,6 +87,8 @@ test("an expired import still records its timeout once, and subsequent status re
   task.status = "queued";
   const file = { file_id: randomUUID(), file_name: "synthetic.txt", mime_type: "text/plain", size_bytes: 1, sha256: "a".repeat(64), key: "synthetic" };
   task.files = [file]; task.source_ids = [file.file_id]; assignJob(task, file, "evaluate");
+  task.jobs[0].started_at = task.created_at;
+  task.jobs[0].work_deadline = new Date(Date.now() - 1000).toISOString();
   const db = database(t, [task]);
   assert.equal((await importDetail(task.id)).items[0].status, "failed");
   const saved = db.saved.get(task.id)!;
@@ -95,4 +97,27 @@ test("an expired import still records its timeout once, and subsequent status re
   await importDetail(task.id);
   assert.equal(db.saved.get(task.id)!.version, 2);
   assert.equal(db.statements.filter(sql => sql.startsWith("UPDATE processing_tasks")).length, 1);
+});
+
+test("an import waiting for an hour stays pending and status reads do not write",async t=>{
+ const task=newTask('authorized','shared','queued',[],Date.now()-3600000);task.status='queued';
+ const file={file_id:randomUUID(),file_name:'test.txt',mime_type:'text/plain',size_bytes:1,sha256:'a'.repeat(64),key:'test'};
+ task.files=[file];task.source_ids=[file.file_id];assignJob(task,file,'evaluate');
+ const db=database(t,[task]);
+ assert.equal((await importDetail(task.id)).items[0].status,'pending');
+ assert.equal(db.saved.get(task.id)!.version,1);
+ assert.ok(db.statements.every(sql=>sql.startsWith('SELECT')));
+});
+
+test("a paused retry is pending, retains checkpoint counts and shows frozen active time",async t=>{
+ const task=newTask('authorized','shared','retry',[],Date.now()-3600000);task.status='queued';
+ const file={file_id:randomUUID(),file_name:'retry.txt',mime_type:'text/plain',size_bytes:1,sha256:'a'.repeat(64),key:'test'};
+ task.files=[file];task.source_ids=[file.file_id];const job=assignJob(task,file,'evaluate');
+ job.started_at=task.created_at;job.work_elapsed_ms=14*60000;job.work_budget_ms=30*60000;job.work_run_id=randomUUID();job.retry_waiting_since=new Date().toISOString();
+ const db=database(t,[task]);const first=await importDetail(task.id);
+ assert.equal(first.items[0].status,'pending');assert.equal(first.items[0].waiting_for_retry,true);
+ assert.equal(first.items[0].active_duration_ms,14*60000);assert.equal(first.processing_files,0);
+ const now=Date.now();t.mock.method(Date,'now',()=>now+3600000);
+ const later=await importDetail(task.id);assert.equal(later.items[0].active_duration_ms,14*60000);
+ assert.equal(db.saved.get(task.id)!.version,1);
 });

@@ -294,3 +294,141 @@ test("prepare outputs inherit manual contacts while internal input hides storage
   const task = (await r.store.read(r.task.id))!.task, input = r.engine.input(task, task.jobs[0], "/internal");
   for (const key of ["key", "candidate_hint", "target_updated_at", "output_key"]) assert.ok(!(key in input.file), key);
 });
+
+test("a long queue does not consume execution time and redelivery cannot renew it", async t => {
+  const r = await setup('text/plain', 'authorized'), job = r.task.jobs[0];
+  const initial=Date.now();let now=initial;
+  t.mock.method(Date,'now',()=>now);
+  now+=3*3600000;
+  const auth=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'input:read');
+  assert.equal(r.engine.input(auth.task,auth.job,'/internal/app').should_process,true);
+  assert.equal(auth.job.work_deadline,undefined);
+  expireWork(auth.task,now);assert.equal(auth.task.status,'queued');
+  await r.engine.progress(auth.claims,{job_id:job.job_id,attempt:1,status:'processing'});
+  const started=(await r.store.read(r.task.id))!.task;
+  const deadline=started.jobs[0].work_deadline!;
+  assert.equal(Date.parse(deadline),now+1800000);
+  assert.equal(started.jobs[0].started_at,new Date(now).toISOString());
+  now+=10*60000;
+  await r.engine.progress(auth.claims,{job_id:job.job_id,attempt:1,status:'processing'});
+  assert.equal((await r.store.read(r.task.id))!.task.jobs[0].work_deadline,deadline);
+  now=Date.parse(deadline)+1;
+  await assert.rejects(r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'input:read'),(e:unknown)=>e instanceof AccessError&&e.status===409);
+  const expired=(await r.store.read(r.task.id))!.task;expireWork(expired,now);
+  assert.equal(expired.status,'failed');assert.equal(expired.jobs[0].result?.status,'failed');
+});
+
+test("an expired active resume does not expire its queued siblings or later PDF children",async t=>{
+  const r=await setup('application/pdf','authorized');const initial=Date.now();let now=initial;
+  t.mock.method(Date,'now',()=>now);
+  await mutateTask(r.store,r.task.id,task=>{
+    const queued={...task.files[0],file_id:randomUUID(),file_name:'second.txt',mime_type:'text/plain'};
+    task.files.push(queued);task.jobs.push({...task.jobs[0],job_id:randomUUID(),file_id:queued.file_id,operation:'evaluate'});
+  });
+  const job=r.task.jobs[0];const auth=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'progress:write');
+  await r.engine.progress(auth.claims,{job_id:job.job_id,attempt:1,status:'processing'});
+  now+=31*60000;const task=(await r.store.read(r.task.id))!.task;expireWork(task,now);
+  assert.equal(task.jobs[0].result?.status,'failed');assert.equal(task.jobs[1].applied,undefined);
+  assert.equal(task.status,'processing');
+  // A queued sibling gets its own full budget after the preceding timeout.
+  await r.store.replace(task,(await r.store.read(task.id))!.version);
+  const second=task.jobs[1];const next=await r.engine.authorize(`Bearer ${r.engine.token(second)}`,second.job_id,'progress:write');
+  await r.engine.progress(next.claims,{job_id:second.job_id,attempt:1,status:'processing'});
+  assert.equal(Date.parse((await r.store.read(task.id))!.task.jobs[1].work_deadline!),now+1800000);
+});
+
+test("PDF preparation cannot spend the execution budget of children waiting in the queue",async t=>{
+ const r=await setup('application/pdf','authorized'),parent=r.task.jobs[0];let now=Date.now();
+ t.mock.method(Date,'now',()=>now);
+ const auth=await r.engine.authorize(`Bearer ${r.engine.token(parent)}`,parent.job_id,'result:write');
+ await r.engine.progress(auth.claims,{job_id:parent.job_id,attempt:1,status:'processing'});
+ await r.engine.result(auth.claims,{status:'completed',files:[{file_id:parent.file_id}],errors:[]});
+ await r.engine.event(r.sent.at(-1)!.body);
+ now+=2*3600000;
+ const task=(await r.store.read(r.task.id))!.task;expireWork(task,now);
+ const child=task.jobs.find(j=>j.operation==='evaluate')!;
+ assert.equal(child.work_deadline,undefined);assert.equal(child.applied,undefined);
+ const next=await r.engine.authorize(`Bearer ${r.engine.token(child)}`,child.job_id,'progress:write');
+ await r.engine.progress(next.claims,{job_id:child.job_id,attempt:1,status:'processing'});
+ assert.equal(Date.parse((await r.store.read(task.id))!.task.jobs.find(j=>j.job_id===child.job_id)!.work_deadline!),now+1800000);
+});
+
+test("all 15 queued resumes complete even when their combined runtime exceeds 30 minutes",async t=>{
+ const r=await setup('text/plain','authorized');let now=Date.now();t.mock.method(Date,'now',()=>now);
+ await mutateTask(r.store,r.task.id,task=>{
+  for(let i=1;i<15;i++){
+   const file={...task.files[0],file_id:randomUUID(),file_name:`resume-${i}.txt`};task.files.push(file);
+   task.jobs.push({...task.jobs[0],job_id:randomUUID(),file_id:file.file_id});
+  }
+ });
+ const task=(await r.store.read(r.task.id))!.task;
+ for(const job of task.jobs){
+  const auth=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'progress:write');
+  await r.engine.progress(auth.claims,{job_id:job.job_id,attempt:1,status:'processing'});
+  now+=12*60000;
+  await r.engine.result(auth.claims,evaluation(task));await r.engine.event(r.sent.at(-1)!.body);
+  const snapshot=(await r.store.read(task.id))!.task;expireWork(snapshot,now);
+  assert.equal(snapshot.jobs.some(j=>j.result?.status==='failed'),false);
+ }
+ const done=(await r.store.read(task.id))!.task;
+ assert.equal(done.status,'completed');assert.equal(done.jobs.filter(j=>j.applied).length,15);
+});
+
+test("queue waiting remains bounded and never extends a guest's absolute lifetime",()=>{
+ const now=Date.now(),task=newTask('guest','test','bounded',[],now);
+ task.status='queued';task.files=[{file_id:randomUUID(),file_name:'test.txt',mime_type:'text/plain',size_bytes:1,sha256:'a'.repeat(64),key:'test'}];task.source_ids=[task.files[0].file_id];
+ expireWork(task,now+25*3600000);
+ assert.equal(task.status,'failed');assert.ok(Date.parse(task.expires_at)<=now+24*3600000);
+});
+
+test("a durable result survives execution expiry while its publication is retried",async t=>{
+ const r=await setup('text/plain','authorized'),job=r.task.jobs[0];let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const auth=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'result:write');
+ await r.engine.progress(auth.claims,{job_id:job.job_id,attempt:1,status:'processing'});
+ r.failure(true);await assert.rejects(r.engine.result(auth.claims,evaluation(r.task)));
+ now+=31*60000;
+ const task=(await r.store.read(r.task.id))!.task;expireWork(task,now);
+ assert.equal(task.jobs[0].result?.status,'completed');assert.equal(task.jobs[0].applied,undefined);
+ const replay=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'input:read');
+ assert.equal(r.engine.input(replay.task,replay.job,'/internal/app').work_deadline,undefined);
+ r.failure(false);await r.engine.result(auth.claims,evaluation(r.task));await r.engine.event(r.sent.at(-1)!.body);
+ assert.equal((await r.store.read(task.id))!.task.status,'completed');
+});
+
+test("retry waits do not consume active budget, and an older delivery cannot pause its successor",async t=>{
+ const r=await setup('text/plain','authorized'),job=r.task.jobs[0];let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const first=randomUUID(),second=randomUUID();
+ const a=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'progress:write',first);
+ await r.engine.progress(a.claims,{job_id:job.job_id,attempt:1,status:'processing',run_id:first});
+ now+=14*60000;
+ await r.engine.progress(a.claims,{job_id:job.job_id,attempt:1,status:'waiting_retry',run_id:first});
+ const paused=(await r.store.read(r.task.id))!.task;
+ assert.equal(paused.status,'queued');assert.equal(paused.jobs[0].work_elapsed_ms,14*60000);assert.equal(paused.jobs[0].work_deadline,undefined);
+ now+=2*3600000;expireWork(paused,now);assert.equal(paused.jobs[0].result,undefined);
+ const b=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'progress:write',second);
+ await r.engine.progress(b.claims,{job_id:job.job_id,attempt:1,status:'processing',run_id:second});
+ let current=(await r.store.read(r.task.id))!.task.jobs[0];
+ assert.equal(Date.parse(current.work_deadline!),now+16*60000);assert.equal(current.retry_waiting_since,undefined);
+ await r.engine.progress(a.claims,{job_id:job.job_id,attempt:1,status:'waiting_retry',run_id:first});
+ current=(await r.store.read(r.task.id))!.task.jobs[0];assert.equal(current.work_run_id,second);assert.ok(current.work_segment_started_at);
+ await assert.rejects(r.engine.result(a.claims,evaluation(r.task)),(e:unknown)=>e instanceof AccessError&&e.status===409);
+ now+=10*60000;
+ await r.engine.progress(b.claims,{job_id:job.job_id,attempt:1,status:'waiting_retry',run_id:second});
+ current=(await r.store.read(r.task.id))!.task.jobs[0];assert.equal(current.work_elapsed_ms,24*60000);
+ now+=3600000;
+ const third=randomUUID(),c=await r.engine.authorize(`Bearer ${r.engine.token(job)}`,job.job_id,'progress:write',third);
+ await r.engine.progress(c.claims,{job_id:job.job_id,attempt:1,status:'processing',run_id:third});
+ assert.equal(Date.parse((await r.store.read(r.task.id))!.task.jobs[0].work_deadline!),now+6*60000);
+ now+=6*60000+1;const expired=(await r.store.read(r.task.id))!.task;expireWork(expired,now);assert.equal(expired.status,'failed');
+});
+
+test("a resumed delivery retains all validated profile checkpoints",async t=>{
+ const r=await checkpointCase();let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const first=randomUUID(),second=randomUUID();
+ await r.engine.progress(r.auth.claims,{job_id:r.job.job_id,attempt:1,status:'processing',run_id:first});
+ await r.engine.progress(r.auth.claims,{...r.progress,run_id:first});
+ now+=60000;await r.engine.progress(r.auth.claims,{job_id:r.job.job_id,attempt:1,status:'waiting_retry',run_id:first});
+ now+=3600000;await r.engine.progress(r.auth.claims,{job_id:r.job.job_id,attempt:1,status:'processing',run_id:second});
+ const saved=(await r.store.read(r.task.id))!.task.jobs[0].evaluation_checkpoints!;
+ assert.equal(saved.evaluations.length,1);assert.equal(saved.context,r.progress.checkpoint.context);
+});

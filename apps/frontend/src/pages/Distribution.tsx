@@ -288,7 +288,7 @@ export function Distribution() {
                           aria-label={`${profile?.position_name || cluster.name}: детали рейтинга`}
                           onClick={() => openCandidate(candidate.id, cluster.id, profile?.id)}
                         >
-                          <Score value={profile ? candidate.ratings.find(r => r.profile_id === profile.id)?.score : clusterScore(candidate, cluster)} />
+                          <Score rating={profile ? candidate.ratings.find(r => r.profile_id === profile.id) : undefined} value={profile ? undefined : clusterScore(candidate, cluster)} />
                         </button>
                     </td>
                   ))}

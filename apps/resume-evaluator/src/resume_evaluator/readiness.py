@@ -19,6 +19,18 @@ _state_lock = threading.Lock()
 _available = False
 _checked_at = 0.0
 _owner = threading.local()
+_model_digest = None
+_quantization = None
+
+
+def model_digest():
+    with _state_lock:
+        return _model_digest
+
+
+def model_quantization():
+    with _state_lock:
+        return _quantization
 
 
 class ModelBusy(ModelUnavailable):
@@ -80,6 +92,7 @@ def is_ready() -> bool:
 
 def _probe_model() -> bool:
     """Check that Ollama responds and the configured model is available."""
+    global _model_digest, _quantization
     response = requests.get(
         f"{OLLAMA_BASE_URL}/api/tags",
         timeout=PROBE_TIMEOUT,
@@ -98,12 +111,13 @@ def _probe_model() -> bool:
     if ":" not in expected.rsplit("/", 1)[-1]:
         expected = f"{expected}:latest"
 
-    return any(
-        isinstance(model, dict)
-        and isinstance(model.get("name"), str)
-        and model.get("name") in {MODEL, expected}
-        for model in models
-    )
+    found = next((model for model in models if isinstance(model, dict)
+                  and isinstance(model.get("name"),str) and model.get("name") in {MODEL, expected}), None)
+    with _state_lock:
+        _model_digest = found.get("digest") if found else None
+        details=found.get("details",{}) if found else {}
+        _quantization=details.get("quantization_level") if isinstance(details,dict) else None
+    return found is not None
 
 
 def _refresh_model_readiness():

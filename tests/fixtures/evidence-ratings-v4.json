@@ -1,0 +1,4186 @@
+[
+  {
+    "name": "scoped_negation_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Python"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Не знаю SQL, но работаю с Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Не знаю SQL, но работаю с Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "Python"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Python — «работаю с Python».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "ebec706ed68d706b12ec07847936936b34fc063fe09465fb8c1b778d2ae471e1",
+        "source_text_length": 32,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Python",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Python"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "работаю с Python",
+                "start": 16,
+                "end": 32
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "scoped_negation_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Python"
+    },
+    "source": "Не знаю SQL, но работаю с Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Не знаю SQL, но работаю с Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Python — «Не знаю SQL, но работаю с Python».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "ebec706ed68d706b12ec07847936936b34fc063fe09465fb8c1b778d2ae471e1",
+        "source_text_length": 32,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Python",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Python"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Не знаю SQL, но работаю с Python",
+                "start": 0,
+                "end": 32
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "manager_not_novice_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "SQL"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Начальник отдела, использую SQL ежедневно",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Начальник отдела, использую SQL ежедневно"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "SQL"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: SQL — «использую SQL ежедневно».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "a3f7395dba06953ff75a78ef51cf36cb19c696ac0987526efbdca4ed89d37bc2",
+        "source_text_length": 41,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "SQL",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "SQL"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "SQL"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "использую SQL ежедневно",
+                "start": 18,
+                "end": 41
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "manager_not_novice_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "SQL"
+    },
+    "source": "Начальник отдела, использую SQL ежедневно",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Начальник отдела, использую SQL ежедневно"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: SQL — «Начальник отдела, использую SQL ежедневно».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "a3f7395dba06953ff75a78ef51cf36cb19c696ac0987526efbdca4ed89d37bc2",
+        "source_text_length": 41,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "SQL",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "SQL"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "SQL"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Начальник отдела, использую SQL ежедневно",
+                "start": 0,
+                "end": 41
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "requests_paraphrase_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "заявки на ремонт техники"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Составление и подача заявок на ремонт техники",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Составление и подача заявок на ремонт техники"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "заявки на ремонт техники"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: заявки на ремонт техники — «Составление и подача заявок на ремонт техники».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "fcdde9be55a10a7de9e38e1e15927dd7e6599d7bc2e4841e3b3bec7bcfeb0674",
+        "source_text_length": 45,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "заявки на ремонт техники",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "заявки на ремонт техники"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "заявки на ремонт техники"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Составление и подача заявок на ремонт техники",
+                "start": 0,
+                "end": 45
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "requests_paraphrase_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "заявки на ремонт техники"
+    },
+    "source": "Составление и подача заявок на ремонт техники",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Составление и подача заявок на ремонт техники"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: заявки на ремонт техники — «Составление и подача заявок на ремонт техники».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "fcdde9be55a10a7de9e38e1e15927dd7e6599d7bc2e4841e3b3bec7bcfeb0674",
+        "source_text_length": 45,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "заявки на ремонт техники",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "заявки на ремонт техники"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "заявки на ремонт техники"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Составление и подача заявок на ремонт техники",
+                "start": 0,
+                "end": 45
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "transport_inflection_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "контроль технического состояния транспорта"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Контроль технического состояния транспортных средств и оборудования",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Контроль технического состояния транспортных средств и оборудования"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "контроль технического состояния транспорта"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: контроль технического состояния транспорта — «Контроль технического состояния транспортных средств и оборудования».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "fe09fe70e737f2dd665b4a8808f8cdcfb7f56c9a8511dfd0c154fba15cc07a51",
+        "source_text_length": 67,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "контроль технического состояния транспорта",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "контроль технического состояния транспорта"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "контроль технического состояния транспорта"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Контроль технического состояния транспортных средств и оборудования",
+                "start": 0,
+                "end": 67
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "transport_inflection_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "контроль технического состояния транспорта"
+    },
+    "source": "Контроль технического состояния транспортных средств и оборудования",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Контроль технического состояния транспортных средств и оборудования"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: контроль технического состояния транспорта — «Контроль технического состояния транспортных средств и оборудования».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "fe09fe70e737f2dd665b4a8808f8cdcfb7f56c9a8511dfd0c154fba15cc07a51",
+        "source_text_length": 67,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "контроль технического состояния транспорта",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "контроль технического состояния транспорта"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "контроль технического состояния транспорта"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Контроль технического состояния транспортных средств и оборудования",
+                "start": 0,
+                "end": 67
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "documentation_inflection_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "ведение сопроводительной документации"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Ведение рабочей и сопроводительной документации",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Ведение рабочей и сопроводительной документации"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "ведение сопроводительной документации"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: ведение сопроводительной документации — «Ведение рабочей и сопроводительной документации».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "77fac311570450879f2fa47f59e89683e7b86ed20eca06e3d584692ab046d65b",
+        "source_text_length": 47,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "ведение сопроводительной документации",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "ведение сопроводительной документации"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "ведение сопроводительной документации"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Ведение рабочей и сопроводительной документации",
+                "start": 0,
+                "end": 47
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "documentation_inflection_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "ведение сопроводительной документации"
+    },
+    "source": "Ведение рабочей и сопроводительной документации",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Ведение рабочей и сопроводительной документации"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: ведение сопроводительной документации — «Ведение рабочей и сопроводительной документации».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "77fac311570450879f2fa47f59e89683e7b86ed20eca06e3d584692ab046d65b",
+        "source_text_length": 47,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "ведение сопроводительной документации",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "ведение сопроводительной документации"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "ведение сопроводительной документации"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Ведение рабочей и сопроводительной документации",
+                "start": 0,
+                "end": 47
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "work_not_request_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "самостоятельный ремонт техники"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Составлял заявки на ремонт техники",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Составлял заявки на ремонт техники"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Навыки.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "9a4f4b95755e6fa5713ca418794274140de8b7f9d3b3deb1509b62fbb0c2ea39",
+        "source_text_length": 34,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "самостоятельный ремонт техники",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "самостоятельный ремонт техники"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "самостоятельный ремонт техники"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Составлял заявки на ремонт техники",
+                "start": 0,
+                "end": 34
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "unverified_evidence"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "work_not_request_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "самостоятельный ремонт техники"
+    },
+    "source": "Составлял заявки на ремонт техники",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Составлял заявки на ремонт техники"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "9a4f4b95755e6fa5713ca418794274140de8b7f9d3b3deb1509b62fbb0c2ea39",
+        "source_text_length": 34,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "самостоятельный ремонт техники",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "самостоятельный ремонт техники"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "самостоятельный ремонт техники"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Составлял заявки на ремонт техники",
+                "start": 0,
+                "end": 34
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_relevant"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "commercial_qualifier_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Коммерческий опыт Python"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Python.",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Python."
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Навыки.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "e29402221132291733aa0d57f3aa6c4fb554517276ee55589450ce737a9c481a",
+        "source_text_length": 7,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Коммерческий опыт Python",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Коммерческий опыт Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Коммерческий опыт Python"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Python.",
+                "start": 0,
+                "end": 7
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "unverified_evidence"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "commercial_qualifier_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Коммерческий опыт Python"
+    },
+    "source": "Python.",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Python."
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "e29402221132291733aa0d57f3aa6c4fb554517276ee55589450ce737a9c481a",
+        "source_text_length": 7,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Коммерческий опыт Python",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Коммерческий опыт Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Коммерческий опыт Python"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Python.",
+                "start": 0,
+                "end": 7
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_relevant"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "commercial_confirmed_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Коммерческий опыт Python"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Коммерческий опыт Python — 2 года",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Коммерческий опыт Python — 2 года"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "Коммерческий опыт Python"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Коммерческий опыт Python — «Коммерческий опыт Python — 2 года».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "b383c2428c86921004654671e4ba801e7311cfbddb031e11ff04ad8835d3731f",
+        "source_text_length": 33,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Коммерческий опыт Python",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Коммерческий опыт Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Коммерческий опыт Python"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Коммерческий опыт Python — 2 года",
+                "start": 0,
+                "end": 33
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "commercial_confirmed_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Коммерческий опыт Python"
+    },
+    "source": "Коммерческий опыт Python — 2 года",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Коммерческий опыт Python — 2 года"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Коммерческий опыт Python — «Коммерческий опыт Python — 2 года».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "b383c2428c86921004654671e4ba801e7311cfbddb031e11ff04ad8835d3731f",
+        "source_text_length": 33,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Коммерческий опыт Python",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Коммерческий опыт Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Коммерческий опыт Python"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Коммерческий опыт Python — 2 года",
+                "start": 0,
+                "end": 33
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "code_not_warehouse_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "контроль качества кода"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Контроль качества складских отгрузок",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Контроль качества складских отгрузок"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Навыки.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "0fe75d4a67babd5ecf209b994549e6535f435080c04cabb187f8baf761be08a6",
+        "source_text_length": 36,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "контроль качества кода",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "контроль качества кода"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "контроль качества кода"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Контроль качества складских отгрузок",
+                "start": 0,
+                "end": 36
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "unverified_evidence"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "code_not_warehouse_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "контроль качества кода"
+    },
+    "source": "Контроль качества складских отгрузок",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Контроль качества складских отгрузок"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "0fe75d4a67babd5ecf209b994549e6535f435080c04cabb187f8baf761be08a6",
+        "source_text_length": 36,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "контроль качества кода",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "контроль качества кода"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "контроль качества кода"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Контроль качества складских отгрузок",
+                "start": 0,
+                "end": 36
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_relevant"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "intent_not_skill_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "SQL"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Хочу изучить SQL",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Хочу изучить SQL"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Навыки.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "6ff08015920148e230840aaf55ec3964c9361c4de579dcb5fda2b3f8a53ee894",
+        "source_text_length": 16,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "SQL",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "SQL"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "SQL"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Хочу изучить SQL",
+                "start": 0,
+                "end": 16
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "future_intent"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "intent_not_skill_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "SQL"
+    },
+    "source": "Хочу изучить SQL",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Хочу изучить SQL"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "6ff08015920148e230840aaf55ec3964c9361c4de579dcb5fda2b3f8a53ee894",
+        "source_text_length": 16,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "SQL",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "SQL"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "SQL"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Хочу изучить SQL",
+                "start": 0,
+                "end": 16
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "future_intent"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "all_not_any_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Python и SQL"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Работаю с Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Работаю с Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 50.0,
+      "matched_keywords": [
+        "Python и SQL"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Частичное соответствие: Python и SQL — «Работаю с Python».\nПодтверждённая оценка: 50 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "05bb3545a8d489beffdb34abdb0318f83aab31b714e1013c3c403d4f5501543a",
+        "source_text_length": 16,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Python и SQL",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Python и SQL"
+              }
+            ],
+            "condition": {
+              "operator": "all",
+              "parts": [
+                "Python",
+                "SQL"
+              ]
+            },
+            "status": "partial",
+            "evidence": [
+              {
+                "quote": "Работаю с Python",
+                "start": 0,
+                "end": 16
+              }
+            ],
+            "credit": 0.5,
+            "possible_credit": 0.5,
+            "partial_reason": "missing_parts"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 50.0,
+          "max": 50.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "all_not_any_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Python и SQL"
+    },
+    "source": "Работаю с Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Работаю с Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "05bb3545a8d489beffdb34abdb0318f83aab31b714e1013c3c403d4f5501543a",
+        "source_text_length": 16,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Python и SQL",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Python и SQL"
+              }
+            ],
+            "condition": {
+              "operator": "all",
+              "parts": [
+                "Python",
+                "SQL"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Работаю с Python",
+                "start": 0,
+                "end": 16
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_relevant"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "any_is_sufficient_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Python или SQL"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Работаю с Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Работаю с Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "Python или SQL"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Python или SQL — «Работаю с Python».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "05bb3545a8d489beffdb34abdb0318f83aab31b714e1013c3c403d4f5501543a",
+        "source_text_length": 16,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Python или SQL",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Python или SQL"
+              }
+            ],
+            "condition": {
+              "operator": "any",
+              "parts": [
+                "Python",
+                "SQL"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Работаю с Python",
+                "start": 0,
+                "end": 16
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "any_is_sufficient_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Python или SQL"
+    },
+    "source": "Работаю с Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Работаю с Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Python или SQL — «Работаю с Python».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "05bb3545a8d489beffdb34abdb0318f83aab31b714e1013c3c403d4f5501543a",
+        "source_text_length": 16,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Python или SQL",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Python или SQL"
+              }
+            ],
+            "condition": {
+              "operator": "any",
+              "parts": [
+                "Python",
+                "SQL"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Работаю с Python",
+                "start": 0,
+                "end": 16
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "conflicting_evidence_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Python"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Знаю Python. Не знаю Python.",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Знаю Python. Не знаю Python."
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Навыки.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "85402bf68d4c4d0913db5c1ba25fb921a95fa7047f2f0d6efeacfb537b3e62eb",
+        "source_text_length": 28,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Python",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Python"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Знаю Python. Не знаю Python.",
+                "start": 0,
+                "end": 28
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "contradictory"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "conflicting_evidence_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Python"
+    },
+    "source": "Знаю Python. Не знаю Python.",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Знаю Python. Не знаю Python."
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "85402bf68d4c4d0913db5c1ba25fb921a95fa7047f2f0d6efeacfb537b3e62eb",
+        "source_text_length": 28,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Python",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Python"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Знаю Python. Не знаю Python.",
+                "start": 0,
+                "end": 28
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "contradictory"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "unrelated_denial_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "транспорт"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Работал в транспорте. Не владею Python.",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "not_met",
+          "evidence": [
+            "Работал в транспорте. Не владею Python."
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Навыки.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "5709bf150a2176b2731157a435afad46514c7a85d9422aa38fd042e27bec4d92",
+        "source_text_length": 39,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "транспорт",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "транспорт"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "транспорт"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Работал в транспорте. Не владею Python.",
+                "start": 0,
+                "end": 39
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "unverified_evidence"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "unrelated_denial_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "транспорт"
+    },
+    "source": "Работал в транспорте. Не владею Python.",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "not_met",
+          "evidence": [
+            "Работал в транспорте. Не владею Python."
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "5709bf150a2176b2731157a435afad46514c7a85d9422aa38fd042e27bec4d92",
+        "source_text_length": 39,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "транспорт",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "транспорт"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "транспорт"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Работал в транспорте. Не владею Python.",
+                "start": 0,
+                "end": 39
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_relevant"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "journal_not_full_responsibility_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "охрана труда"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Ведение журналов по охране труда",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Ведение журналов по охране труда"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Навыки.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "e09a6d14742dcb28dd5255713d08a239e0cdf5ff48125ee6ddb6628ed8ec6224",
+        "source_text_length": 32,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "охрана труда",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "охрана труда"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "охрана труда"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Ведение журналов по охране труда",
+                "start": 0,
+                "end": 32
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "unverified_evidence"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "journal_not_full_responsibility_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "охрана труда"
+    },
+    "source": "Ведение журналов по охране труда",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "met",
+          "evidence": [
+            "Ведение журналов по охране труда"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Дополнительные сведения.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "e09a6d14742dcb28dd5255713d08a239e0cdf5ff48125ee6ddb6628ed8ec6224",
+        "source_text_length": 32,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "охрана труда",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "охрана труда"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "охрана труда"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Ведение журналов по охране труда",
+                "start": 0,
+                "end": 32
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_relevant"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "requests_partial_procurement_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Закупка запчастей и материалов"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Готовил заявки на закупку запчастей и материалов",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "partial",
+          "evidence": [
+            "Готовил заявки на закупку запчастей и материалов"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 50.0,
+      "matched_keywords": [
+        "Закупка запчастей и материалов"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Частичное соответствие: Закупка запчастей и материалов — «Готовил заявки на закупку запчастей и материалов».\nПодтверждённая оценка: 50 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "4a39e893c19db77ff040dfa02193880ef6a1f761b1c05c0bea5657aa84e0dd65",
+        "source_text_length": 48,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Закупка запчастей и материалов",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Закупка запчастей и материалов"
+              }
+            ],
+            "condition": {
+              "operator": "all",
+              "parts": [
+                "Закупка запчастей",
+                "материалов"
+              ]
+            },
+            "status": "partial",
+            "evidence": [
+              {
+                "quote": "Готовил заявки на закупку запчастей и материалов",
+                "start": 0,
+                "end": 48
+              }
+            ],
+            "credit": 0.5,
+            "possible_credit": 0.5,
+            "participation_only": true,
+            "confirmed_part": "Готовил заявки на закупку запчастей и материалов",
+            "partial_reason": "missing_parts"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 50.0,
+          "max": 50.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "requests_partial_procurement_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Закупка запчастей и материалов"
+    },
+    "source": "Готовил заявки на закупку запчастей и материалов",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "partial",
+          "evidence": [
+            "Готовил заявки на закупку запчастей и материалов"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 50.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Частичное соответствие: Закупка запчастей и материалов — «Готовил заявки на закупку запчастей и материалов».\nПодтверждённая оценка: 50 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "4a39e893c19db77ff040dfa02193880ef6a1f761b1c05c0bea5657aa84e0dd65",
+        "source_text_length": 48,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Закупка запчастей и материалов",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Закупка запчастей и материалов"
+              }
+            ],
+            "condition": {
+              "operator": "all",
+              "parts": [
+                "Закупка запчастей",
+                "материалов"
+              ]
+            },
+            "status": "partial",
+            "evidence": [
+              {
+                "quote": "Готовил заявки на закупку запчастей и материалов",
+                "start": 0,
+                "end": 48
+              }
+            ],
+            "credit": 0.5,
+            "possible_credit": 0.5,
+            "participation_only": true,
+            "confirmed_part": "Готовил заявки на закупку запчастей и материалов",
+            "partial_reason": "missing_parts"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 50.0,
+          "max": 50.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "commercial_partial_keywords",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Коммерческий опыт Python"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "partial",
+          "evidence": [
+            "Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 50.0,
+      "matched_keywords": [
+        "Коммерческий опыт Python"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Частичное соответствие: Коммерческий опыт Python — «Python».\nПодтверждённая оценка: 50 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+        "source_text_length": 6,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Коммерческий опыт Python",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Коммерческий опыт Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Коммерческий опыт Python"
+              ]
+            },
+            "status": "partial",
+            "evidence": [
+              {
+                "quote": "Python",
+                "start": 0,
+                "end": 6
+              }
+            ],
+            "credit": 0.5,
+            "possible_credit": 0.5,
+            "partial_reason": "missing_parts"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 50.0,
+          "max": 50.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "commercial_partial_comment",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": "Коммерческий опыт Python"
+    },
+    "source": "Python",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "profile_comment:0",
+          "status": "partial",
+          "evidence": [
+            "Python"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 50.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Частичное соответствие: Коммерческий опыт Python — «Python».\nПодтверждённая оценка: 50 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "18885f27b5af9012df19e496460f9294d5ab76128824c6f993787004f6d9a7db",
+        "source_text_length": 6,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "profile_comment:0",
+            "category": "additional",
+            "requirement": "Коммерческий опыт Python",
+            "source": "profile_comment",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "Коммерческий опыт Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Коммерческий опыт Python"
+              ]
+            },
+            "status": "partial",
+            "evidence": [
+              {
+                "quote": "Python",
+                "start": 0,
+                "end": 6
+              }
+            ],
+            "credit": 0.5,
+            "possible_credit": 0.5,
+            "partial_reason": "missing_parts"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 50.0,
+          "max": 50.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "education_Высшее образование_Высшее образование не получено",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": "Высшее образование",
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Высшее образование не получено",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "education:0",
+          "status": "met",
+          "evidence": [
+            "Высшее образование не получено"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждённое несоответствие: Высшее образование — «Высшее образование не получено».\nПодтверждённая оценка: 0 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "9a5686dfe42f14f6ce4c075da7503729d198ddf628ef9bab2b786996f76276b0",
+        "source_text_length": 30,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "education:0",
+            "category": "education",
+            "requirement": "Высшее образование",
+            "source": "education",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "education",
+                "input_id": "education:0",
+                "text": "Высшее образование"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Высшее образование"
+              ]
+            },
+            "status": "not_met",
+            "evidence": [
+              {
+                "quote": "Высшее образование не получено",
+                "start": 0,
+                "end": 30
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 0
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "education_Высшее образование_Планирую получить высшее образование",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": "Высшее образование",
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Планирую получить высшее образование",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "education:0",
+          "status": "met",
+          "evidence": [
+            "Планирую получить высшее образование"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Образование.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "13e501a853607b4a0d6accf7fdbe051ae5db65bf2c26a53e56d5e847b6dcedcf",
+        "source_text_length": 36,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "education:0",
+            "category": "education",
+            "requirement": "Высшее образование",
+            "source": "education",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "education",
+                "input_id": "education:0",
+                "text": "Высшее образование"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Высшее образование"
+              ]
+            },
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Планирую получить высшее образование",
+                "start": 0,
+                "end": 36
+              }
+            ],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "future_intent"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "education_Высшее образование_Бакалавр",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": "Высшее образование",
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Бакалавр",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "education:0",
+          "status": "met",
+          "evidence": [
+            "Бакалавр"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Высшее образование — «Бакалавр».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "420d99bc1864bf6f9699754e01a4ce42ee09456d764d0490b6afdbf2495ca496",
+        "source_text_length": 8,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "education:0",
+            "category": "education",
+            "requirement": "Высшее образование",
+            "source": "education",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "education",
+                "input_id": "education:0",
+                "text": "Высшее образование"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Высшее образование"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Бакалавр",
+                "start": 0,
+                "end": 8
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "experience_до 3 лет разработки_Работаю разработчиком 2 года",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": "до 3 лет разработки",
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Работаю разработчиком 2 года",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "experience:0",
+          "status": "met",
+          "evidence": [
+            "Работаю разработчиком 2 года"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: до 3 лет разработки — «Работаю разработчиком 2 года».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "dda1c20d0b28949b60a9852b42bc876d5a38605d8075e9a028d67bdd66460314",
+        "source_text_length": 28,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "experience:0",
+            "category": "experience",
+            "requirement": "до 3 лет разработки",
+            "source": "experience",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "experience",
+                "input_id": "experience:0",
+                "text": "до 3 лет разработки"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "до 3 лет разработки"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Работаю разработчиком 2 года",
+                "start": 0,
+                "end": 28
+              }
+            ],
+            "credit": 1,
+            "experience_constraint": {
+              "maximum": 36,
+              "max_inclusive": false
+            },
+            "experience_months": 24,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "experience_не более 2 лет разработки_Работаю разработчиком 3 года",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": "не более 2 лет разработки",
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Работаю разработчиком 3 года",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "experience:0",
+          "status": "met",
+          "evidence": [
+            "Работаю разработчиком 3 года"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждённое несоответствие: не более 2 лет разработки — «Работаю разработчиком 3 года».\nПодтверждённая оценка: 0 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "389863864b08f5745a90b52b99f610ab30e648ef9ba67ed5a527b5ae8b146df0",
+        "source_text_length": 28,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "experience:0",
+            "category": "experience",
+            "requirement": "не более 2 лет разработки",
+            "source": "experience",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "experience",
+                "input_id": "experience:0",
+                "text": "не более 2 лет разработки"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "не более 2 лет разработки"
+              ]
+            },
+            "status": "not_met",
+            "evidence": [
+              {
+                "quote": "Работаю разработчиком 3 года",
+                "start": 0,
+                "end": 28
+              }
+            ],
+            "credit": 0,
+            "experience_constraint": {
+              "maximum": 24,
+              "max_inclusive": true
+            },
+            "experience_months": 36,
+            "possible_credit": 0
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "experience_2,5 года разработки_Работаю разработчиком 3 года",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": "2,5 года разработки",
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Работаю разработчиком 3 года",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "experience:0",
+          "status": "met",
+          "evidence": [
+            "Работаю разработчиком 3 года"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: 2,5 года разработки — в приведённых сведениях 3 года, требуется не менее 2 лет 6 месяцев — «Работаю разработчиком 3 года».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "389863864b08f5745a90b52b99f610ab30e648ef9ba67ed5a527b5ae8b146df0",
+        "source_text_length": 28,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "experience:0",
+            "category": "experience",
+            "requirement": "2,5 года разработки",
+            "source": "experience",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "experience",
+                "input_id": "experience:0",
+                "text": "2,5 года разработки"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "2,5 года разработки"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Работаю разработчиком 3 года",
+                "start": 0,
+                "end": 28
+              }
+            ],
+            "credit": 1,
+            "experience_months": 36,
+            "required_months": 30,
+            "experience_constraint": {
+              "minimum": 30,
+              "min_inclusive": true
+            },
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "experience_не менее 2 лет разработки_Работаю разработчиком 2 года",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": "не менее 2 лет разработки",
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Работаю разработчиком 2 года",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "experience:0",
+          "status": "met",
+          "evidence": [
+            "Работаю разработчиком 2 года"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: не менее 2 лет разработки — в приведённых сведениях 2 года, требуется не менее 2 лет — «Работаю разработчиком 2 года».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "dda1c20d0b28949b60a9852b42bc876d5a38605d8075e9a028d67bdd66460314",
+        "source_text_length": 28,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "experience:0",
+            "category": "experience",
+            "requirement": "не менее 2 лет разработки",
+            "source": "experience",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "experience",
+                "input_id": "experience:0",
+                "text": "не менее 2 лет разработки"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "не менее 2 лет разработки"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Работаю разработчиком 2 года",
+                "start": 0,
+                "end": 28
+              }
+            ],
+            "credit": 1,
+            "experience_months": 24,
+            "required_months": 24,
+            "experience_constraint": {
+              "minimum": 24,
+              "min_inclusive": true
+            },
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "stop_Работал в транспорте. Не владею Python.",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [
+        "Отсутствие опыта в транспорте"
+      ],
+      "comment": null
+    },
+    "source": "Работал в транспорте. Не владею Python.",
+    "parsed": {
+      "assessments": [],
+      "stop_factors": [
+        {
+          "id": "stop:0",
+          "status": "triggered",
+          "evidence": [
+            "Работал в транспорте. Не владею Python."
+          ]
+        }
+      ]
+    },
+    "rating": {
+      "score": 0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Оценка не определена: нет обязательных условий.\nСтоп-факторы требуют уточнения, штраф не применён: Отсутствие опыта в транспорте.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "5709bf150a2176b2731157a435afad46514c7a85d9422aa38fd042e27bec4d92",
+        "source_text_length": 39,
+        "context_truncated": false,
+        "criteria": [],
+        "stop_factors": [
+          {
+            "id": "stop:0",
+            "requirement": "Отсутствие опыта в транспорте",
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Работал в транспорте. Не владею Python.",
+                "start": 0,
+                "end": 39
+              }
+            ],
+            "penalty": 0,
+            "duplicates": [],
+            "unknown_reason": "not_stated"
+          }
+        ],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0,
+          "max": 100
+        },
+        "stop_penalty": 0,
+        "score_status": "not_defined"
+      }
+    }
+  },
+  {
+    "name": "stop_Знаю SQL",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [
+        "Отказ от командировок"
+      ],
+      "comment": null
+    },
+    "source": "Знаю SQL",
+    "parsed": {
+      "assessments": [],
+      "stop_factors": [
+        {
+          "id": "stop:0",
+          "status": "not_triggered",
+          "evidence": [
+            "Знаю SQL"
+          ]
+        }
+      ]
+    },
+    "rating": {
+      "score": 0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Оценка не определена: нет обязательных условий.\nСтоп-факторы требуют уточнения, штраф не применён: Отказ от командировок.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "c81f213d044fd91d0ae7466e530dcbd993320efa6796f698eb07bf256206e9ed",
+        "source_text_length": 8,
+        "context_truncated": false,
+        "criteria": [],
+        "stop_factors": [
+          {
+            "id": "stop:0",
+            "requirement": "Отказ от командировок",
+            "status": "unknown",
+            "evidence": [
+              {
+                "quote": "Знаю SQL",
+                "start": 0,
+                "end": 8
+              }
+            ],
+            "penalty": 0,
+            "duplicates": [],
+            "unknown_reason": "not_stated"
+          }
+        ],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0,
+          "max": 100
+        },
+        "stop_penalty": 0,
+        "score_status": "not_defined"
+      }
+    }
+  },
+  {
+    "name": "stop_Отказываюсь от командировок",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [
+        "Отказ от командировок"
+      ],
+      "comment": null
+    },
+    "source": "Отказываюсь от командировок",
+    "parsed": {
+      "assessments": [],
+      "stop_factors": [
+        {
+          "id": "stop:0",
+          "status": "triggered",
+          "evidence": [
+            "Отказываюсь от командировок"
+          ]
+        }
+      ]
+    },
+    "rating": {
+      "score": 0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [
+        "Отказ от командировок"
+      ],
+      "explanation": "Оценка не определена: нет обязательных условий.\nПодтверждённые стоп-факторы: Отказ от командировок — «Отказываюсь от командировок».\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "77cc1fc4bbf30533f66f41164c087a915502527891f3e9a8211e8d5135828628",
+        "source_text_length": 27,
+        "context_truncated": false,
+        "criteria": [],
+        "stop_factors": [
+          {
+            "id": "stop:0",
+            "requirement": "Отказ от командировок",
+            "status": "triggered",
+            "evidence": [
+              {
+                "quote": "Отказываюсь от командировок",
+                "start": 0,
+                "end": 27
+              }
+            ],
+            "penalty": 10,
+            "duplicates": []
+          }
+        ],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0,
+          "max": 100
+        },
+        "stop_penalty": 10,
+        "score_status": "not_defined"
+      }
+    }
+  },
+  {
+    "name": "structure_44",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "SQL. Python. Бакалавр.",
+    "parsed": {
+      "assessments": [],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Оценка не определена: нет обязательных условий.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "04a847ba0e934a8e63684675f94d1e3004aa596796557872b5c1cccf21b061c1",
+        "source_text_length": 22,
+        "context_truncated": false,
+        "criteria": [],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0,
+          "max": 100
+        },
+        "stop_penalty": 0,
+        "score_status": "not_defined"
+      }
+    }
+  },
+  {
+    "name": "structure_45",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "SQL",
+        "SQL",
+        "Python"
+      ],
+      "stop_factors": [],
+      "comment": "SQL"
+    },
+    "source": "SQL. Python. Бакалавр.",
+    "parsed": {
+      "assessments": [],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "SQL",
+        "Python"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: SQL — «SQL»; Python — «Python».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "04a847ba0e934a8e63684675f94d1e3004aa596796557872b5c1cccf21b061c1",
+        "source_text_length": 22,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "SQL",
+            "source": "keywords",
+            "optional": false,
+            "weight": 5000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "SQL"
+              },
+              {
+                "source": "keywords",
+                "input_id": "keyword:1:0",
+                "text": "SQL"
+              },
+              {
+                "source": "profile_comment",
+                "input_id": "profile_comment:0",
+                "text": "SQL"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "SQL"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "SQL",
+                "start": 0,
+                "end": 3
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          },
+          {
+            "id": "keyword:2:0",
+            "category": "keyword",
+            "requirement": "Python",
+            "source": "keywords",
+            "optional": false,
+            "weight": 5000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:2:0",
+                "text": "Python"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Python"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Python",
+                "start": 5,
+                "end": 11
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "structure_46",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": "Высшее образование. MBA приветствуется.",
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "SQL. Python. Бакалавр.",
+    "parsed": {
+      "assessments": [],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 0.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Не указано: Образование.\nПодтверждённая оценка: 0 из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "04a847ba0e934a8e63684675f94d1e3004aa596796557872b5c1cccf21b061c1",
+        "source_text_length": 22,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "education:0",
+            "category": "education",
+            "requirement": "Высшее образование.",
+            "source": "education",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "education",
+                "input_id": "education:0",
+                "text": "Высшее образование."
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Высшее образование."
+              ]
+            },
+            "status": "unknown",
+            "evidence": [],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_stated"
+          },
+          {
+            "id": "education:1",
+            "category": "education",
+            "requirement": "MBA приветствуется.",
+            "source": "education",
+            "optional": true,
+            "weight": 0,
+            "origins": [
+              {
+                "source": "education",
+                "input_id": "education:1",
+                "text": "MBA приветствуется."
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "MBA приветствуется."
+              ]
+            },
+            "status": "unknown",
+            "evidence": [],
+            "credit": 0,
+            "possible_credit": 1,
+            "unknown_reason": "not_stated"
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 0.0,
+        "score_range": {
+          "min": 0.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "insufficient_evidence"
+      }
+    }
+  },
+  {
+    "name": "focused_leadership_review",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": null,
+      "experience": null,
+      "keywords": [
+        "Руководство бригадой водителей"
+      ],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Бригадир водителей. Распределял задачи между водителями.",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "keyword:0:0",
+          "status": "met",
+          "evidence": [
+            "Бригадир водителей. Распределял задачи между водителями."
+          ],
+          "_verified_evidence": [
+            {
+              "quote": "Бригадир водителей. Распределял задачи между водителями.",
+              "start": 0,
+              "end": 56,
+              "block_id": "b0",
+              "section": "document"
+            }
+          ],
+          "semantic_review": {
+            "method": "focused-model-review-v1",
+            "status": "met",
+            "action_matches": true,
+            "object_matches": true,
+            "responsibility_matches": true,
+            "evidence": [
+              "b0"
+            ],
+            "supported_text": "Бригадир водителей"
+          }
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [
+        "Руководство бригадой водителей"
+      ],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Руководство бригадой водителей — «Бригадир водителей. Распределял задачи между водителями.».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "7c2daa118ebbb8a3b4d514fc741167606cca3311cd66bd2241c74219d0cef6a0",
+        "source_text_length": 56,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "keyword:0:0",
+            "category": "keyword",
+            "requirement": "Руководство бригадой водителей",
+            "source": "keywords",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "keywords",
+                "input_id": "keyword:0:0",
+                "text": "Руководство бригадой водителей"
+              }
+            ],
+            "condition": {
+              "operator": "atomic",
+              "parts": [
+                "Руководство бригадой водителей"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Бригадир водителей. Распределял задачи между водителями.",
+                "start": 0,
+                "end": 56,
+                "block_id": "b0",
+                "section": "document"
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1,
+            "semantic_review": {
+              "method": "focused-model-review-v1",
+              "status": "met",
+              "action_matches": true,
+              "object_matches": true,
+              "responsibility_matches": true,
+              "evidence": [
+                "b0"
+              ],
+              "supported_text": "Бригадир водителей"
+            }
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  },
+  {
+    "name": "degree_field_next_line",
+    "profile": {
+      "id": "p",
+      "position_name": "Тест",
+      "education": "Высшее образование по направлению «Государственное и муниципальное управление»",
+      "experience": null,
+      "keywords": [],
+      "stop_factors": [],
+      "comment": null
+    },
+    "source": "Образование\nБакалавр\nГосударственное и муниципальное управление",
+    "parsed": {
+      "assessments": [
+        {
+          "id": "education:0",
+          "status": "met",
+          "evidence": [
+            "Образование\nБакалавр\nГосударственное и муниципальное управление"
+          ]
+        }
+      ],
+      "stop_factors": []
+    },
+    "rating": {
+      "score": 100.0,
+      "matched_keywords": [],
+      "triggered_stop_factors": [],
+      "explanation": "Подтверждено: Высшее образование по направлению «Государственное и муниципальное управление» — «Образование\nБакалавр\nГосударственное и муниципальное управление».\nПодтверждённая оценка: 100 из 100.",
+      "details": {
+        "method": "evidence-v1",
+        "policy_version": "evidence-v4",
+        "policy_status": "provisional",
+        "model": "",
+        "assessment_date": "2026-11-19",
+        "context_chunks": 1,
+        "source_text_sha256": "5c2f87075d4c3e9a7d594d53b3544a9043d3def44900e3023517d2dbec9df85f",
+        "source_text_length": 63,
+        "context_truncated": false,
+        "criteria": [
+          {
+            "id": "education:0",
+            "category": "education",
+            "requirement": "Высшее образование по направлению «Государственное и муниципальное управление»",
+            "source": "education",
+            "optional": false,
+            "weight": 10000,
+            "origins": [
+              {
+                "source": "education",
+                "input_id": "education:0",
+                "text": "Высшее образование по направлению «Государственное и муниципальное управление»"
+              }
+            ],
+            "condition": {
+              "operator": "all",
+              "parts": [
+                "Высшее образование по направлению «Государственное",
+                "муниципальное управление»"
+              ]
+            },
+            "status": "met",
+            "evidence": [
+              {
+                "quote": "Образование\nБакалавр\nГосударственное и муниципальное управление",
+                "start": 0,
+                "end": 63
+              }
+            ],
+            "credit": 1,
+            "possible_credit": 1
+          }
+        ],
+        "stop_factors": [],
+        "coverage": 100.0,
+        "score_range": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "stop_penalty": 0,
+        "score_status": "evaluated"
+      }
+    }
+  }
+]

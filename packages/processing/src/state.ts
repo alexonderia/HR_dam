@@ -15,9 +15,36 @@ function boundedLifetime(name: string, fallback: number, ceiling: number) {
 }
 export const guestAbsoluteTtlMs = boundedLifetime("GUEST_ABSOLUTE_TTL_MS", 86400000, 86400000);
 export const guestResultTtlMs = boundedLifetime("GUEST_RESULT_TTL_MS", 7200000, 7200000);
+export const queueTimeoutMs = boundedLifetime("PROCESSING_QUEUE_TIMEOUT_MS", 86400000, 86400000);
+export function processingTimeoutMs() { return boundedLifetime("PROCESSING_TIMEOUT_MS", 1800000, 86400000); }
+export function activeWorkMs(job: Job, now = Date.now()): number {
+  if (job.work_elapsed_ms != null) return job.work_elapsed_ms + (job.work_segment_started_at ? Math.max(0, now - Date.parse(job.work_segment_started_at)) : 0);
+  return job.started_at ? Math.max(0, (job.result ? Date.parse(job.activity_at || job.started_at) : now) - Date.parse(job.started_at)) : 0;
+}
+export function pauseWork(job: Job, now = Date.now()) {
+  job.work_elapsed_ms = activeWorkMs(job, now);
+  delete job.work_segment_started_at;
+  delete job.work_deadline;
+  job.retry_waiting_since = job.activity_at = new Date(now).toISOString();
+}
+export function beginWork(job: Job, runId: string, now = Date.now()) {
+  if (job.work_run_id === runId && job.work_segment_started_at) return;
+  // Preserve time already charged by the previous protocol when upgrading a live job.
+  job.work_elapsed_ms = job.work_elapsed_ms != null ? activeWorkMs(job, now) : job.work_deadline ? activeWorkMs(job, now) : 0;
+  job.work_budget_ms ||= processingTimeoutMs();
+  const remaining = job.work_budget_ms - job.work_elapsed_ms;
+  if (remaining <= 0) throw new AccessError(409, "Время выполнения обработки истекло.");
+  job.work_run_id = runId;
+  job.work_segment_started_at = new Date(now).toISOString();
+  job.work_deadline = new Date(Math.min(now + remaining, Date.parse(job.deadline))).toISOString();
+  delete job.retry_waiting_since;
+}
+export function taskQueueDeadline(task: Task, now = Date.now()) {
+  return new Date(Math.min(now + queueTimeoutMs, task.mode === "guest" ? Date.parse(task.created_at) + guestAbsoluteTtlMs : Infinity)).toISOString();
+}
 export function newTask(mode: ProcessingMode, owner: string, name: string, requirements: ProcessingTarget[], now = Date.now()): Task {
-  return { id: randomUUID(), mode, owner, name, requirements, created_at: new Date(now).toISOString(),
-    expires_at: new Date(now + guestAbsoluteTtlMs).toISOString(), deadline: new Date(Math.min(now + Number(process.env.PROCESSING_TIMEOUT_MS || 1800000), mode === "guest" ? now + guestAbsoluteTtlMs : Infinity)).toISOString(),
+  return { id: randomUUID(), timing_version: 2, mode, owner, name, requirements, created_at: new Date(now).toISOString(),
+    expires_at: new Date(now + guestAbsoluteTtlMs).toISOString(), deadline: new Date(Math.min(now + queueTimeoutMs, mode === "guest" ? now + guestAbsoluteTtlMs : Infinity)).toISOString(),
     upload_deadline: new Date(now + Number(process.env.UPLOAD_TIMEOUT_MS || 600000)).toISOString(), status: "uploading",
     source_ids: [], files: [], jobs: [], accepted_event_id: randomUUID() };
 }
@@ -44,6 +71,15 @@ export function expireWork(task: Task, now = Date.now()) {
     return;
   }
   if (terminal(task)) return;
+  if (task.timing_version === 2 && task.status !== "uploading" && now < workDeadline) {
+    for (const job of task.jobs) if (!job.applied && (!job.result || now >= Date.parse(job.deadline)) && now >= Math.min(Date.parse(job.deadline), Date.parse(job.work_deadline || job.deadline))) {
+      if (job.work_elapsed_ms != null) { job.work_elapsed_ms = activeWorkMs(job, now); delete job.work_segment_started_at; }
+      job.result = { status: "failed", error: { code: "PROCESSING_TIMEOUT", message: "Время выполнения обработки истекло." } };
+      job.applied = true;
+    }
+    if (task.jobs.length && task.jobs.every(job => job.applied)) finish(task, now);
+    return;
+  }
   const deadline = task.status === "uploading" ? uploadDeadline : workDeadline;
   if (now < deadline) return;
   if (task.mode === "guest" && task.status === "uploading") {

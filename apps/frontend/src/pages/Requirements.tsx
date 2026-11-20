@@ -1,3 +1,5 @@
+import {requirementListV5 as requirementList} from "@hr/contracts";
+import { RequirementPreview } from "../components/RequirementPreview";
 import { useState } from "react";
 import {
   ChevronDown,
@@ -73,14 +75,7 @@ export function Requirements() {
     setStops(profile?.stop_factors?.join("\n") || "");
     setError("");
   };
-  const split = (value: string) => [
-    ...new Set(
-      value
-        .split(/[\n;,]/)
-        .map((v) => v.trim())
-        .filter(Boolean),
-    ),
-  ];
+  const split = (value: string) => [...new Set(requirementList(value))];
   const filtered = [...clusters].sort((a, b) => Number(b.is_active) - Number(a.is_active)).filter((c) =>
     (c.name + c.profiles.map((p) => p.position_name).join(" "))
       .toLowerCase()
@@ -552,6 +547,7 @@ export function Requirements() {
                 }
               />
             </Field>
+            <RequirementPreview profile={{...profileDraft,keywords:requirementList(keywords)}} clusterComment={clusters.find(c=>c.id===profileDraft.cluster_id)?.comment || ""} />
             <label className={`af-check checkbox${!clusters.find(c => c.id === profileDraft.cluster_id)?.is_active ? " profile-control--muted" : ""}`}>
               <input
                 className="af-checkbox"

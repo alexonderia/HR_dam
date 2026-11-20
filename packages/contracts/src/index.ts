@@ -10,3 +10,7 @@ export * from "./time.js";
 export * from "./requirements.js";
 export * from "./processing.js";
 export * from "./additional-evidence.js";
+export * from "./proof-policy.js";
+export {requirementList} from "./criteria.js";
+export * from "./criteria-v5.js";
+export * from "./policy-v5.js";

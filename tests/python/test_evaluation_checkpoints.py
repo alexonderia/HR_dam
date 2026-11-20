@@ -85,3 +85,33 @@ class CheckpointTests(unittest.TestCase):
             scorer = Mock(side_effect=self.score)
             evaluate(api, value, source, Path(directory), scorer)
             self.assertEqual(scorer.call_count, 1)
+
+    def test_execution_starts_only_after_model_capacity_is_acquired(self):
+        from contextlib import contextmanager
+        with tempfile.TemporaryDirectory() as directory:
+            source,value,api=self.setup_case(directory)
+            events=[]
+            @contextmanager
+            def capacity(check_cancelled):
+                events.append('capacity')
+                yield
+            def progress():
+                self.assertEqual(events,['capacity'])
+                events.append('start')
+            api.progress=progress
+            def scorer(*args,**kwargs):
+                self.assertIn('start',events)
+                return self.score(*args,**kwargs)
+            with patch('resume_evaluator.evaluator.model_capacity',side_effect=capacity):
+                evaluate(api,value,source,Path(directory),scorer)
+            self.assertEqual(events,['capacity','start'])
+
+    def test_busy_model_does_not_start_the_execution_timer(self):
+        from unittest.mock import Mock
+        from resume_evaluator.readiness import ModelBusy
+        with tempfile.TemporaryDirectory() as directory:
+            source,value,api=self.setup_case(directory)
+            api.progress=Mock()
+            with patch('resume_evaluator.evaluator.model_capacity',side_effect=ModelBusy()):
+                with self.assertRaises(RetryJob):evaluate(api,value,source,Path(directory),self.score)
+            api.progress.assert_not_called()

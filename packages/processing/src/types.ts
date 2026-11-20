@@ -7,6 +7,12 @@ export interface StoredFile {
   candidate_hint?: ExtractedPerson; target_resume_id?: string; target_updated_at?: string; assessment_cluster_ids?: string[];
 }
 export interface Job extends ProcessingCommand {
+  work_deadline?: string;
+  work_elapsed_ms?: number;
+  work_budget_ms?: number;
+  work_segment_started_at?: string;
+  work_run_id?: string;
+  retry_waiting_since?: string;
   created_at: string; started_at?: string; activity_at?: string; result?: ProcessingResult;
   result_id?: string; event_id?: string; confirmed?: boolean; applied?: boolean;
   receipt?: { candidate_id: string; resume_id: string; warning?: string };
@@ -14,6 +20,7 @@ export interface Job extends ProcessingCommand {
   evaluation_checkpoints?: { context: string; evaluations: EvaluationCheckpoint["evaluation"][] };
 }
 export interface Task {
+  timing_version?: 2;
   id: string; mode: ProcessingMode; owner: string; name: string; created_at: string; expires_at: string;
   deadline: string; finished_at?: string; deleted_at?: string; upload_deadline: string;
   status: "uploading" | "queued" | "processing" | "completed" | "partially_completed" | "failed";

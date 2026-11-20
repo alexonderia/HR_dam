@@ -51,8 +51,9 @@ class ExperienceContextTests(unittest.TestCase):
         requirement = "От 3 лет коммерческой разработки на Python и проектирование микросервисов"
         for status, credit in (("partial", .5), ("not_met", 0)):
             result = self.criterion(quote, [quote], requirement, status)
-            self.assertEqual(result["status"], status)
-            self.assertEqual(result["credit"], credit)
+            # v4: explicit denial of a required AND-part outranks numeric tenure.
+            self.assertEqual(result["status"], "not_met")
+            self.assertEqual(result["credit"], 0)
 
     def test_duration_punctuation_and_line_breaks(self):
         for duration, months in (("1 год, 3 месяца", 15), ("1 год и 5 месяцев", 17), ("1 год\n3 месяца", 15)):

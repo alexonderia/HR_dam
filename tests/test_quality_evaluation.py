@@ -41,6 +41,43 @@ class QualityMetricsTests(unittest.TestCase):
         predictions["synthetic-unit-test"]["rating"]["details"]["criteria"][0]["evidence"][0]["quote"] = "Java"
         self.assertEqual(quality.evaluate(labels, predictions)["invalid_citations"], 1)
 
+    def test_duplicate_missing_foreign_criteria_are_rejected(self):
+        for mutate in (lambda a:a.append(a[0]),lambda a:a.clear(),lambda a:a[0].update(id="foreign")):
+            labels,predictions=self.records()
+            mutate(predictions["synthetic-unit-test"]["rating"]["details"]["criteria"])
+            with self.assertRaises(ValueError):quality.evaluate(labels,predictions)
+
+    def test_unknown_is_included_in_accuracy_but_not_determined_accuracy(self):
+        labels,predictions=self.records()
+        report=quality.evaluate(labels,predictions)
+        self.assertEqual(report["determined_fraction"],0)
+        self.assertIsNone(report["determined_accuracy"])
+        self.assertEqual(report["confusion_matrix"],{"met":{"unknown":1}})
+        self.assertEqual(report["slices"]["all"]["criteria"],1)
+
+    def test_latency_sufficiency_and_failed_cases(self):
+        labels,predictions=self.records()
+        labels["synthetic-unit-test"]["rating"]["criteria"][0]["sufficient_citations"]=["SQL"]
+        predictions["synthetic-unit-test"]["latency_ms"]=1500
+        report=quality.evaluate(labels,predictions)
+        self.assertEqual(report["latency_ms"]["p95"],1500)
+        self.assertEqual(report["sufficient_citation_fraction"],1)
+        predictions["synthetic-unit-test"]={"error_code":"timeout","latency_ms":2000}
+        report=quality.evaluate(labels,predictions)
+        self.assertEqual(report["timeouts"],1)
+        self.assertEqual(report["evaluated_cases"],0)
+
+    def test_equivalent_variants_report_status_instability(self):
+        from copy import deepcopy
+        labels,predictions=self.records()
+        first=next(iter(labels))
+        labels[first]["invariance_group"]="same-facts"
+        labels["variant"]=deepcopy(labels[first]);labels["variant"]["case_id"]="variant"
+        predictions["variant"]=deepcopy(predictions[first])
+        predictions["variant"]["rating"]["details"]["criteria"][0]["status"]="met"
+        result=quality.evaluate(labels,predictions)
+        self.assertEqual(result["invariance"],{"groups":1,"groups_with_status_changes":1,"cases":2})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -46,9 +46,10 @@ export const evaluationCheckpointSchema = z.object({
   evaluation: evaluationSchema.refine(value => !!value.details, "Checkpoint requires verified evidence details."),
 }).strict();
 export const processingProgressSchema = z.object({
-  job_id: z.uuid(), attempt: z.number().int().positive(), status: z.literal("processing"),
+  job_id: z.uuid(), attempt: z.number().int().positive(), status: z.enum(["processing", "waiting_retry"]),
+  run_id: z.uuid().optional(),
   checkpoint: evaluationCheckpointSchema.optional(),
-}).strict();
+}).strict().refine(value => value.status !== "waiting_retry" || (!!value.run_id && !value.checkpoint), "A retry pause requires a run ID and cannot contain a checkpoint.");
 export const prepareResultSchema = z.object({
   status: z.literal("completed"), files: z.array(z.object({ file_id: z.uuid() }).strict()).min(1).max(200),
   errors: z.array(z.object({ path: z.string().max(1000), code: processingErrorSchema.shape.code,

@@ -6,18 +6,27 @@ import tempfile
 
 import pymupdf as fitz
 from docx import Document
+from docx.oxml.ns import qn
+from docx.text.paragraph import Paragraph
+from docx.table import Table
 from striprtf.striprtf import rtf_to_text
 
 
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
     """Извлекает текст из PDF."""
     try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        text = ""
-        for page in doc:
-            text += page.get_text()
-        doc.close()
-        return text.strip()
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+            pages = []
+            unread = []
+            for number, page in enumerate(doc, 1):
+                # Preserve the native layout order until a labelled column
+                # corpus demonstrates a better reading-order algorithm.
+                value = page.get_text()
+                if not value.strip():unread.append(number)
+                pages.append(value)
+            if unread:
+                raise ValueError("Не прочитаны страницы PDF: " + ", ".join(map(str,unread)) + ". Требуется OCR или ручная проверка.")
+            return "\f".join(pages).strip()
     except Exception as e:
         raise Exception(f"Ошибка при извлечении текста из PDF: {str(e)}")
 
@@ -27,12 +36,13 @@ def extract_text_from_docx_bytes(docx_bytes: bytes) -> str:
     try:
         doc = Document(BytesIO(docx_bytes))
         text = ""
-        for paragraph in doc.paragraphs:
-            if paragraph.text.strip():
-                text += paragraph.text + "\n"
-        for table in doc.tables:
-            for row in table.rows:
-                text += " | ".join(cell.text for cell in row.cells) + "\n"
+        for block in doc.element.body.iterchildren():
+            if block.tag==qn("w:p"):
+                paragraph=Paragraph(block,doc)
+                if paragraph.text.strip():text+=paragraph.text+"\n"
+            elif block.tag==qn("w:tbl"):
+                for row in Table(block,doc).rows:
+                    text+=" | ".join(cell.text for cell in row.cells)+"\n"
         return text.strip()
     except Exception as e:
         raise Exception(f"Ошибка при извлечении текста из DOCX: {str(e)}")

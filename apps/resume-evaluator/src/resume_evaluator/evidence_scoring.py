@@ -1,23 +1,26 @@
 """Проверка цитат и расчёт оценки по явной, версионированной формуле."""
 
+from resume_evaluator.proof_policy import education_met_supported, EDUCATION, valid_semantic_review,request_participation
+
 import hashlib
 import math
 import re
 from fractions import Fraction
 
 from resume_evaluator.rank_models import ProfileRequest
-from resume_evaluator.criteria import OPTIONAL_V3 as OPTIONAL, requirement_clauses_v3 as requirement_clauses
-from resume_evaluator.additional_evidence import additional_evidence_verdict
+from resume_evaluator.criteria_v5 import OPTIONAL_V5 as OPTIONAL, clauses_v5 as requirement_clauses, condition_v5 as condition_structure,requirement_list_v5 as requirement_list
+from resume_evaluator.policy_v5 import duration_scope,scope_matches,ambiguous_role_period,assertion_proof,education_proof,professional_basis,professional_context
+from resume_evaluator.proof_policy import proof_verdict, statements, experience_constraint, terms as proof_terms, matching as proof_matching
 from resume_evaluator.employment import verified_periods, union_months
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-POLICY_VERSION = "evidence-v3"
+POLICY_VERSION = "evidence-v5"
 CATEGORY_WEIGHTS = {"keyword": 40, "experience": 30, "education": 15, "additional": 15}
 STOP_PENALTY = 10
 MAX_STOP_PENALTY = 30
 NEGATIVE = re.compile(r"\b(?:нет|без|отсутств\w*|отказ\w*|не\s+(?:готов\w*|име\w*|владе\w*|зна\w*|работа\w*|использ\w*|уме\w*))\b", re.I)
-LEARNING = re.compile(r"\b(?:изучаю|изучает|учусь|прохожу\s+курс|прош[её]л\s+курс|курс\w*\s+по|начальн\w*|базов\w*)\b", re.I)
+LEARNING = re.compile(r"\b(?:изучаю|изучает|учусь|прохожу\s+курс|прош[её]л\s+курс|курс\w*\s+по|начальн\w*\s+уров\w*|начинающ\w*|базов\w*\s+уров\w*)\b", re.I)
 INTENTION = re.compile(r"\b(?:хотел\w*\s+бы|хочу|планирую|планирует|намерен\w*|желаю|мечтаю|интересует|ваканси\w*|требования\s+работодателя)\b", re.I)
 YEAR = r"(?:лет|года?|years?)"
 MONTH = r"(?:месяц\w*|months?)"
@@ -29,31 +32,18 @@ def normalized(text: str) -> str:
 
 
 def minimum_months(requirement: str) -> int | None:
-    text = normalized(requirement)
-    for word, number in {"одного": 1, "двух": 2, "трех": 3, "четырех": 4, "пяти": 5}.items():
-        text = re.sub(rf"\b{word}\b", str(number), text)
-    match = re.search(rf"(\d+)\s*(?:[-–—]\s*\d+\s*)?({YEAR}|{MONTH})\b", text)
-    if not match:
-        return None
-    value = int(match[1]) * (12 if re.fullmatch(YEAR, match[2]) else 1)
-    if re.fullmatch(YEAR, match[2]) and not re.search(r"[-–—]", match[0]):
-        months = re.match(rf"\s*[,и]?\s*(\d+)\s*{MONTH}\b", text[match.end():])
-        if months:
-            value += int(months[1])
-    return value if value > 0 else None
+    bounds=experience_constraint(requirement)
+    return bounds.get("minimum") if bounds and not bounds.get("ambiguous") else None
 
 
 def duration_months(text: str) -> int | None:
     """Принимает только явную длительность; календарный год не является стажем."""
-    match = re.search(rf"(?<!\d)(\d{{1,2}})\s*{YEAR}(?:\s*[,и]?\s*(\d{{1,2}})\s*{MONTH})?\b", normalized(text))
-    if match:
-        return int(match[1]) * 12 + int(match[2] or 0)
-    match = re.search(rf"(?<!\d)(\d{{1,3}})\s*{MONTH}\b", normalized(text))
-    return int(match[1]) if match else None
+    bounds=experience_constraint(text)
+    return bounds.get("minimum") if bounds and not bounds.get("ambiguous") and "maximum" not in bounds else None
 
 
-DURATION = re.compile(rf"(?<![\w])(\d{{1,3}})\s*{YEAR}(?:\s*[,и]?\s*(\d{{1,2}})\s*{MONTH})?\b|(?<![\w])(\d{{1,3}})\s*{MONTH}\b", re.I)
-WORK = re.compile(r"работ(?:а|ы|ал|ала|аю|ает|ать)|стаж|должност|разработ|программист|developer|engineer|менеджер|специалист|инженер|преподавател|репетитор|электромонтаж|бухгалтер|руководител|дизайнер|аналитик|продаж|тестиров|администратор", re.I)
+DURATION = re.compile(rf"(?<![\w.,])(\d{{1,3}}(?:[.,]\d+)?)\s*{YEAR}(?:\s*[,и]?\s*(\d{{1,2}})\s*{MONTH})?\b|(?<![\w.,])(\d{{1,3}}(?:[.,]\d+)?)\s*{MONTH}\b", re.I)
+WORK = re.compile(r"работ(?:а|ы|ал|ала|аю|ает|ать)|стаж|должност|разработ|программист|developer|engineer|менеджер|специалист|инженер|преподавател|репетитор|электромонтаж|бухгалтер|руководител|дизайнер|аналитик|продаж|тестиров|администратор|назнач|карьер|водител|бригад|начальник", re.I)
 NON_WORK = re.compile(r"возраст|мужчина|женщина|родил|рождени|обучени|уч[её]б|образован|колледж|университет|школ|возраст\s+компании|компании\s+\d", re.I)
 PERSONAL_AGE = re.compile(r"\byears?\s+old\b|\bage\b", re.I)
 COMPANY_AGE = re.compile(r"\bкомпани\w*\b[^.;\n]{0,120}\b(?:существу\w*|основан\w*|на\s+рынке)\b|\bкомпания\b[^.;\n]{0,120}\bработает\b", re.I)
@@ -132,29 +122,21 @@ def _relevant_work(requirement, context, *, complete=True):
         found = [bool(re.search(r"(?<!\w)" + re.escape(t) + r"(?!\w)", context)) for t in technologies]
         if not (any(found) if re.search(r"\bили\b|/", requirement) else all(found)):
             return False
-    families = ((r"разработ|программир", r"разработ|программист|developer|software"),
-                (r"продаж", r"продаж|sales"), (r"бухгалтер", r"бухгалтер|accountant"),
-                (r"преподав|обучени", r"преподав|учител|репетитор|teacher"))
-    for wanted, supported in families:
-        if re.search(wanted, requirement) and not re.search(supported, context):
-            return False
-    if complete and "микросервис" in requirement and not re.search(r"микросервис|microservice", context):
-        return False
     # For other specialities require a concrete shared term; a generic number
     # of years alone is acceptable only when no speciality was requested.
-    ignored = {"от", "до", "не", "менее", "более", "лет", "год", "года", "месяцев", "месяца", "месяц", "опыт", "опыта", "работы", "работа", "стаж", "стажа", "коммерческой", "коммерческий", "наличие", "на", "в", "и", "или", "с", "по", "трех", "двух", "одного", "четырех", "пяти"}
-    terms = [word for word in re.findall(r"[а-я]+", requirement) if word not in ignored and len(word) > 2]
-    return not terms or any(word[:6] in context for word in terms) or bool(technologies)
+    meaningful=[t for t in proof_terms(requirement) if t not in {"стаж","коммерческ","коммерческй","сфер"}]
+    return not meaningful or proof_matching(meaningful[-1],context)
 
 
-def relevant_durations(source, evidence, requirement, status="met"):
+def relevant_durations(source, evidence, requirement, status="met", scope=None):
     values = []
     for match in DURATION.finditer(source):
         if not any(item["start"] <= match.start() and match.end() <= item["end"] for item in evidence):
             continue
         context = _employment_context(source, match.start(), match.end())
-        if context and _relevant_work(requirement, context, complete=status == "met"):
-            values.append(int(match[1]) * 12 + int(match[2] or 0) if match[1] else int(match[3]))
+        if context and scope_matches(requirement,scope,context) and not ambiguous_role_period(requirement,scope,context):
+            value=duration_months(match[0])
+            if value is not None:values.append(value)
     return values
 
 
@@ -177,17 +159,23 @@ def compile_criteria(profile: ProfileRequest, cluster_requirements: str = "") ->
 
     def add(identifier, category, requirement, source):
         requirement = requirement.strip()
-        if requirement:
+        if experience_constraint(requirement) and re.search(r"опыт|стаж|работ|разработ",requirement,re.I) and not EDUCATION.search(requirement):category="experience"
+        if category=="education" and not EDUCATION.search(requirement) and re.search(r"опыт|стаж|работ|руковод|организац",requirement,re.I):category="experience"
+        origin={"source":source,"input_id":identifier,"text":requirement}
+        duplicate=next((c for c in criteria if normalized(c["requirement"]).rstrip(".!") == normalized(requirement).rstrip(".!") and c["optional"] == bool(OPTIONAL.search(requirement))),None)
+        if duplicate:
+            duplicate["origins"].append(origin)
+        elif requirement:
             criteria.append({"id": identifier, "category": category, "requirement": requirement,
-                             "source": source, "optional": bool(OPTIONAL.search(requirement)), "weight": 0})
+                             "source": source, "optional": bool(OPTIONAL.search(requirement)), "weight": 0,"origins":[origin],"condition":condition_structure(requirement),**({"experience_scope":duration_scope(requirement,profile) or {"role":profile.position_name,"anchors":list(dict.fromkeys(profile.keywords))}} if category=="experience" and (not experience_constraint(requirement) or duration_scope(requirement,profile) is not None) else {})})
 
     for index, item in enumerate(profile.keywords):
-        for part, keyword in enumerate(re.split(r"[,;\n]+", item)):
+        for part, keyword in enumerate(requirement_list(item)):
             add(f"keyword:{index}:{part}", "keyword", keyword, "keywords")
     for category in ("experience", "education"):
         text = getattr(profile, category) or ""
         # Optional qualifications must not turn the required degree into an optional criterion.
-        clauses = requirement_clauses(text) if OPTIONAL.search(text) else [text]
+        clauses = requirement_clauses(text)
         for index, clause in enumerate(clauses):
             add(f"{category}:{index}", category, clause, category)
     for source, text in (("profile_comment", profile.comment or ""), ("cluster_comment", cluster_requirements)):
@@ -232,12 +220,12 @@ def quote_evidence(source: str, quote: str) -> dict | None:
     return {"quote": source[start:end], "start": start, "end": end}
 
 
-def _skill_evidence(source: str, keyword: str) -> tuple[str, list[dict]]:
+def _skill_evidence(source: str, keyword: str, regions=None) -> tuple[str, list[dict]]:
     for conjunction, mode in ((r"\s+или\s+", "any"), (r"\s+и\s+", "all")):
         parts = re.split(conjunction, keyword, flags=re.I)
         if len(parts) <= 1:
             continue
-        values = [_skill_evidence(source, part.strip()) for part in parts]
+        values = [_skill_evidence(source, part.strip(), regions) for part in parts]
         statuses = [status for status, _ in values]
         if mode == "all":
             status = "not_met" if "not_met" in statuses else "met" if all(s == "met" for s in statuses) else "partial" if any(s in {"met", "partial"} for s in statuses) else "unknown"
@@ -253,16 +241,17 @@ def _skill_evidence(source: str, keyword: str) -> tuple[str, list[dict]]:
     for alias in aliases:
         pattern = r"(?<![\w])" + r"\s+".join(re.escape(word) for word in alias.split()) + r"(?![\w])"
         for match in re.finditer(pattern, source, re.I):
+            if regions is not None and not any(e["start"]<=match.start() and e["end"]>=match.end() for e in regions):
+                continue
             # Keep the surrounding statement so a quoted skill cannot hide its negation.
-            boundaries = list(STATEMENT_END.finditer(source))
-            start = max([source.rfind("\n", 0, match.start()) + 1] + [b.end() for b in boundaries if b.start() < match.start()])
-            ends = [source.find("\n", match.end())] + [b.start() for b in boundaries if b.start() >= match.end()]
-            end = min([e for e in ends if e >= 0] or [len(source)])
+            start,end,_=next(((a,b,t) for a,b,t in statements(source) if a<=match.start() and b>=match.end()),(match.start(),match.end(),match[0]))
             start, end = max(start, match.start() - 160), min(end, match.end() + 160)
             context = source[start:end].strip()
-            evidence = quote_evidence(source, context)
-            if evidence is None:
-                continue
+            left=start+len(source[start:end])-len(source[start:end].lstrip())
+            evidence = {"quote":context,"start":left,"end":left+len(context)}
+            parent=next((e for e in regions or [] if e["start"]<=evidence["start"] and e["end"]>=evidence["end"]),None)
+            if parent:
+                evidence.update({k:parent[k] for k in ("block_id","section","page") if k in parent})
             if INTENTION.search(context):
                 intentions.append(evidence)
                 continue
@@ -304,15 +293,35 @@ def verified_assessment_evidence(source, assessment):
     return evidence
 
 
-def _assess_criterion(criterion, assessment, source, assessment_date):
+def _assess_criterion(criterion, assessment, source, assessment_date,source_offset=0):
     status = assessment["status"] if assessment else "unknown"
     evidence = verified_assessment_evidence(source, assessment)
     reason = assessment.get("unknown_reason") if assessment else None
+    from resume_evaluator.repair_v5 import repair_assertion
+    if not (assessment or {}).get("semantic_review"):
+        status,evidence,repaired_reason=repair_assertion(criterion,assessment,source,evidence,source_offset)
+        reason=repaired_reason or reason
+    participation=request_participation(criterion["requirement"],[e["quote"] for e in evidence]) if criterion["category"] in {"keyword","additional","experience"} and not experience_constraint(criterion["requirement"]) and status in {"met","partial"} else None
+    if participation:status="partial"
+    review=None if participation else (assessment or {}).get("semantic_review")
+    semantic=valid_semantic_review(review,status,evidence)
+    if semantic and review.get("supported_text") and not assertion_proof(criterion["requirement"],review["status"],[review["supported_text"]],criterion["condition"],True):semantic=False
+    if review is not None and not semantic:
+        status="unknown"
+        reason="unverified_evidence"
     if status != "unknown" and not evidence:
         status = "unknown"
         reason = "unverified_evidence"
     if criterion["category"] == "keyword":
-        checked_status, checked_evidence = _skill_evidence(source, criterion["requirement"])
+        checked_status, checked_evidence = _skill_evidence(source, criterion["requirement"], evidence if assessment is not None else None)
+        # Literal entity lookup is only for names/tools. Duties are supported by
+        # the cited assertion, not a second global search for identical wording.
+        if proof_terms(criterion["requirement"]) and normalized(criterion["requirement"]) not in ALIASES and not re.fullmatch(r"[a-z0-9+# .:/-]+",criterion["requirement"],re.I) and re.search(r"[а-я]"," ".join(proof_terms(criterion["requirement"]))):
+            supported,why=(assertion_proof(criterion["requirement"],status,[e["quote"] for e in evidence],criterion["condition"],semantic),"unverified_evidence")
+            if assessment is not None and status!="unknown":
+                checked_status=status if supported else "unknown"
+                checked_evidence=evidence
+                if not supported:reason=why
         if assessment is None:
             status, evidence = checked_status, checked_evidence
         elif status != "unknown":
@@ -327,28 +336,36 @@ def _assess_criterion(criterion, assessment, source, assessment_date):
             # An explicit model unknown is never promoted by a keyword match.
     result = {**criterion, "status": status, "evidence": evidence, "credit": {"met": 1, "partial": .5}.get(status, 0)}
     if criterion["category"] == "additional" and status != "unknown":
-        supported, why = additional_evidence_verdict(criterion["requirement"], status, [e["quote"] for e in evidence])
+        supported, why = (assertion_proof(criterion["requirement"],status,[e["quote"] for e in evidence],criterion["condition"],semantic),"unverified_evidence")
         if not supported:
             result.update(status="unknown", credit=0)
             reason = why
     partial_reason = (assessment or {}).get("partial_reason") or "missing_parts"
     if criterion["category"] == "keyword" and status == "partial" and LEARNING.search(" ".join(e["quote"] for e in evidence)):
         partial_reason = "learning"
-    if criterion["category"] == "experience":
+    if criterion["category"] == "experience" and not experience_constraint(criterion["requirement"]):
+        if result["status"]!="unknown" and not assertion_proof(criterion["requirement"],result["status"],[e["quote"] for e in evidence],criterion["condition"],semantic):
+            result.update(status="unknown",credit=0);reason="unverified_evidence"
+    if criterion["category"] == "experience" and experience_constraint(criterion["requirement"]):
         technologies = [t.rstrip(".-") for t in re.findall(r"(?<!\w)[a-z][a-z0-9+#.-]*(?!\w)", normalized(criterion["requirement"]))]
-        denied = [_skill_evidence(source, technology) for technology in technologies]
+        denied = [_skill_evidence(source, technology, evidence) for technology in technologies]
         hard_noncompliance = bool(denied) and (all(s == "not_met" for s, _ in denied) if re.search(r"\bили\b", criterion["requirement"], re.I) else any(s == "not_met" for s, _ in denied))
+        hard_noncompliance = hard_noncompliance or bool(evidence) and proof_verdict(criterion["requirement"],"not_met",[e["quote"] for e in evidence])[0]
         if hard_noncompliance and status != "unknown":
             result.update(status="not_met", credit=0)
             for rejected, quotes in denied:
                 if rejected == "not_met":
                     evidence.extend(e for e in quotes if e not in evidence)
         required = minimum_months(criterion["requirement"])
-        observed = relevant_durations(source, evidence, criterion["requirement"], status)
+        scope=criterion.get("experience_scope")
+        observed = relevant_durations(source, evidence, criterion["requirement"], status,scope)
         periods, date_quotes = verified_periods(source, evidence, criterion["requirement"], assessment_date,
-            lambda requirement, block: bool(WORK.search(block)) and _relevant_work(requirement, block, complete=status == "met"),
+            lambda requirement, block: bool(WORK.search(block)) and scope_matches(requirement,scope,block) and not ambiguous_role_period(requirement,scope,block),
             lambda block: bool(NON_WORK.search(block) or PERSONAL_AGE.search(block) or COMPANY_AGE.search(block) or INTENTION.search(block)), duration_months)
         dated_months = union_months(periods)
+        if (observed or periods) and not hard_noncompliance and result["status"] in {"unknown","not_met"}:
+            result.update(status="met",credit=1)
+            status="met"
         if periods:
             observed.append(dated_months)
             for quote in date_quotes:
@@ -401,22 +418,31 @@ def _assess_criterion(criterion, assessment, source, assessment_date):
         if hard_noncompliance:
             result.pop("experience_months", None)
             result.pop("work_periods", None)
+        bounds=experience_constraint(criterion["requirement"])
+        if bounds:
+            result["experience_constraint"]=bounds
+            if bounds.get("ambiguous"):
+                result.update(status="unknown",credit=0);reason="ambiguous_requirement"
+            elif "maximum" in bounds and not hard_noncompliance:
+                if observed and result["status"]!="unknown":
+                    actual=max(observed)
+                    result["experience_months"]=actual
+                    if periods and dated_months>=actual:result["work_periods"]=periods
+                    excessive=actual>bounds["maximum"] or actual==bounds["maximum"] and not bounds.get("max_inclusive",True)
+                    if excessive:result.update(status="not_met",credit=0)
+                elif result["status"]!="unknown":
+                    result.update(status="unknown",credit=0);reason="not_relevant"
+            if bounds.get("minimum") is not None and not bounds.get("min_inclusive",True) and result.get("experience_months")==bounds["minimum"]:
+                result.update(status="not_met",credit=0)
         result["evidence"] = evidence
     if criterion["category"] == "education" and evidence:
-        required = normalized(criterion["requirement"])
-        education = normalized(" ".join(e["quote"] for e in evidence))
-        higher = bool(re.search(r"высшее|бакалавр|магистр|специалитет|bachelor|master", education))
-        secondary = bool(re.search(r"среднее|колледж|техникум", education))
-        if not re.search(r"образован|высшее|бакалавр|магистр|специалитет|bachelor|master|среднее|колледж|техникум|университет|институт|аспирант|mba", education):
-            result.update(status="unknown", credit=0)
-        # Handle the unambiguous degree-level case; a field of study still needs comparison.
-        if required in {"высшее", "высшее образование"}:
-            if higher:
-                result.update(status="met", credit=1)
-            elif secondary:
-                result.update(status="not_met", credit=0)
-            else:
-                result.update(status="unknown", credit=0)
+        if result["status"]!="unknown" and not education_proof(criterion["requirement"],result["status"],[e["quote"] for e in evidence],criterion["condition"]):
+            result.update(status="unknown",credit=0);reason="unverified_evidence"
+    if criterion["category"]=="experience" and not experience_constraint(criterion["requirement"]) and result["status"] in {"met","partial"}:
+        if not professional_context(criterion["requirement"],criterion.get("experience_scope"),[e["quote"] for e in evidence],criterion["condition"]):
+            result.update(status="unknown",credit=0);reason="not_relevant"
+    if criterion["condition"]["operator"]=="ambiguous":
+        result.update(status="unknown",credit=0);reason="ambiguous_requirement"
     result["possible_credit"] = result["credit"] if result["status"] != "unknown" else min(
         result["total_experience_months"] / result["required_months"], 1
     ) if result.get("required_months") and result.get("total_experience_months") is not None else 1
@@ -426,27 +452,39 @@ def _assess_criterion(criterion, assessment, source, assessment_date):
             if checked == "unknown" and quotes:
                 reason = "future_intent" if INTENTION.search(" ".join(e["quote"] for e in quotes)) else "not_stated" if re.search(r"\s(?:и|или)\s", criterion["requirement"], re.I) else "contradictory"
         result["unknown_reason"] = reason or "not_stated"
+    if participation and result["status"]=="partial":result.update(participation_only=True,confirmed_part=participation)
+    if semantic and result["status"] in {"met","partial"}:result["semantic_review"]=review
     if result["status"] == "partial":
         result["partial_reason"] = partial_reason
     return result
 
 
-def _content_tokens(text):
-    ignored = {"нет", "без", "не", "по", "на", "из", "от", "до", "за", "со", "во", "при", "опыт", "опыта", "наличие", "отсутствие", "кандидат", "кандидатов", "рассматриваем", "только", "работы", "лет", "года", "год"}
-    return {token[:6] for token in re.findall(r"[\w+#]+", normalized(text)) if len(token) >= 2 and token not in ignored}
+def same_condition(a,b):
+    a_bounds,b_bounds=experience_constraint(a),experience_constraint(b)
+    if set(proof_terms(a))!=set(proof_terms(b)):return False
+    if a_bounds==b_bounds:return True
+    if not a_bounds or not b_bounds:return False
+    for lower,upper in ((a_bounds,b_bounds),(b_bounds,a_bounds)):
+        if set(lower)=={"minimum","min_inclusive"} and set(upper)=={"maximum","max_inclusive"}:
+            if lower["minimum"]==upper["maximum"] and lower["min_inclusive"]!=upper["max_inclusive"]:return True
+    return False
 
 
-def _stop_supported(requirement, evidence, source):
-    text = " ".join(e["quote"] for e in evidence)
-    threshold = minimum_months(requirement)
-    if threshold and re.search(r"менее|недостат", requirement, re.I):
-        durations = relevant_durations(source, evidence, requirement)
-        return bool(durations) and max(durations) < threshold
-    if not _content_tokens(requirement).intersection(_content_tokens(text)):
-        return False
-    if NEGATIVE.search(requirement) and not NEGATIVE.search(text):
-        return False
-    return True
+
+def stop_supported(requirement, status, evidence, source,scope=None):
+    bounds=experience_constraint(requirement)
+    if bounds and not bounds.get("ambiguous"):
+        values=relevant_durations(source,evidence,requirement,scope=scope)
+        if not values:return False
+        def adverse(value):
+            lower="minimum" not in bounds or (value>=bounds["minimum"] if bounds.get("min_inclusive",True) else value>bounds["minimum"])
+            upper="maximum" not in bounds or (value<=bounds["maximum"] if bounds.get("max_inclusive",True) else value<bounds["maximum"])
+            return lower and upper
+        return all(adverse(v)==(status=="triggered") for v in values)
+    core=re.sub(r"^(?:нет|отсутствие|отсутствует|отказ\s+от|не\s+готов\w*\s+к)\s*", "",requirement,flags=re.I)
+    adverse=bool(NEGATIVE.search(requirement))
+    wanted_negative=(status=="triggered") == adverse
+    return proof_verdict(core,"not_met" if wanted_negative else "met",[e["quote"] for e in evidence])[0]
 
 
 def round_score(value):
@@ -517,12 +555,9 @@ def verify_and_score(parsed: dict, source: str, profile: ProfileRequest, cluster
         assessment = by_stop.get(identifier)
         status = assessment["status"] if assessment else "unknown"
         evidence = verified_assessment_evidence(source, assessment)
-        if status != "unknown" and not evidence or status == "triggered" and not _stop_supported(requirement, evidence, source):
+        if status != "unknown" and (not evidence or not stop_supported(requirement, status, evidence, source,duration_scope(requirement,profile))):
             status = "unknown"
-        duplicates = [c["id"] for c in checked if c["status"] in {"partial", "not_met"}
-                      and (_content_tokens(c["requirement"]).intersection(_content_tokens(requirement))
-                           or c["category"] == "experience" and c.get("required_months") is not None
-                           and c["required_months"] == minimum_months(requirement))]
+        duplicates = [c["id"] for c in checked if c["status"] in {"partial", "not_met"} and same_condition(c["requirement"],requirement)]
         key = normalized(requirement)
         penalty = STOP_PENALTY if status == "triggered" and not duplicates and key not in penalized else 0
         if penalty:
@@ -531,22 +566,31 @@ def verify_and_score(parsed: dict, source: str, profile: ProfileRequest, cluster
                       "penalty": penalty, "duplicates": duplicates,
                       **({"unknown_reason": (assessment or {}).get("unknown_reason") or "not_stated"} if status == "unknown" else {})})
     penalty = min(MAX_STOP_PENALTY, sum(s["penalty"] for s in stops))
+    basis=professional_basis(checked)
     points = sum(c["weight"] * c["credit"] for c in checked) / 100
     unknown = sum(c["weight"] * c["possible_credit"] for c in checked if c["status"] == "unknown") / 100
     coverage = round_score(sum(c["weight"] for c in checked if c["status"] != "unknown") / 100)
     score_range = {"min": round_score(points - penalty), "max": round_score(points + unknown - penalty)}
+    if basis["status"]=="unconfirmed":
+        score_range["min"]=0
+        if not any(not c["optional"] and c["category"]!="education" and c["status"]=="unknown" for c in checked):score_range["max"]=0
     if not any(c["weight"] for c in checked):
         score_range = {"min": 0, "max": 100}
     details = {"method": "evidence-v1", "policy_version": POLICY_VERSION, "policy_status": "provisional",
                "model": model, "assessment_date": assessment_date, "context_chunks": context_chunks,
                "source_text_sha256": hashlib.sha256(source.encode()).hexdigest(),
                "source_text_length": len(source), "context_truncated": context_truncated,
-               "criteria": checked, "stop_factors": stops, "coverage": coverage, "score_range": score_range,
-               "stop_penalty": penalty, "score_status": "insufficient_evidence" if not coverage else "evaluated"}
+               "criteria": checked, "stop_factors": stops,"professional_basis":basis, "coverage": coverage, "score_range": score_range,
+               "stop_penalty": penalty, "score_status": "not_defined" if not any(c["weight"] for c in checked) else "insufficient_evidence" if not coverage else "evaluated"}
+    general_periods,general_quotes=verified_periods(source,[{"start":0,"end":len(source)}],"",assessment_date,
+        lambda requirement,block:bool(WORK.search(block)),
+        lambda block:bool(NON_WORK.search(block) or PERSONAL_AGE.search(block) or COMPANY_AGE.search(block) or INTENTION.search(block)),duration_months)
+    if general_periods:
+        details.update(general_experience_months=union_months(general_periods),general_work_periods=general_periods,general_work_evidence=general_quotes)
     return {"score": score_range["min"],
             "matched_keywords": list(dict.fromkeys(c["requirement"] for c in checked if c["category"] == "keyword" and c["status"] in {"met", "partial"})),
             "triggered_stop_factors": list(dict.fromkeys(s["requirement"] for s in stops if s["status"] == "triggered")),
-            "explanation": _explanation(checked, stops, score_range, coverage, context_truncated), "details": details}
+            "explanation": ("Профессиональное соответствие не подтверждено. Общие сведения об образовании и стаже не повышают оценку.\n" if basis["status"]=="unconfirmed" else "") + ("Оценка не определена: нет обязательных условий.\n" if not any(c["weight"] for c in checked) else "") + _explanation(checked, stops, score_range, coverage, context_truncated), "details": details}
 
 
 def validate_rating_source(rating: dict, resume_text: str) -> None:
@@ -557,7 +601,7 @@ def validate_rating_source(rating: dict, resume_text: str) -> None:
     size = details["source_text_length"]
     if size > len(resume_text) or details["source_text_sha256"] != hashlib.sha256(resume_text[:size].encode()).hexdigest():
         raise ValueError("Источник подтверждений не совпадает с анализируемым резюме")
-    for item in details["criteria"] + details["stop_factors"]:
+    for item in details["criteria"] + details["stop_factors"] + [{"evidence":details.get("general_work_evidence",[])}]:
         for evidence in item["evidence"]:
             if not 0 <= evidence["start"] < evidence["end"] <= size or resume_text[evidence["start"]:evidence["end"]] != evidence["quote"]:
                 raise ValueError("Цитата не совпадает с исходным текстом резюме")

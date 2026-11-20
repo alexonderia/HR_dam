@@ -11,6 +11,8 @@ export interface ResumeImportItem {
   id: string; source_path: string; file_name: string; status: ImportItemStatus; attempt: number;
   error: string | null; warning: string | null; candidate_id: string | null; resume_id: string | null; updated_at: string;
   analysis_started_at?: string | null; analysis_duration_ms?: number | null;
+  waiting_for_retry?: boolean;
+  active_duration_ms?: number | null;
   profile_progress?: { completed: number; total: number };
   file_sha256?: string; candidate_hint?: ExtractedPerson; target_resume_id?: string;
 }

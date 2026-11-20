@@ -1,0 +1,155 @@
+[
+  {
+    "name": "scoped_negation",
+    "requirement": "Python",
+    "status": "met",
+    "quotes": [
+      "Не знаю SQL, но работаю с Python"
+    ],
+    "valid": true
+  },
+  {
+    "name": "manager_not_novice",
+    "requirement": "SQL",
+    "status": "met",
+    "quotes": [
+      "Начальник отдела, использую SQL ежедневно"
+    ],
+    "valid": true
+  },
+  {
+    "name": "requests_paraphrase",
+    "requirement": "заявки на ремонт техники",
+    "status": "met",
+    "quotes": [
+      "Составление и подача заявок на ремонт техники"
+    ],
+    "valid": true
+  },
+  {
+    "name": "transport_inflection",
+    "requirement": "контроль технического состояния транспорта",
+    "status": "met",
+    "quotes": [
+      "Контроль технического состояния транспортных средств и оборудования"
+    ],
+    "valid": true
+  },
+  {
+    "name": "documentation_inflection",
+    "requirement": "ведение сопроводительной документации",
+    "status": "met",
+    "quotes": [
+      "Ведение рабочей и сопроводительной документации"
+    ],
+    "valid": true
+  },
+  {
+    "name": "work_not_request",
+    "requirement": "самостоятельный ремонт техники",
+    "status": "met",
+    "quotes": [
+      "Составлял заявки на ремонт техники"
+    ],
+    "valid": false
+  },
+  {
+    "name": "commercial_qualifier",
+    "requirement": "Коммерческий опыт Python",
+    "status": "met",
+    "quotes": [
+      "Python."
+    ],
+    "valid": false
+  },
+  {
+    "name": "commercial_confirmed",
+    "requirement": "Коммерческий опыт Python",
+    "status": "met",
+    "quotes": [
+      "Коммерческий опыт Python — 2 года"
+    ],
+    "valid": true
+  },
+  {
+    "name": "code_not_warehouse",
+    "requirement": "контроль качества кода",
+    "status": "met",
+    "quotes": [
+      "Контроль качества складских отгрузок"
+    ],
+    "valid": false
+  },
+  {
+    "name": "intent_not_skill",
+    "requirement": "SQL",
+    "status": "met",
+    "quotes": [
+      "Хочу изучить SQL"
+    ],
+    "valid": false
+  },
+  {
+    "name": "all_not_any",
+    "requirement": "Python и SQL",
+    "status": "met",
+    "quotes": [
+      "Работаю с Python"
+    ],
+    "valid": false
+  },
+  {
+    "name": "any_is_sufficient",
+    "requirement": "Python или SQL",
+    "status": "met",
+    "quotes": [
+      "Работаю с Python"
+    ],
+    "valid": true
+  },
+  {
+    "name": "conflicting_evidence",
+    "requirement": "Python",
+    "status": "met",
+    "quotes": [
+      "Знаю Python. Не знаю Python."
+    ],
+    "valid": false
+  },
+  {
+    "name": "unrelated_denial",
+    "requirement": "транспорт",
+    "status": "not_met",
+    "quotes": [
+      "Работал в транспорте. Не владею Python."
+    ],
+    "valid": false
+  },
+  {
+    "name": "journal_not_full_responsibility",
+    "requirement": "охрана труда",
+    "status": "met",
+    "quotes": [
+      "Ведение журналов по охране труда"
+    ],
+    "valid": false
+  },
+  {
+    "name": "requests_partial_procurement",
+    "requirement": "Закупка запчастей и материалов",
+    "status": "partial",
+    "quotes": [
+      "Готовил заявки на закупку запчастей и материалов"
+    ],
+    "valid": true
+  },
+  {
+    "name": "commercial_partial",
+    "requirement": "Коммерческий опыт Python",
+    "status": "partial",
+    "quotes": [
+      "Python"
+    ],
+    "valid": true
+  }
+]
