@@ -116,7 +116,7 @@ export function ratingAnalysis(rating: ReportRating) {
     professionalNote: evidence?.professional_basis?.status === "unconfirmed" ? "Профессиональное соответствие не подтверждено. Образование и общий стаж сами по себе не повышают оценку этого профиля." : "",
     generalExperienceNote: evidence?.general_experience_months != null ? `Общий стаж по датам работы: ${formatExperienceDuration(evidence.general_experience_months)}. Стаж по профессии проверяется отдельно.` : "",
     policyNote: evidence?`Политика ${evidence.policy_version}. ${evidence.policy_status==="provisional"?"Методика проходит проверку.":""}`:"",
-    completeness: evidence ? `Определён статус по ${evidence.coverage}% веса условий. На уточнении: ${clarifications.length}. Это полнота сведений, а не точность оценки.`:"",
+    completeness: evidence ? `Требуют уточнения: ${clarifications.length}.`:"",
     reviewNote: evidence?.presentation_review?"Представление отчёта пересмотрено: неподтверждённые дополнительные выводы отозваны. Исходная запись сохранена; для актуальной оценки запустите новую проверку.":"",
     explanation: evidence ? explainEvidenceRating(evidence) : rating.explanation?.trim() || "Обоснование не указано.",
     legacyExplanation: evidence ? "" : rating.explanation || "Обработчик не предоставил пояснение." };

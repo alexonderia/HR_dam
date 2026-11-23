@@ -57,17 +57,13 @@ export function RatingAnalysis({ rating }: { rating: ReportRating }) {
   const legacyStops = evidence ? [] : rating.triggered_stop_factors || [];
   const hasTriggeredStops = legacyStops.length > 0 || stops.some(stop => stop.state === "triggered");
   const stopFindings = <RatingStops stops={stops} legacyStops={legacyStops} />;
-  const showRange = evidence && estimate && !estimate.insufficient && evidence.score_range.min !== evidence.score_range.max;
   const warning = evidence?.score_status==="not_defined"?"Оценка не определена: нет обязательных условий.":evidence?.context_truncated ? "Оценён только фрагмент резюме."
     : estimate?.insufficient ? "Недостаточно сведений для полной оценки." : "";
   const hasFindings = groups.some(group => group.items.length > 0) || skills.length > 0 || clarifications.length > 0;
-  if (!showRange && !warning && !legacyExplanation && !hasFindings && !hasTriggeredStops && !stops.length) return null;
+  if (!warning && !legacyExplanation && !hasFindings && !hasTriggeredStops && !stops.length) return null;
 
   return <SourceLocations.Provider value={evidence?[...evidence.criteria,...evidence.stop_factors].flatMap(c=>c.evidence):[]}><div className="rating-explanation rating-analysis">
-    {(showRange || warning) && <div className="rating-overview">
-      {showRange && <dl className="rating-metrics"><dt>{estimate.label}</dt><dd>{estimate.value} из 100</dd></dl>}
-      {warning && <p className="rating-metric-help">{warning}</p>}
-    </div>}
+    {warning && <div className="rating-overview"><p className="rating-metric-help">{warning}</p></div>}
     {evidence && <p className="af-caption">{policyNote} {completeness}</p>}
     {professionalNote && <p className="rating-metric-help">{professionalNote}</p>}
     {generalExperienceNote && <p className="af-caption">{generalExperienceNote}</p>}

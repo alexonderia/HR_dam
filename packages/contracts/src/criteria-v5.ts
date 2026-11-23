@@ -32,13 +32,24 @@ export function conditionStructureV5(text:string):{operator:'atomic'|'all'|'any'
  return {operator:any.length?'any':'all',parts};
 }
 export function requirementListV5(text:string):string[]{
+ text=text.trim();
  const result:string[]=[];
- for(const segment of text.split(/[;\n]+/u)){
-  if(!segment.trim())continue;
-  const parts=segment.split(',').map(s=>s.trim()).filter(Boolean);
-  const simple=(s:string)=>/^(?:\.?[a-z][a-z0-9+# .:/-]*|1[сc]:[\p{L}\p{N}_ -]+|[а-яё]+)$/iu.test(s);
-  const independent=(s:string)=>/^(?:нет|отсутствие|не\s+готов|опыт)\s+/iu.test(s);
-  result.push(...(parts.every(simple)||parts.every(independent)?parts:[segment.trim()]));
+ // A sentence-ending dot is a separator; dots in .NET and Python 3.12 are not.
+ const explicit=/[;\r\n]|\.(?=\s|;|$)/gu;
+ const boundaries=[...text.matchAll(explicit)];
+ const separators=boundaries.length?boundaries:[...text.matchAll(/(?<!\d),|,(?!\d)/gu)];
+ let start=0;
+ for(const match of separators){
+  const part=text.slice(start,match.index).trim();if(part)result.push(part);
+  start=match.index+match[0].length;
  }
+ const tail=text.slice(start).trim();if(tail)result.push(tail);
  return result;
+}
+
+// Arrays already carry item boundaries. Retain an explicit separator when a
+// saved comma-containing item is opened in the text editor, even if it is alone.
+export function requirementListTextV5(items:readonly string[]):string {
+ const text=items.join("\n");
+ return items.length===1&&items[0].includes(",")?text+";":text;
 }

@@ -27,8 +27,8 @@ export const processingErrorSchema = z.object({
 export const processingTargetSchema = z.object({
   id: z.uuid(), name: z.string().trim().min(1).max(300),
   education: z.string().max(10000), experience: z.string().max(10000),
-  keywords: z.array(z.string().trim().min(1).max(300)).max(100),
-  stop_factors: z.array(z.string().trim().min(1).max(300)).max(100), comment: z.string().max(10000),
+  keywords: z.array(z.string().trim().min(1)).max(100),
+  stop_factors: z.array(z.string().trim().min(1)).max(100), comment: z.string().max(10000),
   cluster_comment: z.string().max(10000).optional(),
 }).strict();
 export const guestCriteriaSchema = processingTargetSchema.omit({ id: true, cluster_comment: true }).strict();
@@ -38,8 +38,8 @@ export const evaluationSchema = z.object({
   criteria: z.array(z.object({ name: z.enum(["education", "experience", "keywords"]),
     status: z.enum(["matched", "partial", "not_matched", "unknown"]), explanation: z.string().max(10000),
   }).strict()).length(3).refine(a => new Set(a.map(c => c.name)).size === 3),
-  matched_keywords: z.array(z.string().max(300)).max(100),
-  triggered_stop_factors: z.array(z.string().max(300)).max(100), explanation: z.string().max(20000),
+  matched_keywords: z.array(z.string()).max(100),
+  triggered_stop_factors: z.array(z.string()).max(100), explanation: z.string().max(20000),
 }).strict();
 export const evaluationCheckpointSchema = z.object({
   context: z.string().regex(/^[a-f0-9]{64}$/),

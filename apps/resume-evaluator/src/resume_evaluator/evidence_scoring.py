@@ -8,7 +8,7 @@ import re
 from fractions import Fraction
 
 from resume_evaluator.rank_models import ProfileRequest
-from resume_evaluator.criteria_v5 import OPTIONAL_V5 as OPTIONAL, clauses_v5 as requirement_clauses, condition_v5 as condition_structure,requirement_list_v5 as requirement_list
+from resume_evaluator.criteria_v5 import OPTIONAL_V5 as OPTIONAL, clauses_v5 as requirement_clauses, condition_v5 as condition_structure
 from resume_evaluator.policy_v5 import duration_scope,scope_matches,ambiguous_role_period,assertion_proof,education_proof,professional_basis,professional_context
 from resume_evaluator.proof_policy import proof_verdict, statements, experience_constraint, terms as proof_terms, matching as proof_matching
 from resume_evaluator.employment import verified_periods, union_months
@@ -170,8 +170,9 @@ def compile_criteria(profile: ProfileRequest, cluster_requirements: str = "") ->
                              "source": source, "optional": bool(OPTIONAL.search(requirement)), "weight": 0,"origins":[origin],"condition":condition_structure(requirement),**({"experience_scope":duration_scope(requirement,profile) or {"role":profile.position_name,"anchors":list(dict.fromkeys(profile.keywords))}} if category=="experience" and (not experience_constraint(requirement) or duration_scope(requirement,profile) is not None) else {})})
 
     for index, item in enumerate(profile.keywords):
-        for part, keyword in enumerate(requirement_list(item)):
-            add(f"keyword:{index}:{part}", "keyword", keyword, "keywords")
+        # Item boundaries were chosen at input time; commas inside an item
+        # must survive compilation and retries unchanged.
+        add(f"keyword:{index}:0", "keyword", item, "keywords")
     for category in ("experience", "education"):
         text = getattr(profile, category) or ""
         # Optional qualifications must not turn the required degree into an optional criterion.
@@ -523,12 +524,9 @@ def _explanation(criteria, stops, score_range, coverage, truncated):
     unknown_stops = [s["requirement"] for s in stops if s["status"] == "unknown"]
     if unknown_stops:
         lines.append("Стоп-факторы требуют уточнения, штраф не применён: " + "; ".join(unknown_stops) + ".")
-    if truncated or not coverage or score_range['max'] - score_range['min'] > 20:
-        lines.append(f"Подтверждённая оценка: {score_range['min']:g} из 100. Недостаточно сведений для полной оценки. Баллы начислены только за подтверждённые требования. Уточните недостающие сведения — оценка может измениться.")
-    elif score_range['min'] == score_range['max']:
-        lines.append(f"Подтверждённая оценка: {score_range['min']:g} из 100.")
-    else:
-        lines.append(f"Диапазон оценки: {score_range['min']:g}–{score_range['max']:g} из 100.")
+    lines.append(f"Подтверждённая оценка: {score_range['min']:g} из 100.")
+    if truncated or not coverage or score_range['min'] != score_range['max']:
+        lines[-1] += " Недостаточно сведений для полной оценки. Баллы начислены за подтверждённые требования с учётом частичного соответствия. Уточните недостающие сведения — оценка может измениться."
     if truncated:
         lines.append("Оценён только фрагмент резюме из-за ограничения контекста; оставшиеся сведения требуют проверки.")
     return "\n".join(lines)

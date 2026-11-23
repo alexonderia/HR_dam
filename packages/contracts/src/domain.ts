@@ -105,8 +105,8 @@ export const profileSchema = z.object({
   position_name: z.string().trim().min(2).max(255),
   education: z.string().max(5000).default(""),
   experience: z.string().max(5000).default(""),
-  keywords: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
-  stop_factors: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
+  keywords: z.array(z.string().trim().min(1)).max(100).default([]),
+  stop_factors: z.array(z.string().trim().min(1)).max(100).default([]),
   comment: z.string().max(10000).default(""),
   is_active: z.boolean().default(true),
 });

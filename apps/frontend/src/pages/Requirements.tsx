@@ -1,4 +1,4 @@
-import {requirementListV5 as requirementList} from "@hr/contracts";
+import {requirementListV5 as requirementList, requirementListTextV5} from "@hr/contracts";
 import { RequirementPreview } from "../components/RequirementPreview";
 import { useState } from "react";
 import {
@@ -71,8 +71,8 @@ export function Requirements() {
           }
         : { ...newProfile, cluster_id: cluster.id },
     );
-    setKeywords(profile?.keywords?.join("\n") || "");
-    setStops(profile?.stop_factors?.join("\n") || "");
+    setKeywords(requirementListTextV5(profile?.keywords || []));
+    setStops(requirementListTextV5(profile?.stop_factors || []));
     setError("");
   };
   const split = (value: string) => [...new Set(requirementList(value))];
@@ -514,7 +514,7 @@ export function Requirements() {
               </Field>
               <Field
                 label="Ключевые слова"
-                hint="Разделяйте запятыми, точками с запятой или переносами строк."
+                hint="Разделяйте запятыми. Если есть точка, точка с запятой или перенос строки, разделение идёт по ним, а запятые сохраняются внутри пункта."
               >
                 <textarea
                   className="af-textarea"
@@ -526,7 +526,7 @@ export function Requirements() {
               </Field>
               <Field
                 label="Стоп-факторы"
-                hint="Разделяйте запятыми, точками с запятой или переносами строк."
+                hint="Разделяйте запятыми. Если есть точка, точка с запятой или перенос строки, разделение идёт по ним, а запятые сохраняются внутри пункта."
               >
                 <textarea
                   className="af-textarea"

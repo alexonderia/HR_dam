@@ -2,12 +2,13 @@ import {requirementListV5 as requirementList,ratingScoreValue} from "@hr/contrac
 import { RequirementPreview } from "../components/RequirementPreview";
 import { useEffect, useId, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronRight, Download, FileText, LoaderCircle, Paperclip, X } from "lucide-react";
-import { guestCriteriaSchema, type ProcessingResult, type AnalysisStatus } from "@hr/contracts";
+import { type ProcessingResult, type AnalysisStatus } from "@hr/contracts";
 import { Button, ErrorMessage, Framework, InfoHint, Score } from "../components/ui";
 import { RatingAnalysis } from "../components/RatingAnalysis";
 import { sessionApi } from "../lib/session-api";
 import { startPolling } from "../lib/polling";
 import { downloadReport } from "../lib/report-download";
+import { parseGuestCriteria } from "../lib/guest-criteria";
 
 interface Report { task_id: string; status: string; source_count: number; candidate_count: number; completed_count: number; expires_at: string;
   results: ({ file_id: string } & Extract<ProcessingResult, { evaluations: unknown }> )[];
@@ -87,8 +88,7 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
     }
     setBusy(true);
     try {
-      const criteria = guestCriteriaSchema.parse({ ...values, keywords: requirementList(values.keywords),
-        stop_factors: requirementList(values.stop_factors) });
+      const criteria = parseGuestCriteria(values);
       setStage("Подготовка отправки…");
       const hex = (data: ArrayBuffer) => Array.from(new Uint8Array(data), b => b.toString(16).padStart(2, "0")).join("");
       const descriptions = [];
@@ -122,7 +122,8 @@ export function Guest({ onLogin }: { onLogin: () => void }) {
           <div className="guest-field-heading"><label className="af-label" htmlFor={`${attachmentsId}-${key}`} id={`${attachmentsId}-${key}-label`}>{label}</label>
             <InfoHint id={`${attachmentsId}-${key}-help`} label={label}>{hint}</InfoHint></div>
           {key === "name" ? <input id={`${attachmentsId}-${key}`} className="af-input af-input--lg" name={key} aria-labelledby={`${attachmentsId}-${key}-label`} aria-describedby={`${attachmentsId}-${key}-help`} maxLength={300} required disabled={busy} value={values[key]} onChange={e => setValues({ ...values, [key]: e.target.value })} />
-            : <textarea id={`${attachmentsId}-${key}`} className="af-textarea" name={key} aria-labelledby={`${attachmentsId}-${key}-label`} aria-describedby={`${attachmentsId}-${key}-help`} rows={3} maxLength={10000} disabled={busy} value={values[key]} onChange={e => setValues({ ...values, [key]: e.target.value })} />}
+            : <textarea id={`${attachmentsId}-${key}`} className="af-textarea" name={key} aria-labelledby={`${attachmentsId}-${key}-label`} aria-describedby={`${attachmentsId}-${key}-help`} rows={3} maxLength={key === "keywords" || key === "stop_factors" ? undefined : 10000} disabled={busy} value={values[key]} onChange={e => setValues({ ...values, [key]: e.target.value })} />}
+          {(key === "keywords" || key === "stop_factors") && <p className="af-caption">До 100 пунктов. По умолчанию разделяются запятыми. Если есть точка, точка с запятой или перенос строки, разделение идёт по ним, а запятые сохраняются внутри пункта.</p>}
         </div>)}</div>
         <RequirementPreview profile={{...values,keywords:requirementList(values.keywords),stop_factors:requirementList(values.stop_factors)}} />
         <section className="guest-attachments" aria-labelledby={`${attachmentsId}-heading`}>

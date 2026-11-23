@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from resume_evaluator.evidence_scoring import compile_criteria, minimum_months, quote_evidence, verify_and_score
+from resume_evaluator.evidence_scoring import compile_criteria, minimum_months, quote_evidence, verify_and_score, _explanation
 from resume_evaluator.rank_models import ProfileRequest
 from resume_evaluator.scoring import rank_profile, parse_ranking_response
 from resume_evaluator.ollama_client import ModelResponseError
@@ -19,6 +19,14 @@ def assessment(identifier, quote, status="met"):
 
 
 class EvidenceScoringTests(unittest.TestCase):
+    def test_narrow_bounds_do_not_become_a_second_displayed_score(self):
+        explanation = _explanation([], [], {'min': 68.11, 'max': 85.75}, 82.36, False)
+        self.assertIn('Подтверждённая оценка: 68.11 из 100.', explanation)
+        self.assertIn('частичного соответствия', explanation)
+        self.assertNotIn('Диапазон', explanation)
+        self.assertNotIn('85.75', explanation)
+        self.assertNotIn('82.36', explanation)
+
     def profile(self, **kwargs):
         return ProfileRequest(id="profile", position_name="Developer", **kwargs)
 

@@ -1,4 +1,4 @@
-import {optionalRequirementV5,requirementClausesV5,conditionStructureV5,requirementListV5} from "./criteria-v5.js";
+import {optionalRequirementV5,requirementClausesV5,conditionStructureV5} from "./criteria-v5.js";
 import {durationScope,scopeMatches,ambiguousRolePeriod,assertionProof,educationProof,professionalBasis,professionalContext} from "./policy-v5.js";
 import { z } from "zod";
 import {conditionStructure,requirementList} from "./criteria.js";
@@ -65,7 +65,9 @@ export function compileRatingCriteria(profile: EvidenceProfile, clusterComment =
     if(duplicate){duplicate.origins!.push(origin);return;}
     criteria.push({ id, category, requirement, source, optional: preference.test(requirement), weight: 0,...(["evidence-v4","evidence-v5"].includes(version)?{origins:[origin],condition:(version==="evidence-v5"?conditionStructureV5(requirement):conditionStructure(requirement)) as NonNullable<CriterionInput["condition"]>,...(version==="evidence-v5"&&category==="experience"&&(!experienceConstraint(requirement)||durationScope(requirement,profile))?{experience_scope:durationScope(requirement,profile)||{role:profile.position_name||profile.name||"",anchors:[...new Set(profile.keywords||[])]}}:{})}:{}) });
   };
-  profile.keywords?.forEach((text, index) => (version==="evidence-v5"?requirementListV5(text):version==="evidence-v4"?requirementList(text):text.split(/[,;\n]+/u)).forEach((part, i) => add(`keyword:${index}:${i}`, "keyword", part, "keywords")));
+  // v5 arrays contain explicit items from the form/API. Splitting them again
+  // would destroy comma-containing conditions grouped by a newline or semicolon.
+  profile.keywords?.forEach((text, index) => (version==="evidence-v5"?[text]:version==="evidence-v4"?requirementList(text):text.split(/[,;\n]+/u)).forEach((part, i) => add(`keyword:${index}:${i}`, "keyword", part, "keywords")));
   for (const category of ["experience", "education"] as const) {
     const text = profile[category] || "";
     (["evidence-v4","evidence-v5"].includes(version)?clauses(text):preference.test(text) ? version !== "evidence-v1" ? clauses(text) : text.split(/[,;\n]+/u) : [text]).forEach((part, index) => add(`${category}:${index}`, category, part, category));

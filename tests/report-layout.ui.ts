@@ -47,7 +47,9 @@ try {
   await page.goto(process.env.TEST_BASE_URL || "http://localhost:3000");
   const first = page.locator(".guest-candidate").first();
   await expect(first.locator(".rating-rationale")).toHaveCount(0);
-  await expect(first.locator(".rating-metrics dd")).toHaveText("82–92 из 100");
+  await expect(first.locator(".rating-metrics")).toHaveCount(0);
+  await expect(first).not.toContainText("Диапазон оценки");
+  await expect(first).not.toContainText("90% веса");
   await expect(first.locator(".rating-finding--partial .rating-state")).toHaveText("Частичное соответствие");
   await expect(first.locator(".rating-finding").first()).toHaveClass(/rating-finding--partial/);
   const additional = first.locator(".rating-clarifications li").filter({ hasText: "Работа с высоконагруженными системами" });

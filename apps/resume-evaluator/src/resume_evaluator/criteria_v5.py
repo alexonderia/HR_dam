@@ -1,4 +1,4 @@
-"""Conservative, quote-aware clauses; commas inside prose are not conditions."""
+"""Quote-aware clauses and explicit delimiter priority for skills/stop lists."""
 import re
 from resume_evaluator.criteria import OPTIONAL_V4
 
@@ -69,11 +69,15 @@ def condition_v5(text):
 
 
 def requirement_list_v5(text):
-    result=[]
-    for segment in re.split(r'[;\n]+',text):
-        if not segment.strip():continue
-        parts=[p.strip() for p in segment.split(',') if p.strip()]
-        simple=lambda p:bool(re.fullmatch(r'\.?[a-z][a-z0-9+# .:/-]*|1[сc]:[\w -]+|[а-яё]+',p,re.I))
-        independent=lambda p:bool(re.match(r'^(?:нет|отсутствие|не\s+готов|опыт)\s+',p,re.I))
-        result.extend(parts if all(simple(p) for p in parts) or all(independent(p) for p in parts) else [segment.strip()])
+    text = text.strip()
+    # Mirror contracts: .NET/version dots are not sentence delimiters.
+    explicit = list(re.finditer(r'[;\r\n]|\.(?=\s|;|$)', text))
+    separators = explicit or list(re.finditer(r'(?<!\d),|,(?!\d)', text))
+    result, start = [], 0
+    for match in separators:
+        if text[start:match.start()].strip():
+            result.append(text[start:match.start()].strip())
+        start = match.end()
+    if text[start:].strip():
+        result.append(text[start:].strip())
     return result
